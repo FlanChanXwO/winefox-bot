@@ -10,10 +10,10 @@
     </parent>
 
     <groupId>com.github</groupId>
-    <artifactId>winefox-bot-shiro</artifactId>
+    <artifactId>winefox-bot</artifactId>
     <version>1.0.0</version>
 
-    <name>winefox-bot-shiro</name>
+    <name>winefox-bot</name>
 
 
     <properties>

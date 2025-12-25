@@ -30,23 +30,18 @@ jobs:
       - name: Build with Maven
         run: mvn -B package --file pom.xml
 
-      # 第四步：创建 Release 并上传 JAR 包
-      # 当你向 main 分支推送代码时，这会自动创建一个带日期的标签和 Release
-      # 并将 target 目录下的 JAR 包作为附件上传
+      # 获取当前日期时间并设置为环境变量
+      - name: Get current date
+        id: date # 给这个步骤一个ID，方便后面引用它的输出
+        run: echo "TODAY=$(date +'%Y.%m.%d.%H%M')" >> $GITHUB_ENV
+
+      # 创建 Release 并上传 JAR 包
       - name: Create Release and Upload Artifact
         uses: softprops/action-gh-release@v1
         with:
-          # 使用 `GITHUB_TOKEN`，这样 Actions 就有权限创建 Release
           token: ${{ secrets.GITHUB_TOKEN }}
-          # 自动生成一个基于日期的标签，例如 v2023.10.27.1
+          # 直接使用上一步设置的环境变量
           tag_name: v${{ env.TODAY }}
-          # Release 的名称
           name: Release ${{ env.TODAY }}
-          # Release 的描述内容
           body: "Automated release triggered by push to main."
-          # 将要上传的文件。路径通配符 (*) 很有用。
-          # !! 修改 'your-app-*.jar' 为你实际生成的 JAR 文件名 !!
-          files: target/your-app-*.jar
-        env:
-          # 创建一个日期环境变量，用于标签和 Release 名称
-          TODAY: ${{ format('{0:YYYY.MM.DD.HHmm}', github.event.repository.pushed_at || github.event.schedule) }}
+          files: target/winefox-bot-*.jar # !! 确保这里的文件名匹配你的项目 !!
