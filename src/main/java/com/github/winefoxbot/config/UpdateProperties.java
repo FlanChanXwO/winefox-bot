@@ -32,11 +32,6 @@ public class UpdateProperties {
     private String releaseTag = "latest";
 
     /**
-     * 存储当前应用 Release ID 的文件路径
-     */
-    private String versionFilePath = "current_release_id.txt";
-
-    /**
      * 当前正在运行的 JAR 文件的名称。用于自我替换。
      * Spring Boot 会自动找到它，但提供一个明确的名称更可靠。
      */

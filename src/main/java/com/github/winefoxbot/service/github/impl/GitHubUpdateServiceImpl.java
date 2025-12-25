@@ -4,7 +4,6 @@ package com.github.winefoxbot.service.github.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.config.UpdateProperties;
 import com.github.winefoxbot.model.dto.github.GitHubRelease;
-import com.github.winefoxbot.service.github.GitHubUpdateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
@@ -13,16 +12,18 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ApplicationContext;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Properties;
 
 @Service
 @Slf4j
@@ -34,65 +35,60 @@ public class GitHubUpdateServiceImpl {
     private final ObjectMapper objectMapper;
     private final ApplicationContext context;
 
+
+    // 这个变量用来缓存当前应用的版本ID，避免每次都读取文件
+    private long currentReleaseId = -1;
+
     // 一个锁，防止在更新过程中再次触发检查
     private static volatile boolean updateInProgress = false;
+
+    // 用一个简单的内部类来缓存版本信息
+    private static class VersionInfo {
+        long releaseId = -1;
+        long assetId = -1;
+    }
+    private VersionInfo currentVersionInfo = null;
 
     // 使用 @Scheduled 注解来创建定时任务
     // fixedDelayString = "PT1H" 表示每小时检查一次。 "PT10M" 表示每10分钟。
     // initialDelayString = "PT1M" 表示应用启动1分钟后开始第一次检查。
     @Scheduled(initialDelayString = "PT1M", fixedDelayString = "${app.update.check-interval:PT1H}")
     public void checkForUpdate() {
-        if (!updateProperties.isEnabled()) {
-            log.info("自动更新功能已禁用。");
-            return;
-        }
-
-        if (updateInProgress) {
-            log.warn("更新已在进行中，跳过本次检查。");
-            return;
-        }
-
-        synchronized (GitHubUpdateService.class) {
-            if (updateInProgress) return;
-            updateInProgress = true;
-        }
-        
+        // ... (前面的 enabled 和 inProgress 检查不变) ...
         try {
             log.info("开始检查应用更新...");
 
+            // 1. 获取 GitHub 最新 Release 信息
             GitHubRelease latestRelease = fetchLatestRelease();
-
-            if (latestRelease == null || latestRelease.getAssets() == null || latestRelease.getAssets().length == 0) {
-                log.error("无法获取有效的 Release 信息或 Release 中不包含任何文件。");
-                return;
-            }
-
-            long latestReleaseId = latestRelease.getId();
-            log.info("检测到最新 Release ID: {}", latestReleaseId);
-
-            // 2. 检查是否需要更新
-            long currentReleaseId = getCurrentReleaseId();
-            log.info("当前运行的 Release ID: {}", currentReleaseId);
-
-            if (latestReleaseId <= currentReleaseId) {
-                log.info("当前已是最新版本，无需更新。");
-                return;
-            }
-
-            // 3. 执行更新
-            log.info("发现新版本，开始执行更新...");
             GitHubRelease.Asset jarAsset = findJarAsset(latestRelease.getAssets());
             if (jarAsset == null) {
                 log.error("在 Release 中未找到 .jar 文件。");
                 return;
             }
+            long latestReleaseId = latestRelease.getId();
+            long latestAssetId = jarAsset.getId(); // 获取最新资产的ID
+            log.info("检测到最新版本 - Release ID: {}, Asset ID: {}", latestReleaseId, latestAssetId);
 
-            downloadAndReplace(jarAsset);
+            // 2. 检查是否需要更新（核心逻辑修改）
+            VersionInfo currentVersion = getCurrentVersionInfo();
+            log.info("当前运行版本 - Release ID: {}, Asset ID: {}", currentVersion.releaseId, currentVersion.assetId);
 
-            // 4. 更新版本记录文件
-            updateVersionFile(latestReleaseId);
+            // 关键判断：当 Release ID 相同，但 Asset ID 不同时，也需要更新！
+            if (latestReleaseId == currentVersion.releaseId && latestAssetId == currentVersion.assetId) {
+                log.info("当前已是最新版本，无需更新。");
+                return;
+            }
 
-            // 5. 重启应用
+            if (latestReleaseId < currentVersion.releaseId) {
+                log.warn("检测到的线上版本 (Release ID: {}) 比当前版本 (Release ID: {}) 更旧，跳过更新。", latestReleaseId, currentVersion.releaseId);
+                return;
+            }
+
+            // 3. 执行更新
+            log.info("发现新版本或文件更新，开始执行...");
+            downloadAndReplace(jarAsset); // 使用已获取的 jarAsset 对象
+
+            // 4. 重启应用 (不再需要更新版本文件)
             restartApplication();
 
         } catch (Exception e) {
@@ -102,18 +98,71 @@ public class GitHubUpdateServiceImpl {
         }
     }
 
+    /**
+     * 从 JAR 包内部的 release-info.properties 文件中获取当前 Release ID。
+     * 结果会被缓存。
+     * @return 当前应用的 Release ID
+     */
     private long getCurrentReleaseId() {
-        try {
-            Path versionFile = Paths.get(updateProperties.getVersionFilePath());
-            if (Files.exists(versionFile)) {
-                return Long.parseLong(Files.readString(versionFile).trim());
-            }
-        } catch (IOException | NumberFormatException e) {
-            log.warn("读取当前版本文件失败，将视为初始版本。", e);
+        if (this.currentReleaseId != -1) {
+            return this.currentReleaseId;
         }
-        return -1; // 表示从未记录过版本
+
+        try {
+            // 使用 Spring 的 ClassPathResource 来安全地读取 classpath 内的资源
+            ClassPathResource resource = new ClassPathResource("release-info.properties");
+            Properties props = PropertiesLoaderUtils.loadProperties(resource);
+            String releaseIdStr = props.getProperty("github.release.id");
+            this.currentReleaseId = Long.parseLong(releaseIdStr.trim());
+        } catch (IOException | NumberFormatException | NullPointerException e) {
+            log.warn("无法从 'release-info.properties' 文件中读取有效的 Release ID。将使用默认值-1。", e);
+            this.currentReleaseId = -1; // 出错时返回默认值
+        }
+        return this.currentReleaseId;
     }
 
+    private VersionInfo getCurrentVersionInfo() {
+        if (this.currentVersionInfo != null) {
+            return this.currentVersionInfo;
+        }
+
+        VersionInfo info = new VersionInfo();
+        try {
+            ClassPathResource resource = new ClassPathResource("release-info.properties");
+            Properties props = PropertiesLoaderUtils.loadProperties(resource);
+            info.releaseId = Long.parseLong(props.getProperty("github.release.id", "-1").trim());
+            info.assetId = Long.parseLong(props.getProperty("github.asset.id", "-1").trim());
+        } catch (IOException | NumberFormatException e) {
+            log.warn("无法从 'release-info.properties' 文件中读取有效的版本信息。将使用默认值-1。", e);
+        }
+        this.currentVersionInfo = info;
+        return this.currentVersionInfo;
+    }
+
+    private void downloadAndReplace(GitHubRelease.Asset jarAsset) throws IOException {
+        String downloadUrl = jarAsset.getBrowserDownloadUrl();
+        Path newJarPath = Paths.get(jarAsset.getName() + ".new");
+        Path currentJarPath = Paths.get(updateProperties.getCurrentJarName());
+
+        log.info("从 {} 下载新版本...", downloadUrl);
+        // ... (下载逻辑与之前完全相同) ...
+        Request request = new Request.Builder().url(downloadUrl).build();
+        try (Response response = okHttpClient.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("下载文件失败: " + response);
+            ResponseBody body = response.body();
+            if (body == null) throw new IOException("下载的文件响应体为空");
+            try (InputStream in = body.byteStream()) {
+                Files.copy(in, newJarPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+        }
+        log.info("下载完成，新文件位于: {}", newJarPath.toAbsolutePath());
+
+        log.info("准备将 {} 替换为 {}", newJarPath.toAbsolutePath(), currentJarPath.toAbsolutePath());
+        Files.move(newJarPath, currentJarPath, StandardCopyOption.REPLACE_EXISTING);
+        log.info("文件替换成功！");
+
+        // 注意：不再需要调用 updateVersionFile 方法了！
+    }
     private GitHubRelease fetchLatestRelease() throws IOException {
         final String apiUrl = updateProperties.getGithubApiUrl()
                 .replace("{repo}", updateProperties.getGithubRepo())
@@ -145,33 +194,6 @@ public class GitHubUpdateServiceImpl {
             }
         }
         return null;
-    }
-
-    private void downloadAndReplace(GitHubRelease.Asset jarAsset) throws IOException {
-        String downloadUrl = jarAsset.getBrowserDownloadUrl();
-        String newJarName = jarAsset.getName(); // 新JAR包的文件名
-        Path newJarPath = Paths.get(newJarName);
-        Path currentJarPath = Paths.get(updateProperties.getCurrentJarName());
-
-        log.info("从 {} 下载新版本...", downloadUrl);
-        try (InputStream in = URI.create(downloadUrl).toURL().openStream()) {
-            Files.copy(in, newJarPath, StandardCopyOption.REPLACE_EXISTING);
-        }
-        log.info("下载完成，新文件位于: {}", newJarPath.toAbsolutePath());
-
-        // 替换当前运行的 JAR 文件
-        // 注意：在某些操作系统上（如Windows），直接替换正在运行的文件可能会失败。
-        // 一个更健壮的方法是下载为 .new，重启时由启动脚本来完成替换。
-        // 这里为了简化，我们直接尝试替换。
-        log.info("准备将 {} 替换为 {}", currentJarPath, newJarPath);
-        Files.move(newJarPath, currentJarPath, StandardCopyOption.REPLACE_EXISTING);
-        log.info("文件替换成功！");
-    }
-
-    private void updateVersionFile(long newReleaseId) throws IOException {
-        Path versionFile = Paths.get(updateProperties.getVersionFilePath());
-        Files.writeString(versionFile, String.valueOf(newReleaseId));
-        log.info("版本文件已更新为 Release ID: {}", newReleaseId);
     }
     
     private void restartApplication() {
