@@ -1,8 +1,8 @@
 package com.github.winefoxbot.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.winefoxbot.model.dto.HelpDoc;
-import com.github.winefoxbot.model.dto.HelpSystemConfig;
+import com.github.winefoxbot.model.dto.helpdoc.HelpDoc;
+import com.github.winefoxbot.model.dto.helpdoc.HelpSystemConfig;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

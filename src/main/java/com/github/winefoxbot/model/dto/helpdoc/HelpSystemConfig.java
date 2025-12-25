@@ -1,4 +1,4 @@
-package com.github.winefoxbot.model.dto;// HelpSystemConfig.java
+package com.github.winefoxbot.model.dto.helpdoc;// HelpSystemConfig.java
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.Data;

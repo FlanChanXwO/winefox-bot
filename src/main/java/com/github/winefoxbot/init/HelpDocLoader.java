@@ -2,7 +2,7 @@ package com.github.winefoxbot.init;
 
 import com.github.winefoxbot.annotation.PluginFunction;
 import com.github.winefoxbot.config.HelpDocConfiguration;
-import com.github.winefoxbot.model.dto.HelpDoc;
+import com.github.winefoxbot.model.dto.helpdoc.HelpDoc;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.aop.support.AopUtils;

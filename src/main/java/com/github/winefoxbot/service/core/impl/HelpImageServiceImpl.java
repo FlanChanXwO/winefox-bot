@@ -2,7 +2,7 @@ package com.github.winefoxbot.service.core.impl;
 
 import com.github.winefoxbot.config.HelpDocConfiguration;
 import com.github.winefoxbot.init.HelpDocLoader;
-import com.github.winefoxbot.model.dto.HelpDoc;
+import com.github.winefoxbot.model.dto.helpdoc.HelpDoc;
 import com.github.winefoxbot.service.core.HelpImageService;
 import com.mortennobel.imagescaling.ResampleFilters;
 import com.mortennobel.imagescaling.ResampleOp;

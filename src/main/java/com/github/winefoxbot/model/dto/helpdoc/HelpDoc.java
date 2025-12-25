@@ -1,4 +1,4 @@
-package com.github.winefoxbot.model.dto;
+package com.github.winefoxbot.model.dto.helpdoc;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
