@@ -69,6 +69,8 @@ jobs:
           
           echo "Content of $PROPERTIES_FILE:"
           cat $PROPERTIES_FILE
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # ==================== 新步骤结束 ====================
 
