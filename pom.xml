@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.8</version>
+        <relativePath/> <!-- lookup parent from repository -->
+    </parent>
+
+    <groupId>com.github</groupId>
+    <artifactId>winefox-bot-shiro</artifactId>
+    <version>1.0.0</version>
+
+    <name>winefox-bot-shiro</name>
+
+
+    <properties>
+        <skipTests>true</skipTests>
+        <java.version>21</java.version>
+        <target.version>21</target.version>
+        <source.version>21</source.version>
+        <spring-ai.version>1.1.0</spring-ai.version>
+        <qq.bot.framework.version>2.5.0</qq.bot.framework.version>
+        <okhttp.version>4.12.0</okhttp.version>
+        <lombok.version>1.18.30</lombok.version>
+        <hutool.version>5.8.16</hutool.version>
+        <jsoup.version>1.21.2</jsoup.version>
+        <mybatis-plus.version>3.5.11</mybatis-plus.version>
+        <java-image-scaling.version>0.8.6</java-image-scaling.version>
+        <commons-io.version>2.14.0</commons-io.version>
+        <objenesis.version>3.3</objenesis.version>
+        <cron.utils.version>9.2.1</cron.utils.version>
+        <jobrunr.version>8.3.1</jobrunr.version>
+        <itextpdf.version>5.5.13.4</itextpdf.version>
+        <playwright.version>1.43.0</playwright.version>
+    </properties>
+    <dependencies>
+        <!-- spring web 依赖 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <!-- spring ai see https://www.spring-doc.cn/spring-ai/1.1.0/index.html  -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-deepseek</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-openai</artifactId>
+        </dependency>
+        <!-- hutool 工具库 -->
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+            <version>${hutool.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>32.1.2-jre</version> <!-- 可根据需要调整版本 -->
+        </dependency>
+
+        <!-- 图片缩放-->
+        <dependency>
+            <groupId>com.mortennobel</groupId>
+            <artifactId>java-image-scaling</artifactId>
+            <version>${java-image-scaling.version}</version>
+        </dependency>
+        <!-- 文件操作-->
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>${commons-io.version}</version> <!-- 请使用最新版本 -->
+        </dependency>
+        <dependency>
+            <!-- jsoup HTML parser library @ https://jsoup.org/ -->
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>${jsoup.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <!-- 切面编程依赖 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjrt</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjweaver</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.objenesis</groupId>
+            <artifactId>objenesis</artifactId>
+            <version>${objenesis.version}</version> <!-- Use a recent version -->
+        </dependency>
+        <!-- qq机器人框架依赖 -->
+        <dependency>
+            <groupId>com.mikuac</groupId>
+            <artifactId>shiro</artifactId>
+            <version>${qq.bot.framework.version}</version>
+        </dependency>
+        <!-- SQLite JDBC 驱动 -->
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+        </dependency>
+        <!-- PostgreSQL JDBC 驱动 -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
+
+        <!-- Flyway Core -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <!-- Flyway对PostgreSQL的额外支持 -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+        <!-- MyBatis-Plus 依赖 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <version>${mybatis-plus.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>${okhttp.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- 任务调度 -->
+        <!-- https://mvnrepository.com/artifact/org.jobrunr/jobrunr-spring-boot-3-starter -->
+        <dependency>
+            <groupId>org.jobrunr</groupId>
+            <artifactId>jobrunr-spring-boot-3-starter</artifactId>
+            <version>${jobrunr.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.cronutils</groupId>
+            <artifactId>cron-utils</artifactId>
+            <version>${cron.utils.version}</version>
+        </dependency>
+        <!-- pdf -->
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>itextpdf</artifactId>
+            <version>${itextpdf.version}</version>
+        </dependency>
+        <!-- 爬虫 -->
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+            <version>${playwright.version}</version> <!-- 建议使用最新版本 -->
+        </dependency>
+       <!-- test -->
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
+        </plugins>
+
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>**/*</include> <!-- 包含所有文件 -->
+                </includes>
+            </resource>
+        </resources>
+    </build>
+
+</project>

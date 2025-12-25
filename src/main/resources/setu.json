@@ -1,0 +1,108 @@
+{
+  "apis": [
+    {
+      "id": 1,
+      "category": "二次元",
+      "r18": false,
+      "url": "https://api.mtyqx.cn/tapi/random.php",
+      "description": "一般动漫图片",
+      "responseType": "image"
+    },
+    {
+      "id": 2,
+      "category": "二次元",
+      "r18": false,
+      "url": "https://sex.nyan.run/api/v2/img?num=1",
+      "description": "有时候尺度大",
+      "responseType": "image"
+    },
+    {
+      "id": 3,
+      "category": "二次元",
+      "r18": false,
+      "url": "https://api.lolicon.app/setu/v2?num=1&excludeAI=true",
+      "description": "还行,可以有R18选项但是发不出来",
+      "responseType": "json",
+      "jsonPath": "data.urls.original"
+    },
+    {
+      "id": 4,
+      "category": "二次元",
+      "r18": false,
+      "url": "https://api.lolimi.cn/API/dmt/api?type=json",
+      "description": "一般动漫图片",
+      "responseType": "json",
+      "jsonPath": "text"
+    },
+    {
+      "id": 5,
+      "category": "三次元",
+      "r18": false,
+      "url": "https://api.lolimi.cn/API/meinv/api.php?type=image",
+      "description": "一般",
+      "responseType": "image"
+    },
+    {
+      "id": 6,
+      "category": "三次元",
+      "r18": false,
+      "url": "https://api.lolimi.cn/API/meizi/api.php?type=image",
+      "description": "好像是腿图",
+      "responseType": "image"
+    },
+    {
+      "id": 7,
+      "category": "三次元",
+      "r18": false,
+      "url": "https://api.lolimi.cn/API/tup/xjj.php",
+      "description": "一般",
+      "responseType": "image"
+    },
+    {
+      "id": 8,
+      "category": "三次元",
+      "r18": false,
+      "url": "https://api.r10086.com/樱道随机图片api接口.php?图片系列=少女写真1&参数=json",
+      "description": "少女写真，一般吧",
+      "responseType": "json",
+      "jsonPath": "img"
+    },
+    {
+      "id": 9,
+      "category": "三次元",
+      "r18": false,
+      "url": "https://api.lolimi.cn/API/meinv/api.php?type=image",
+      "description": "妹子图，感觉不是很色",
+      "responseType": "image"
+    },
+    {
+      "id": 10,
+      "category": "二次元",
+      "r18": false,
+      "url": "https://www.dmoe.cc/random.php",
+      "description": "动漫随机图片，感觉不是很色",
+      "responseType": "image"
+    },
+    {
+      "id": 11,
+      "category": "二次元",
+      "r18": true,
+      "url": "https://sex.nyan.run/api/v2/img?num=1&r18=true",
+      "description": "r18版本",
+      "responseType": "image"
+    },
+    {
+      "id": 12,
+      "category": "二次元",
+      "r18": true,
+      "url": "https://api.lolicon.app/setu/v2?num=1&excludeAI=true&r18=1",
+      "description": "r18版本",
+      "responseType": "json",
+      "jsonPath": "data.urls.original"
+    }
+  ],
+  "categories": [
+    "二次元",
+    "三次元"
+  ]
+}

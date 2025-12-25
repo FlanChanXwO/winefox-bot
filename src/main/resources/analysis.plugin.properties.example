@@ -1,0 +1,20 @@
+# 插件是否启用
+enable=true
+# B站 Cookie，用于获取需要登录的数据，比如说专栏和动态
+cookie=
+# 是否跳过视频信息分析总结
+skipVideoAnalysis=false
+# 是否在分析结果中显示图片
+analysisDisplayImage=true
+# 对于视频类型，是否发送视频资源
+analysisVideoSend=true
+# 视频时长限制（秒），超过该时长的视频不进行分析，0 或负数表示不限制
+durationSecLimit=600
+# 临时文件存放路径
+tmpPath=data/bili_temp
+# 图片尺寸参数（例如 "640x360"）
+imagesSize=
+# 封面图片尺寸参数
+coverImagesSize=
+# 重新分析时间间隔（秒）
+reanalysisTimeSeconds=3

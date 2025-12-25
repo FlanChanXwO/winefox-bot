@@ -1,0 +1,52 @@
+# GitHub Actions 工作流的名称
+name: Java CI/CD with Maven
+
+# 触发条件：当代码被推送到 main 分支时触发
+on:
+  push:
+    branches: [ "main" ]
+
+# 定义工作流中的任务
+jobs:
+  build_and_release:
+    # 任务运行的虚拟环境
+    runs-on: ubuntu-latest
+
+    steps:
+      # 第一步：检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 第二步：设置 JDK 17 (根据你的项目需求修改版本)
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven # 缓存 Maven 依赖，加快构建速度
+
+      # 第三步：使用 Maven 构建项目
+      # 这会编译代码、运行测试并打包成 JAR 文件
+      - name: Build with Maven
+        run: mvn -B package --file pom.xml
+
+      # 第四步：创建 Release 并上传 JAR 包
+      # 当你向 main 分支推送代码时，这会自动创建一个带日期的标签和 Release
+      # 并将 target 目录下的 JAR 包作为附件上传
+      - name: Create Release and Upload Artifact
+        uses: softprops/action-gh-release@v1
+        with:
+          # 使用 `GITHUB_TOKEN`，这样 Actions 就有权限创建 Release
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # 自动生成一个基于日期的标签，例如 v2023.10.27.1
+          tag_name: v${{ env.TODAY }}
+          # Release 的名称
+          name: Release ${{ env.TODAY }}
+          # Release 的描述内容
+          body: "Automated release triggered by push to main."
+          # 将要上传的文件。路径通配符 (*) 很有用。
+          # !! 修改 'your-app-*.jar' 为你实际生成的 JAR 文件名 !!
+          files: target/your-app-*.jar
+        env:
+          # 创建一个日期环境变量，用于标签和 Release 名称
+          TODAY: ${{ format('{0:YYYY.MM.DD.HHmm}', github.event.repository.pushed_at || github.event.schedule) }}

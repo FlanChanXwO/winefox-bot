@@ -1,0 +1,40 @@
+{
+  "welcome": [
+    {
+      "text": "哎呀，是新的群友呀！欢迎欢迎，{username}",
+      "picture": "templates/welcome-pictures/1.jpg"
+    },
+    {
+      "text": "哼嗯~？是生面孔呢。欢迎，{username}。",
+      "picture": "templates/welcome-pictures/2.jpg"
+    },
+    {
+      "text": "哇~ 新的伙伴 {username} 出现了，让我们一起冒险吧！",
+      "picture": "templates/welcome-pictures/3.jpg"
+    }
+  ],
+  "farewell": [
+    {
+      "text": "{username} 的背影渐行渐远…祝好喔",
+      "picture": "templates/farewell-pictures/1.jpg"
+    },
+    {
+      "text": "{username} 离开了，群里似乎少了一点欢声笑语。",
+      "picture": "templates/farewell-pictures/2.jpg"
+    },
+    {
+      "text": "唔……{username} 走掉了。风有点凉呢",
+      "picture": "templates/farewell-pictures/3.jpg"
+    }
+  ],
+  "master-stop": [
+    {
+      "text": "呀，被你发现了个禁区~ 不过这条指令只有主人才能用啦。想试试的话，先去抱抱主人的大腿吧♡",
+      "picture": "templates/stop-pictures/1.jpg"
+    },
+    {
+      "text": "哼，这可是主人才能用的指令，你现在可还没资格！想用的话……先去让主人给你开权限再说吧。",
+      "picture": "templates/stop-pictures/1.jpg"
+    }
+  ]
+}
