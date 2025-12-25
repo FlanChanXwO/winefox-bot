@@ -6,42 +6,38 @@ on:
   push:
     branches: [ "main" ]
 
-# 定义工作流中的任务
 jobs:
   build_and_release:
-    # 任务运行的虚拟环境
     runs-on: ubuntu-latest
-
     steps:
-      # 第一步：检出代码
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 第二步：设置 JDK 17 (根据你的项目需求修改版本)
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: maven # 缓存 Maven 依赖，加快构建速度
+          cache: maven
 
-      # 第三步：使用 Maven 构建项目
-      # 这会编译代码、运行测试并打包成 JAR 文件
       - name: Build with Maven
         run: mvn -B package --file pom.xml
 
-      # 获取当前日期时间并设置为环境变量
-      - name: Get current date
-        id: date # 给这个步骤一个ID，方便后面引用它的输出
-        run: echo "TODAY=$(date +'%Y.%m.%d.%H%M')" >> $GITHUB_ENV
-
-      # 创建 Release 并上传 JAR 包
-      - name: Create Release and Upload Artifact
+      - name: Create or Update 'latest' Release
         uses: softprops/action-gh-release@v1
         with:
+          # 使用 GITHUB_TOKEN，这样 Actions 就有权限操作 Release
           token: ${{ secrets.GITHUB_TOKEN }}
-          # 直接使用上一步设置的环境变量
-          tag_name: v${{ env.TODAY }}
-          name: Release ${{ env.TODAY }}
-          body: "Automated release triggered by push to main."
-          files: target/winefox-bot-*.jar # !! 确保这里的文件名匹配你的项目 !!
+          # 固定的标签名
+          tag_name: latest
+          # Release 标题，包含 commit hash 以便区分
+          name: Latest Build (${{ github.sha }})
+          # 详细的描述信息
+          body: |
+            Automated build from commit ${{ github.sha }}.
+            Timestamp: ${{ github.event.head_commit.timestamp }}
+          # 关键！允许更新已存在的 Release
+          allow_updates: true
+          # 上传的文件，请确保路径和文件名正确
+          # 例如：target/your-app-1.0.0.jar
+          files: target/winefox-bot-*.jar
