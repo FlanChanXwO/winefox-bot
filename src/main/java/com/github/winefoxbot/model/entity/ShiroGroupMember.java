@@ -1,6 +1,10 @@
 package com.github.winefoxbot.model.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.github.winefoxbot.model.enums.GroupMemberRole;
+import com.github.winefoxbot.model.type.GenericEnumTypeHandler;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -28,8 +32,15 @@ public class ShiroGroupMember {
     private String memberNickname;
 
     /**
+     * 成員角色
+     */
+    @TableField(value = "role", typeHandler = GenericEnumTypeHandler.class)
+    private GroupMemberRole role;
+
+    /**
      * 最後更新時間
      */
+    @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime lastUpdated;
 
 }

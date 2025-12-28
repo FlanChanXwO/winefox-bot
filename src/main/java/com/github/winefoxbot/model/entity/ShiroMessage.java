@@ -1,10 +1,7 @@
 package com.github.winefoxbot.model.entity;
 
 import cn.hutool.json.JSONArray;
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.*;
 import com.github.winefoxbot.model.type.PGJsonTypeHandler;
 import lombok.Data;
 
@@ -31,6 +28,7 @@ public class ShiroMessage {
     /**
      * 訊息時間
      */
+    @TableField(fill = FieldFill.INSERT)
     private LocalDateTime time;
 
     /**

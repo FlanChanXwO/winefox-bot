@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.winefoxbot.config.WineFoxBotConfig;
 import com.github.winefoxbot.model.entity.ShiroMessage;
+import com.github.winefoxbot.model.entity.ShiroUserMessage;
 import com.github.winefoxbot.service.ai.DeepSeekService;
 import com.github.winefoxbot.service.shiro.ShiroMessagesService;
 import com.github.winefoxbot.utils.BotUtils;
@@ -24,6 +25,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -39,7 +41,7 @@ public class DeepSeekiServiceImpl implements DeepSeekService {
     private final WineFoxBotConfig wineFoxBotConfig;
     private final ShiroMessagesService shiroMessagesService;
     private final ObjectMapper objectMapper;
-
+    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final int CONTEXT_READ_LIMIT = 200;
 
     /**
@@ -51,9 +53,9 @@ public class DeepSeekiServiceImpl implements DeepSeekService {
         List<Message> messages = new ArrayList<>();
         messages.add(new SystemMessage(wineFoxBotConfig.getSystemPrompt()));
 
-        List<ShiroMessage> history = shiroMessagesService.findLatestMessagesForContext(sessionId, sessionType, CONTEXT_READ_LIMIT);
+        List<ShiroUserMessage> history = shiroMessagesService.findLatestMessagesForContext(sessionId, sessionType, CONTEXT_READ_LIMIT);
         for (int i = history.size() - 1; i >= 0; i--) {
-            ShiroMessage shiroMsg = history.get(i);
+            ShiroUserMessage shiroMsg = history.get(i);
             try {
                 String filteredText = BotUtils.getFilteredTextMessage(JSONUtil.toJsonStr(shiroMsg.getMessage()));
 
@@ -64,12 +66,16 @@ public class DeepSeekiServiceImpl implements DeepSeekService {
 
                 messageForAI.put("sender", senderRole);
                 messageForAI.put("uid", shiroMsg.getUserId());
-                messageForAI.put("nickname", isBotMessage ? "酒狐" : shiroMsg.getUserId().toString());
-                boolean isMaster = wineFoxBotConfig.getMaster().equals(Long.valueOf(shiroMsg.getUserId()));
+                messageForAI.put("nickname", isBotMessage ? "酒狐" : (shiroMsg.getCard() != null ? shiroMsg.getCard() : shiroMsg.getNickname()));
+                boolean isMaster = wineFoxBotConfig.getSuperusers().contains(shiroMsg.getUserId());
                 messageForAI.put("isMaster", isMaster);
+                messageForAI.put("time", formatter.format(shiroMsg.getTime()));
                 messageForAI.put("message", filteredText);
 
+
                 String finalJsonForAI = objectMapper.writeValueAsString(messageForAI);
+
+                System.out.println(finalJsonForAI);
 
                 if (isBotMessage) {
                     messages.add(new AssistantMessage(finalJsonForAI));
@@ -109,7 +115,7 @@ public class DeepSeekiServiceImpl implements DeepSeekService {
         Long sessionId = isGroup ? groupId : userId;
         String sessionType = isGroup ? "group" : "private";
 
-        String nickname = isGroup ? BotUtils.getGroupMemberNickname(bot, groupId, userId, false) : BotUtils.getUserNickname(bot, userId);
+        String nickname = isGroup ? BotUtils.getGroupMemberNickname(bot, groupId, userId) : BotUtils.getUserNickname(bot, userId);
         boolean shouldPokeBack = Math.random() < 0.5; // Simplified 50% chance
 
 
@@ -119,8 +125,7 @@ public class DeepSeekiServiceImpl implements DeepSeekService {
         pokeJson.put("uid", String.valueOf(userId));
         pokeJson.put("nickname", nickname);
         pokeJson.put("message", shouldPokeBack ? "(酒狐被戳了，并决定反击！)" : "(戳了一下酒狐)");
-        pokeJson.put("isMaster", wineFoxBotConfig.getMaster().equals(userId));
-        pokeJson.put("voice", false);
+        pokeJson.put("isMaster", wineFoxBotConfig.getSuperusers().contains(userId));
 
         try {
             // 回击

@@ -3,6 +3,7 @@ package com.github.winefoxbot.plugins;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.winefoxbot.annotation.PluginFunction;
+import com.github.winefoxbot.model.enums.Permission;
 import com.github.winefoxbot.service.ai.DeepSeekService;
 import com.mikuac.shiro.annotation.GroupMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
@@ -28,7 +29,9 @@ public class KeywordTriggerPlugin {
     private final DeepSeekService deepSeekService;
     private final ObjectMapper objectMapper;
 
-    @PluginFunction(group = "聊天功能", name = "关键词触发回复", description = "当关键词在群聊中被多次提及时，触发 AI 生成符合人设的回复。", permission = "普通用户")
+    @PluginFunction(group = "聊天功能", name = "关键词触发回复", description = "当关键词在群聊中被多次提及时，触发 AI 生成符合人设的回复。",
+            permission = Permission.USER
+    )
     @GroupMessageHandler
     @MessageHandlerFilter(at = AtEnum.NOT_NEED, cmd = "(小?酒狐).*")
     public void handleMessage(Bot bot, GroupMessageEvent event) {

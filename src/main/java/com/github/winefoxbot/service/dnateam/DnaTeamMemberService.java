@@ -1,7 +1,7 @@
 package com.github.winefoxbot.service.dnateam;
 
-import com.github.winefoxbot.model.entity.DnaTeamMember;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.github.winefoxbot.model.entity.DnaTeamMember;
 
 /**
 * @author FlanChan

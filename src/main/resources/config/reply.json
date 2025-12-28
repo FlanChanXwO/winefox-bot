@@ -1,0 +1,63 @@
+{
+  "welcome": [
+    {
+      "text": "哎呀，是新的群友呀！欢迎欢迎，{username}",
+      "picture": "images/reply/welcome_1.jpg"
+    },
+    {
+      "text": "哼嗯~？是生面孔呢。欢迎，{username}。",
+      "picture": "images/reply/welcome_2.jpg"
+    },
+    {
+      "text": "哇~ 新的伙伴 {username} 出现了，让我们一起冒险吧！",
+      "picture": "images/reply/welcome_3.jpg"
+    }
+  ],
+  "farewell": [
+    {
+      "text": "{username} 的背影渐行渐远…祝好喔",
+      "picture": "images/reply/farewell_1.jpg"
+    },
+    {
+      "text": "{username} 离开了，群里似乎少了一点欢声笑语。",
+      "picture": "images/reply/farewell_2.jpg"
+    },
+    {
+      "text": "唔……{username} 走掉了。风有点凉呢",
+      "picture": "images/reply/farewell_3.jpg"
+    }
+  ],
+  "stop": [
+    {
+      "text": "呀，被你发现了个禁区~ 不过这条指令只有主人才能用啦。想试试的话，先去抱抱主人的大腿吧♡",
+      "picture": "images/reply/stop_1.jpg"
+    },
+    {
+      "text": "哼，这可是主人才能用的指令，你现在可还没资格！想用的话……先去让主人给你开权限再说吧。",
+      "picture": "images/reply/stop_1.jpg"
+    }
+  ],
+  "enter": [
+    {
+      "text": "主人主人~！酒狐摇着尾巴来啦！今天也要努力服侍主人哦~",
+      "picture": "images/reply/enter_1.jpeg"
+    }
+  ],
+  "promote": [
+    {
+      "text": "诶？这个是...给酒狐的吗？呜哇！谢谢主人！酒狐会更加努力的！",
+      "picture": "images/reply/promote_1.jpeg"
+    }
+  ],
+  "demote": [
+    {
+      "text": "呜...是酒狐哪里做得不够好吗...主人...对不起...酒狐会改正的...",
+      "picture": "images/reply/demote_1.jpeg"
+    }
+  ],
+  "kick": [
+    {
+      "text": "坏孩子，不许捣乱！看酒狐的大尾巴攻击——！呼..."
+    }
+  ]
+}

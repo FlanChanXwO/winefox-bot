@@ -56,7 +56,7 @@ public class DnaTeamServiceImpl extends ServiceImpl<DnaTeamMapper, DnaTeam>
         leader.setTeamId(team.getId());
         leader.setUserId(userId);
         leader.setRole(1);
-        leader.setJoinedAt(new Date());
+        leader.setJoinedAt(LocalDateTime.now());
         teamMemberMapper.insert(leader);
 
         return DnaTeamCreateResult.ok(team.getId());
@@ -112,7 +112,7 @@ public class DnaTeamServiceImpl extends ServiceImpl<DnaTeamMapper, DnaTeam>
         member.setTeamId(team.getId());
         member.setUserId(userId);
         member.setRole(0);
-        member.setJoinedAt(new Date());
+        member.setJoinedAt(LocalDateTime.now());
         teamMemberMapper.insert(member);
 
         team.setMemberCount(team.getMemberCount() + 1);
@@ -150,7 +150,7 @@ public class DnaTeamServiceImpl extends ServiceImpl<DnaTeamMapper, DnaTeam>
         member.setTeamId(team.getId());
         member.setUserId(userId);
         member.setRole(0);
-        member.setJoinedAt(new Date());
+        member.setJoinedAt(LocalDateTime.now());
         teamMemberMapper.insert(member);
 
         team.setMemberCount(team.getMemberCount() + 1);

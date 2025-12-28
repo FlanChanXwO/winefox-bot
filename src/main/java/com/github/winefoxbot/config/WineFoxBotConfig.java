@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -23,32 +22,18 @@ public class WineFoxBotConfig {
     /**
      * 机器人主人QQ号
      */
-    private Long master;
+    private List<Long> superusers = new ArrayList<>();
     /**
      * 机器人昵称QQ号
      */
     private List<Long> bot = new ArrayList<>();
+
     /**
      * 系统提示词
      */
     private String systemPrompt;
-    /**
-     * 允许使用机器人的群组列表
-     */
-    private List<Long> allowGroups = new ArrayList<>();
 
-    /**
-     * 拦截的命令列表（支持正则表达式）
-     */
-    private List<String> blockCommands = new ArrayList<>();
-
-    /**
-     * 管理员用户列表 (QQ号)
-     */
-    private List<Long> adminUsers = new ArrayList<>();
-
-    private String testPath;
-
+    public final static String COMMAND_PREFIX_REGEX = "/";
 
     @PostConstruct
     public void loadSystemPrompt() throws IOException {
@@ -59,19 +44,5 @@ public class WineFoxBotConfig {
                 .collect(Collectors.joining(","));
         systemPromptTemplate = systemPromptTemplate.replace("{bot_uids}", result);
         this.systemPrompt = systemPromptTemplate;
-    }
-
-    /**
-     * 匹配拦截命令
-     * @param command
-     * @return
-     */
-    public boolean matchBlockCommand(String command) {
-        for (String pattern : blockCommands) {
-            if (Pattern.matches(pattern, command)) {
-                return true;
-            }
-        }
-        return false;
     }
 }

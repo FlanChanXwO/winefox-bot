@@ -1,7 +1,8 @@
 package com.github.winefoxbot.plugins;
 
 import cn.hutool.core.collection.ConcurrentHashSet;
-import com.github.winefoxbot.config.WineFoxBotConfig;
+import com.github.winefoxbot.annotation.PluginFunction;
+import com.github.winefoxbot.model.enums.Permission;
 import com.github.winefoxbot.service.core.DomainAllowListService;
 import com.mikuac.shiro.annotation.GroupMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
@@ -40,7 +41,6 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class IllegalLinkBlockPlugin {
 
-    private final WineFoxBotConfig wineFoxBotConfig;
 
     // 定义违规次数重置的冷却时间（单位：分钟）
     private static final long VIOLATION_RESET_MINUTES = 5;
@@ -56,20 +56,16 @@ public class IllegalLinkBlockPlugin {
 
     // Key: 用户QQ号 (Long), Value: 违规记录对象 (ViolationRecord)
     private final Map<Long, ViolationRecord> violationTracker = new ConcurrentHashMap<>();
-
     private final DomainAllowListService domainAllowListService;
 
     private final Set<Long> enableIllegalLinkBlockGroups = new ConcurrentHashSet<>();
 
+    @PluginFunction(group =  "链接拦截" ,name = "非法链接拦截器",
+            permission = Permission.ADMIN,
+            description = "拦截群内发送的非法链接，支持渐进式惩罚和冷却重置。管理员可通过命令启用或禁用该功能。")
     @GroupMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/启用链接拦截$")
     public void enableIllegalLinkBlockInGroup(Bot bot, GroupMessageEvent event) {
-        Long userId = event.getSender().getUserId();
-        List<Long> adminUsers = wineFoxBotConfig.getAdminUsers();
-        if (!adminUsers.isEmpty() && !adminUsers.contains(userId)) {
-            return; // 仅允许管理员启用该功能
-        }
-
         Long groupId = event.getGroupId();
         if (enableIllegalLinkBlockGroups.add(groupId)) {
             bot.sendGroupMsg(groupId, "已启用链接拦截功能。", false);
@@ -80,15 +76,12 @@ public class IllegalLinkBlockPlugin {
         }
     }
 
+    @PluginFunction(group =  "链接拦截" ,name = "非法链接拦截器",
+            permission = Permission.ADMIN,
+            description = "拦截群内发送的非法链接，支持渐进式惩罚和冷却重置。管理员可通过命令启用或禁用该功能。")
     @GroupMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/禁用链接拦截$")
     public void disableIllegalLinkBlockInGroup(Bot bot, GroupMessageEvent event) {
-        Long userId = event.getSender().getUserId();
-        List<Long> adminUsers = wineFoxBotConfig.getAdminUsers();
-        if (!adminUsers.isEmpty() && !adminUsers.contains(userId)) {
-            return; // 仅允许管理员启用该功能
-        }
-
         Long groupId = event.getGroupId();
         if (enableIllegalLinkBlockGroups.remove(groupId)) {
             bot.sendGroupMsg(groupId, "已禁用链接拦截功能。", false);
@@ -176,13 +169,11 @@ public class IllegalLinkBlockPlugin {
         // --- 根据新的违规次数决定惩罚措施 ---
         int muteDurationMinus = 0;
         String reasonMessage = null;
-        boolean notifyAdmin = false;
         boolean muted = false;
 
         if (newViolationCount >= 3) {
             muteDurationMinus = 1; // 第三次及以上，禁言1分钟
             reasonMessage = String.format("用户 %s(%d) 在%d分钟内第 %d 次发送违规链接，禁言%d分钟并通知管理员！", event.getSender().getNickname(), userId, VIOLATION_RESET_MINUTES, newViolationCount, muteDurationMinus);
-            notifyAdmin = true;
             muted = true;
         }
 
@@ -200,26 +191,6 @@ public class IllegalLinkBlockPlugin {
                 // 3. 在群里发送通知
                 bot.sendGroupMsg(event.getGroupId(), reasonMessage, false);
             }
-        }
-
-        // 3. 如果需要，通知管理员
-        if (notifyAdmin) {
-            List<Long> adminUsers = wineFoxBotConfig.getAdminUsers();
-            if (!adminUsers.isEmpty()) {
-                for (Long adminUser : adminUsers) {
-                    String adminNotification = String.format(
-                            "管理员请注意！\n群组: %d (%s)\n用户: %s(%d)\n多次发送违规链接(%s)，已被自动禁言%d分钟。",
-                            event.getGroupId(),
-                            bot.getGroupInfo(event.getGroupId(), true).getData().getGroupName(), // 尝试获取群名，增加可读性
-                            event.getSender().getNickname(),
-                            userId,
-                            illegalHost,
-                            muteDurationMinus
-                    );
-                    bot.sendPrivateMsg(adminUser, adminNotification, false);
-                }
-            }
-
         }
     }
 

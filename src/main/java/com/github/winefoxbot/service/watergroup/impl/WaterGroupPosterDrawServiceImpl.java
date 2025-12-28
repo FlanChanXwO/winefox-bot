@@ -14,6 +14,7 @@ import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.ScreenshotScale;
+import com.microsoft.playwright.options.WaitUntilState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -28,11 +29,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -150,8 +147,8 @@ public class WaterGroupPosterDrawServiceImpl implements WaterGroupPosterDrawServ
 
             Page page = browser.newPage();
             page.setViewportSize(800, 100); // 初始视口可以小一点，后面会根据内容自适应
-            page.setContent(html);
-
+            page.setContent(html, new Page.SetContentOptions()
+                    .setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
             // 获取 poster 元素的高度，并设置为视口高度，确保截图完整
             int height = (int) page.locator(".poster").boundingBox().height;
             page.setViewportSize(800, height);

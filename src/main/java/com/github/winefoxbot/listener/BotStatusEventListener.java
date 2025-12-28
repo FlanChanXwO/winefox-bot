@@ -22,7 +22,9 @@ public class BotStatusEventListener extends CoreEvent {
         // 客户端上线事件
         // 例如上线后发送消息给指定的群或好友
         // 如需获取上线的机器人账号可以调用 bot.getSelfId()
-        bot.sendPrivateMsg(wineFoxBotConfig.getMaster(), "我上线啦～", false);
+        for (Long superuser : wineFoxBotConfig.getSuperusers()) {
+            bot.sendPrivateMsg(superuser, "我上线啦～", false);
+        }
     }
 
     @Override

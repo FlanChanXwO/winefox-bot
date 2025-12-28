@@ -1,12 +1,17 @@
 package com.github.winefoxbot.utils;
 
 import com.github.winefoxbot.model.dto.MessageSegment;
+import com.github.winefoxbot.model.dto.shiro.GroupMemberInfo;
+import com.github.winefoxbot.model.enums.GroupMemberRole;
 import com.google.gson.*;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.action.common.ActionData;
 import com.mikuac.shiro.dto.action.response.GroupInfoResp;
 import com.mikuac.shiro.dto.action.response.GroupMemberInfoResp;
 import com.mikuac.shiro.dto.action.response.StrangerInfoResp;
+import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
+import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
+import com.mikuac.shiro.dto.event.message.PrivateMessageEvent;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -31,18 +36,66 @@ public final class BotUtils {
      * @param userId
      * @return
      */
-    public static String getGroupMemberNickname(Bot bot, Long groupId, Long userId, boolean isStrange) {
+    public static String getGroupMemberNickname(Bot bot, Long groupId, Long userId) {
         // 如果是陌生人，使用陌生人信息接口获取昵称
-        if (groupId == null || isStrange) {
+        if (groupId == null) {
             return getUserNickname(bot, userId);
         } else {
             // 否则使用群成员信息接口获取昵称
-            ActionData<GroupMemberInfoResp> groupMemberInfo = bot.getGroupMemberInfo(groupId, userId, true);
+            ActionData<GroupMemberInfoResp> groupMemberInfo = bot.getGroupMemberInfo(groupId, userId, false);
             if (groupMemberInfo.getRetCode() == 0) {
-                return groupMemberInfo.getData().getNickname();
+                String card = groupMemberInfo.getData().getCard();
+                return card.isBlank() ? groupMemberInfo.getData().getNickname() : card;
+            } else {
+                return getUserNickname(bot, userId);
             }
         }
-        return userId.toString();
+    }
+
+
+    /**
+     * 获取陌生人昵称
+     *
+     * @param bot
+     * @param userId
+     * @return
+     */
+    public static String getStrangeNickname(Bot bot, Long userId) {
+        return getUserNickname(bot,userId);
+    }
+
+
+    /**
+     * 获取群成员昵称
+     *
+     * @param bot
+     * @param groupId
+     * @param userId
+     * @return
+     */
+    public static GroupMemberInfo getGroupMemberInfo(Bot bot, Long groupId, Long userId) {
+        GroupMemberInfo groupMember = new GroupMemberInfo();
+        groupMember.setUserId(userId);
+        groupMember.setGroupId(groupId);
+
+        ActionData<GroupMemberInfoResp> groupMemberInfo = bot.getGroupMemberInfo(groupId, userId, false);
+        if (groupMemberInfo.getRetCode() == 0) {
+            GroupMemberInfoResp data = groupMemberInfo.getData();
+            groupMember.setNickname(data.getNickname());
+            groupMember.setCard(data.getCard());
+            groupMember.setRole(GroupMemberRole.fromValue(data.getRole()));
+        } else {
+            ActionData<StrangerInfoResp> strangerInfo = bot.getStrangerInfo(userId, false);
+            if (strangerInfo.getRetCode() == 0) {
+                StrangerInfoResp data = strangerInfo.getData();
+                groupMember.setNickname(data.getNickname());
+                groupMember.setCard(data.getNickname());
+            } else {
+                groupMember.setNickname(userId.toString());
+                groupMember.setCard(userId.toString());
+            }
+        }
+        return groupMember;
     }
 
 
@@ -192,5 +245,26 @@ public final class BotUtils {
             return resp.getData().getNickname();
         }
         return resp.getRetCode() == 0 ? resp.getData().getNickname() : userId.toString();
+    }
+
+    public static boolean isAdmin(Bot bot, Long groupId, Long botId) {
+        ActionData<GroupMemberInfoResp> groupMemberInfoResp = bot.getGroupMemberInfo(groupId, botId, true);
+        if (groupMemberInfoResp.getRetCode() == 0) {
+            String role = groupMemberInfoResp.getData().getRole();
+            return "admin".equals(role);
+        }
+        return false;
+    }
+
+    public static Long getSessionId(AnyMessageEvent event) {
+        return event.getGroupId() != null ? event.getGroupId() : event.getUserId();
+    }
+
+    public static Long getSessionId(GroupMessageEvent event) {
+        return event.getGroupId();
+    }
+
+    public static Long getSessionId(PrivateMessageEvent event) {
+        return event.getUserId();
     }
 }

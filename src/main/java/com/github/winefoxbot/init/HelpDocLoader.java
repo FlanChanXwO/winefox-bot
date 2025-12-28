@@ -70,7 +70,7 @@ public class HelpDocLoader {
                             annotation.group(),
                             annotation.name(),
                             annotation.description(),
-                            annotation.permission(),
+                            annotation.permission().getApplicableRolesDescription(),
                             List.of(annotation.commands())
                     );
                     addDoc(doc);

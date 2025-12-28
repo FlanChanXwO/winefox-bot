@@ -9,10 +9,10 @@ import org.aspectj.lang.annotation.Pointcut;
 import org.objenesis.Objenesis;
 import org.objenesis.ObjenesisStd;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
 import org.springframework.cglib.proxy.Callback;
 import org.springframework.cglib.proxy.Enhancer;
 import org.springframework.cglib.proxy.Factory;
+import org.springframework.context.ApplicationContext;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 

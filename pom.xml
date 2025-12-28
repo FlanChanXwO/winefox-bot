@@ -43,6 +43,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <!-- 使用 Spring Boot Parent 管理版本，或自行指定最新版本 -->
+        </dependency>
         <!-- spring ai see https://www.spring-doc.cn/spring-ai/1.1.0/index.html  -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
@@ -57,6 +62,11 @@
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-all</artifactId>
             <version>${hutool.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <!-- 版本号最好与你项目中的 jackson-databind 一致 -->
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
@@ -209,6 +219,9 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
+                    <jvmArguments>
+                        --add-opens java.base/sun.reflect.annotation=ALL-UNNAMED
+                    </jvmArguments>
                 </configuration>
             </plugin>
 

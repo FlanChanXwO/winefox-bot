@@ -1,0 +1,34 @@
+spring:
+  application:
+    name: wine-fox-bot-app
+  threads:
+    virtual:
+      enabled: true
+  cache:
+    type: caffeine # 指定缓存类型为 caffeine
+    caffeine:
+      spec: > # 使用 spec 字符串进行详细配置
+        maximumSize=500,
+        expireAfterWrite=10m
+shiro:
+  task-pool:
+    enable-task-pool: false
+  ws:
+    server:
+      url: /ws/shiro
+      enable: true
+    client:
+      reconnect-interval: 5
+  interceptor: com.github.winefoxbot.aop.interceptor.BotReceiveMsgInterceptor
+jobrunr:
+  background-job-server:
+    enabled: true
+    thread-type: virtualthreads
+    poll-interval-in-seconds: 5
+  job-scheduler:
+    enabled: true
+  dashboard:
+    enabled: true
+    port: 8000
+  jobs:
+    default-number-of-retries: 3

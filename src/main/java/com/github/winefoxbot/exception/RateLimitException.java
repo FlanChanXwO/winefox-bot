@@ -1,7 +1,6 @@
 package com.github.winefoxbot.exception;
 
 import com.mikuac.shiro.core.Bot;
-// 导入通用的 MessageEvent
 import com.mikuac.shiro.dto.event.message.MessageEvent;
 import lombok.Getter;
 

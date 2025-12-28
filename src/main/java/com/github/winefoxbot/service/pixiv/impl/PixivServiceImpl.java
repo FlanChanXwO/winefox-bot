@@ -6,7 +6,7 @@ import com.github.winefoxbot.config.PixivConfig;
 import com.github.winefoxbot.exception.PixivR18Exception;
 import com.github.winefoxbot.model.dto.pixiv.PixivDetail;
 import com.github.winefoxbot.service.pixiv.PixivService;
-import jakarta.annotation.PreDestroy; // 如果你使用 Spring Boot 2.x, 请改为 import javax.annotation.PreDestroy;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;

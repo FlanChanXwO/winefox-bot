@@ -1,9 +1,9 @@
 package com.github.winefoxbot.service.core.impl;
 
 import com.github.winefoxbot.service.core.DomainAllowListService;
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.AntPathMatcher;
@@ -14,44 +14,64 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
+@Lazy
 public class DomainAllowListServiceImpl implements DomainAllowListService {
 
     // 从 classpath 读取我们的白名单文件
     @Value("classpath:allow-domain-list.txt")
     private Resource allowListResource;
 
-    // 使用线程安全的列表，适用于读多写少的场景
     private final List<String> allowedPatterns = new CopyOnWriteArrayList<>();
-
-    // Spring 内置的通配符匹配器，完美支持 '*'
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
+    private final AtomicBoolean initialized = new AtomicBoolean(false);
+
 
     /**
-     * 在 Bean 初始化后执行，用于加载白名单文件。
+     * 确保白名单已经从文件中加载。
+     * 使用双重检查锁定（DCL）模式来保证只加载一次。
      */
-    @PostConstruct
-    public void loadAllowList() {
+    private void ensureLoaded() {
+        // 第一次检查，非阻塞，性能高
+        if (!initialized.get()) {
+            // 使用 synchronized 块保证只有一个线程可以执行加载操作
+            synchronized (this) {
+                // 第二次检查，防止其他线程已在此期间完成加载
+                if (!initialized.get()) {
+                    loadAllowList();
+                    initialized.set(true); // 设置标志位，表示已加载
+                }
+            }
+        }
+    }
+
+    /**
+     * 实际加载白名单文件的方法。
+     * 注意：此方法现在是私有的，并且不再有 @PostConstruct 注解。
+     */
+    private void loadAllowList() {
         if (!allowListResource.exists()) {
             log.warn("域名白名单文件 'allow-domain-list.txt' 不存在，将允许所有域名。");
             return;
         }
 
+        log.info("首次需要，开始加载域名白名单...");
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(allowListResource.getInputStream(), StandardCharsets.UTF_8))) {
             List<String> patterns = reader.lines()
-                    .map(String::trim) // 去除首尾空格
-                    .filter(line -> !line.isEmpty() && !line.startsWith("#")) // 忽略空行和注释行
+                    .map(String::trim)
+                    .filter(line -> !line.isEmpty() && !line.startsWith("#"))
                     .collect(Collectors.toList());
-            
+
             allowedPatterns.addAll(patterns);
-            log.info("成功加载 {} 条域名白名单规则。", allowedPatterns.size());
+            log.info("成功懒加载 {} 条域名白名单规则。", allowedPatterns.size());
 
         } catch (IOException e) {
-            log.error("加载域名白名单文件失败！", e);
-            // 可以在这里决定是否启动失败
+            log.error("懒加载域名白名单文件失败！", e);
+            // 抛出异常或采取其他错误处理措施
         }
     }
 
@@ -63,6 +83,8 @@ public class DomainAllowListServiceImpl implements DomainAllowListService {
      */
     @Override
     public boolean isDomainAllowed(String domain) {
+        ensureLoaded();
+
         if (domain == null || domain.trim().isEmpty()) {
             return false;
         }

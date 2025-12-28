@@ -6,6 +6,7 @@ import com.github.winefoxbot.annotation.Block;
 import com.github.winefoxbot.annotation.Limit;
 import com.github.winefoxbot.annotation.PluginFunction;
 import com.github.winefoxbot.config.WineFoxBotConfig;
+import com.github.winefoxbot.model.enums.Permission;
 import com.github.winefoxbot.service.ai.DeepSeekService;
 import com.github.winefoxbot.service.shiro.ShiroMessagesService;
 import com.github.winefoxbot.utils.BotUtils;
@@ -42,7 +43,7 @@ public class ChatPlugin {
     @PluginFunction(group = "聊天功能",
             name = "清空会话",
             description = "清空当前会话的消息记录，重新开始对话。",
-            permission = "普通用户",
+            permission = Permission.ADMIN,
             commands = {"/清空会话"})
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/清空会话$")
@@ -59,16 +60,25 @@ public class ChatPlugin {
     @PluginFunction(group = "聊天功能",
             name = "聊天回复",
             description = "当用户在在私聊中发送消息时，进行智能回复。",
-            permission = "普通用户")
+            permission = Permission.SUPERADMIN
+    )
     @PrivateMessageHandler
     @Async
     @Order(100)
     @Block
     public void handlePrivateChatMessage(Bot bot, PrivateMessageEvent event) {
         String plainMessage = BotUtils.getPlainTextMessage(event.getMessage());
-        if (plainMessage.isEmpty() || plainMessage.startsWith("/")) {
+        String[] prefixes = {"/", "", "$"};
+        if (plainMessage.isEmpty()) {
             return;
         }
+        for (String prefix : prefixes) {
+            if (plainMessage.startsWith(prefix)) {
+                return;
+            }
+        }
+
+
 
         Long userId = event.getUserId();
         Long sessionId = userId;
@@ -83,8 +93,7 @@ public class ChatPlugin {
         userMsg.put("uid", String.valueOf(userId));
         userMsg.put("nickname", nickname);
         userMsg.put("message", plainMessage);
-        userMsg.put("isMaster", wineFoxBotConfig.getMaster().equals(userId));
-        userMsg.put("voice", false);
+        userMsg.put("isMaster", wineFoxBotConfig.getSuperusers().contains(userId));
 
         // The AOP interceptor saves the message, but we pass the constructed object
         // to the AI service for immediate context.
@@ -102,7 +111,8 @@ public class ChatPlugin {
     @PluginFunction(group = "聊天功能",
             name = "聊天回复",
             description = "当用户在群聊中At机器人发送消息时，进行智能回复。",
-            permission = "普通用户")
+            permission = Permission.USER
+    )
     @GroupMessageHandler
     @MessageHandlerFilter(at = AtEnum.NEED)
     @Async
@@ -121,13 +131,12 @@ public class ChatPlugin {
         String sessionType = "group";
 
         ObjectNode userMsg = objectMapper.createObjectNode();
-        String nickname = BotUtils.getGroupMemberNickname(bot, groupId, userId, false);
+        String nickname = BotUtils.getGroupMemberNickname(bot, groupId, userId);
 
         userMsg.put("sender", "user");
         userMsg.put("uid", String.valueOf(userId));
         userMsg.put("nickname", nickname);
         userMsg.put("message", plainMessage);
-        userMsg.put("isMaster", wineFoxBotConfig.getMaster().equals(userId));
 
         String resp = deepSeekService.complete(sessionId, sessionType, userMsg);
 
@@ -144,7 +153,7 @@ public class ChatPlugin {
             group = "聊天功能",
             name = "群聊戳一戳回复",
             description = "当用户戳一戳机器人时，进行智能回复。",
-            permission = "普通用户"
+            permission = Permission.USER
     )
     @GroupPokeNoticeHandler
     @Limit(userPermits = 1, timeInSeconds = 10, notificationIntervalSeconds = 30, message = "戳得太快了，酒狐需要休息一下哦~")
@@ -157,7 +166,7 @@ public class ChatPlugin {
             group = "聊天功能",
             name = "私聊戳一戳回复",
             description = "当用户戳一戳机器人时，进行智能回复。",
-            permission = "普通用户"
+            permission = Permission.SUPERADMIN
     )
     @PrivatePokeNoticeHandler
     @Limit(userPermits = 1, timeInSeconds = 1, notificationIntervalSeconds = 30, message = "戳得太快了，酒狐需要休息一下哦~")

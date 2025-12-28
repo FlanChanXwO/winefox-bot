@@ -1,9 +1,12 @@
 package com.github.winefoxbot.model.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
-import java.io.Serializable;
-import java.util.Date;
 import lombok.Data;
+
+import java.io.Serializable;
+import java.time.LocalDateTime;
+import java.util.Date;
 
 /**
  * @TableName dna_team_member
@@ -19,7 +22,7 @@ public class DnaTeamMember implements Serializable {
 
     private Integer role;
 
-    private Date joinedAt;
-
+    private LocalDateTime joinedAt;
+    @TableField(exist = false)
     private static final long serialVersionUID = 1L;
 }

@@ -1,7 +1,6 @@
 package com.github.winefoxbot.service.shiro.impl;
 
 import com.github.winefoxbot.service.shiro.ShiroSessionStateService;
-
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.mikuac.shiro.dto.event.Event;

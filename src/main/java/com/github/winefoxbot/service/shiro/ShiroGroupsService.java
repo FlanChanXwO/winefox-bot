@@ -1,7 +1,7 @@
 package com.github.winefoxbot.service.shiro;
 
-import com.github.winefoxbot.model.entity.ShiroGroup;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.github.winefoxbot.model.entity.ShiroGroup;
 
 /**
 * @author FlanChan

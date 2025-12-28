@@ -3,6 +3,7 @@ package com.github.winefoxbot.plugins;
 import com.github.winefoxbot.annotation.PluginFunction;
 import com.github.winefoxbot.model.entity.WaterGroupMessageStat;
 import com.github.winefoxbot.model.entity.WaterGroupSchedule;
+import com.github.winefoxbot.model.enums.Permission;
 import com.github.winefoxbot.service.watergroup.WaterGroupPosterDrawService;
 import com.github.winefoxbot.service.watergroup.WaterGroupScheduleService;
 import com.github.winefoxbot.service.watergroup.WaterGroupService;
@@ -51,7 +52,7 @@ public class WaterGroupPlugin {
     @PluginFunction(group = "发言统计",
             name = "开启发言统计推送",
             description = "使用 /开启群发言统计每天定时推送 命令开启本群的发言统计功推送能。",
-            permission = "普通用户",
+            permission = Permission.ADMIN,
             commands = {"/开启群发言统计每天定时推送", "/打开群发言统计每天定时推送", "/启动群发言统计每天定时推送"})
     @GroupMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/(开启|打开|启动)群发言统计每天定时推送$")
@@ -70,7 +71,7 @@ public class WaterGroupPlugin {
     @PluginFunction(group = "发言统计",
             name = "修改发言统计推送时间",
             description = "使用 /修改发言统计推送时间 HH:mm 命令修改本群的发言统计推送时间。",
-            permission = "普通用户",
+            permission = Permission.ADMIN,
             commands = {"/修改发言统计推送时间"})
     @GroupMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/修改发言统计推送时间\\s+(\\d{2}:\\d{2})$")
@@ -100,7 +101,7 @@ public class WaterGroupPlugin {
     @PluginFunction(group = "发言统计",
             name = "关闭发言统计推送",
             description = "使用 /关闭群发言统计每天定时推送 命令关闭本群的发言统计推送功能。",
-            permission = "普通用户",
+            permission = Permission.ADMIN,
             commands = {"/关闭群发言统计每天定时推送", "/停止群发言统计每天定时推送", "/取消群发言统计每天定时推送"})
     @GroupMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/(关闭|停止|取消)群发言统计每天定时推送$")
@@ -120,7 +121,7 @@ public class WaterGroupPlugin {
     @PluginFunction(group = "发言统计",
             name = "查看发言统计推送状态",
             description = "使用 /发言统计推送状态 命令查看本群的发言统计推送状态。",
-            permission = "普通用户",
+            permission = Permission.USER,
             commands = {"/每日发言统计推送状态"})
     @GroupMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/每日发言统计推送状态$")
@@ -138,7 +139,7 @@ public class WaterGroupPlugin {
     @PluginFunction(group = "发言统计",
             name = "查看发言统计",
             description = "使用 /今日发言 命令查看本群的发言统计排名。",
-            permission = "普通用户",
+            permission = Permission.USER,
             commands = {"/今日发言"})
     @GroupMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/今日发言$")

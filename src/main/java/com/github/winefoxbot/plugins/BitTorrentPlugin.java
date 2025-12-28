@@ -37,6 +37,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 
 import static com.github.winefoxbot.utils.FileUtil.formatDataSize;
+import static com.mikuac.shiro.core.BotPlugin.MESSAGE_BLOCK;
+import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
 
 /**
  * BitTorrent 搜索插件
@@ -58,9 +60,8 @@ public class BitTorrentPlugin {
 
     @AnyMessageHandler
     @Order(1)
-    @Async
     @MessageHandlerFilter(types = MsgTypeEnum.text)
-    public void nextPage(Bot bot, AnyMessageEvent event) {
+    public int nextPage(Bot bot, AnyMessageEvent event) {
         String message = event.getMessage();
         String mapKey = sessionStateService.getSessionKey(event);
         if (!"下一页".equals(message)) {
@@ -70,18 +71,18 @@ public class BitTorrentPlugin {
                 sessionStateService.exitCommandMode(mapKey);
                 bot.sendMsg(event, MsgUtils.builder().text("已退出搜索模式").build(), false);
             }
-
-            return;
+            return MESSAGE_IGNORE;
         }
         String userId = String.valueOf(event.getUserId());
         Integer messageId = event.getMessageId();
         Pair<String,Integer> nextPageInfo = nextPageMap.get(mapKey);
         if (nextPageInfo == null) {
-            return;
+            return MESSAGE_IGNORE;
         }
         String keyword = nextPageInfo.getKey();
         Integer page = nextPageInfo.getValue();
         executeSearch(bot, event, messageId, keyword, page, userId);
+        return MESSAGE_BLOCK;
     }
 
     @PluginFunction(group = "实用功能", name = "磁力链搜索", description = "使用 /bt <关键词> [页码] 命令进行搜索，页码可以不要，不要就默认搜索第一页", commands = {"/bt <关键词> [页码]"})

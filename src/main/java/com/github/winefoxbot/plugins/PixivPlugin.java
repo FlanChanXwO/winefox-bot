@@ -1,21 +1,15 @@
 package com.github.winefoxbot.plugins;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.annotation.PluginFunction;
 import com.github.winefoxbot.exception.PixivR18Exception;
 import com.github.winefoxbot.model.dto.pixiv.PixivDetail;
-import com.github.winefoxbot.model.dto.pixiv.PixivPushTarget;
-import com.github.winefoxbot.model.entity.ScheduleTask;
-import com.github.winefoxbot.model.enums.ScheduleType;
-import com.github.winefoxbot.model.enums.TaskStatus;
-import com.github.winefoxbot.schedule.DynamicTaskScheduler;
-import com.github.winefoxbot.schedule.task.PixivRankPushExecutor;
+import com.github.winefoxbot.model.entity.PixivRankPushSchedule;
+import com.github.winefoxbot.model.enums.Permission;
+import com.github.winefoxbot.model.enums.PixivRankPushMode;
+import com.github.winefoxbot.service.pixiv.PixivRankPushScheduleService;
 import com.github.winefoxbot.service.pixiv.PixivRankService;
 import com.github.winefoxbot.service.pixiv.PixivService;
-import com.github.winefoxbot.service.task.ScheduleTaskService;
 import com.github.winefoxbot.utils.FileUtil;
-import com.github.winefoxbot.utils.MethodReferenceUtil;
-import com.github.winefoxbot.utils.SpringBeanUtil;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Shiro;
@@ -28,20 +22,19 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.tomcat.util.buf.StringUtils;
-import org.springframework.context.ApplicationContext;
+import org.jobrunr.scheduling.cron.Cron;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Component;
 
 import javax.net.ssl.SSLHandshakeException;
 import java.io.File;
 import java.io.IOException;
+import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
+
 @Component
 @Slf4j
 @Shiro
@@ -50,161 +43,122 @@ public class PixivPlugin {
 
     private final PixivService pixivService;
     private final PixivRankService pixivRankService;
-    private final ApplicationContext applicationContext;
-    private final ScheduleTaskService scheduleTaskService;
-    private final ObjectMapper objectMapper; // 用于处理 JSON 参数
-    private final DynamicTaskScheduler taskScheduler;
+    private final PixivRankPushScheduleService pixivRankPushScheduleService;
 
-    private static final AtomicBoolean isFetchRank = new AtomicBoolean(false);
-    private static final String RANK_SUB_DESCRIPTION_PREFIX = "PIXIV_RANK_SUB_";
-    private static final String DEFAULT_CRON_FOR_RANK = "0 0 12 * * ?"; // 默认每天中午12点
-
-
-    @PluginFunction(group = "Pixiv", name = "查看P站排行订阅状态", description = "查看当前会话是否已订阅每日P站排行推送。", commands = {"/查看P站排行订阅", "/p站订阅状态"})
+    @PluginFunction(group = "Pixiv", name = "查看P站排行订阅状态", description = "查看当前群聊的P站排行订阅状态。", commands = {"/查看P站排行订阅", "/p站订阅状态"})
     @AnyMessageHandler
-    @MessageHandlerFilter(cmd = "^(/查看P站排行订阅|/p站订阅状态)$")
+    @MessageHandlerFilter(cmd = "^/(查看P站排行订阅|p站订阅状态)$")
     public void checkRankPushSubscription(Bot bot, AnyMessageEvent event) {
-        String targetType = event.getGroupId() != null ? "group" : "private";
-        long targetId = event.getGroupId() != null ? event.getGroupId() : event.getUserId();
-
-        // 使用我们之前定义的常量来构建唯一的任务描述
-        String taskId = RANK_SUB_DESCRIPTION_PREFIX + targetType.toUpperCase() + "_" + targetId;
-
-        // 调用服务层方法来查询任务
-        Optional<ScheduleTask> taskOptional = scheduleTaskService.findTaskByTaskId(taskId);
-
-        if (taskOptional.isPresent()) {
-            // 如果找到了有效的任务
-            ScheduleTask task = taskOptional.get();
-            // 从 Cron 表达式中解析出时间
-            try {
-                CronExpression.parse(task.getCronExpression());
-                // 这里假设 Cron 表达式格式为 "0 minute hour * * ?"
-                String[] fields = task.getCronExpression().split(" ");
-                String minute = fields[1];
-                String hour = fields[2];
-
-                String reply = String.format(
-                        "本会话已订阅P站排行推送。\n推送时间：每天 %s:%s\n任务状态：%s",
-                        hour, minute, "已启用" // 因为我们只查询 PENDING 状态，所以这里可以硬编码为“已启用”
-                );
-                bot.sendMsg(event, reply, true);
-            } catch (IllegalArgumentException e) {
-                // 如果 Cron 表达式格式不正确，提供一个备用消息
-                log.error("数据库中任务 [ID: {}] 的Cron表达式 '{}' 格式无效。", task.getTaskId(), task.getCronExpression(), e);
-                bot.sendMsg(event, "已订阅P站排行推送，但推送时间格式异常，请联系管理员。", true);
-            }
-        } else {
-            // 如果没有找到有效的任务
-            String reply = "本会话尚未订阅P站排行推送。\n您可以通过发送 `/开启P站排行推送` 来订阅。";
-            bot.sendMsg(event, reply, true);
+        if (event.getGroupId() == null) {
+            bot.sendMsg(event, "此功能仅限群聊使用。", true);
+            return;
         }
-    }
-
-//    @PluginFunction(group = "Pixiv", name = "开启P站排行推送", description = "订阅每日中午12点的Pixiv排行榜推送。", commands = {"/开启P站排行推送"})
-    @AnyMessageHandler
-    @MessageHandlerFilter(cmd = "^/(开启P站排行推送|订阅P站排行)$")
-    public void subscribeRankPush(Bot bot, AnyMessageEvent event) {
-        String targetType = event.getGroupId() != null ? "group" : "private";
-        long targetId = event.getGroupId() != null ? event.getGroupId() : event.getUserId();
-        // 使用我们之前定义的常量来构建唯一的任务描述
-        String taskId = RANK_SUB_DESCRIPTION_PREFIX + targetType.toUpperCase() + "_" + targetId;
         Long groupId = event.getGroupId();
-        pixivService.addSchedulePush(groupId);
+        List<PixivRankPushSchedule> schedules = pixivRankPushScheduleService.getSchedulesByGroupId(groupId);
 
-        // 调用服务层方法来查询任务
-        Optional<ScheduleTask> taskOptional = scheduleTaskService.findTaskByTaskId(taskId);
-        if (taskOptional.isPresent() && taskOptional.get().getStatus() == TaskStatus.PENDING) {
-            bot.sendMsg(event, "本会话已开启P站排行推送，无需重复订阅。", true);
+        if (schedules.isEmpty()) {
+            bot.sendMsg(event, "本群尚未订阅任何P站排行推送。\n发送 `/订阅P站排行` 查看帮助。", true);
             return;
         }
 
-        try {
-            PixivPushTarget target = new PixivPushTarget();
-            target.setTargetId(targetId);
-            target.setTargetType(targetType);
-            String taskParams = objectMapper.writeValueAsString(target);
-            ScheduleTask task = ScheduleTask.builder()
-                    .description("Pixiv每日排行榜推送到" + targetType + "_" + targetId)
-                    .taskId(taskId) // 使用唯一任务ID，防止重复订阅
-                    .beanName(SpringBeanUtil.getBeanName(applicationContext, PixivRankPushExecutor.class)) // Spring Bean的名称，通常是类名首字母小写
-                    .methodName(MethodReferenceUtil.getMethodName(PixivRankPushExecutor::execute))
-                    .taskParams(taskParams)
-                    .scheduleType(ScheduleType.RECURRING_INDEFINITE)
-                    .cronExpression(DEFAULT_CRON_FOR_RANK)
-                    .build();
-
-            scheduleTaskService.createScheduleTask(task);
-            bot.sendMsg(event, "成功订阅P站每日排行榜！将会在每天中午12点进行推送。", true);
-        } catch (Exception e) {
-            log.error("创建P站排行推送任务失败", e);
-            bot.sendMsg(event, "订阅失败，请联系管理员查看后台日志。", true);
+        StringBuilder reply = new StringBuilder("本群P站排行订阅状态如下：\n");
+        for (PixivRankPushSchedule schedule : schedules) {
+            String readableTime = pixivRankPushScheduleService.parseCronToDescription(schedule.getCronSchedule());
+            reply.append(String.format("【%s】推送时间：%s\n", schedule.getDescription(), readableTime));
         }
+        bot.sendMsg(event, reply.toString().trim(), true);
     }
 
-//    @PluginFunction(group = "Pixiv", name = "关闭P站排行推送", description = "取消订阅每日的Pixiv排行榜推送。", commands = {"/关闭P站排行推送"})
+    @PluginFunction(group = "Pixiv", name = "订阅P站排行",
+            permission = Permission.ADMIN,
+            description = "订阅P站排行榜推送。用法: /订阅P站排行榜 [类型] [时间]。类型支持\"每日\"，\"每周\"，\"每月\", 例如: /订阅P站排行榜 每日 09:30", commands = {"/订阅P站排行榜"})
     @AnyMessageHandler
-    @MessageHandlerFilter(cmd = "^/(关闭P站排行推送|取消P站排行)$")
-    public void unsubscribeRankPush(Bot bot, AnyMessageEvent event) {
-        String targetType = event.getGroupId() != null ? "group" : "private";
-        long targetId = event.getGroupId() != null ? event.getGroupId() : event.getUserId();
-        String taskId = RANK_SUB_DESCRIPTION_PREFIX + targetType.toUpperCase() + "_" + targetId;
+    @MessageHandlerFilter(cmd = "^/订阅P站排行榜(?:\\s+(每日|每周|每月))?(?:\\s+([0-2][0-9]):([0-5][0-9]))?$")
+    public void subscribeRankPush(Bot bot, AnyMessageEvent event, Matcher matcher) {
+        if (event.getGroupId() == null) {
+            bot.sendMsg(event, "此功能仅限群聊使用。", true);
+            return;
+        }
+        Long groupId = event.getGroupId();
+        String rankType = matcher.group(1);
+        String hourStr = matcher.group(2);
+        String minuteStr = matcher.group(3);
 
-        // 调用服务层方法来查询任务
-        Optional<ScheduleTask> taskOptional = scheduleTaskService.findTaskByTaskId(taskId);
-        if (taskOptional.isEmpty() || taskOptional.get().getStatus() != TaskStatus.PENDING) {
-            bot.sendMsg(event, "本会话未开启P站排行推送，无需关闭。", true);
+        if (rankType == null || hourStr == null) {
+            String help = "指令格式错误！\n" +
+                    "用法: /订阅P站排行 [类型] [时间 HH:mm]\n" +
+                    "支持的类型: daily(每日), weekly(每周), monthly(每月)\n" +
+                    "示例:\n" +
+                    "/订阅P站排行 daily 09:30\n" +
+                    "/订阅P站排行 weekly 10:00 (默认为周五)\n" +
+                    "/订阅P站排行 monthly 12:00 (默认为月底)";
+            bot.sendMsg(event, help, true);
             return;
         }
 
-        // 调用我们之前设计的取消服务
-        boolean success = scheduleTaskService.cancelScheduleTask(taskOptional.get().getTaskId(), String.valueOf(event.getUserId()));
+        int hour = Integer.parseInt(hourStr);
+        int minute = Integer.parseInt(minuteStr);
+        String cronExpression = null;
+        String description = null;
+        PixivRankPushMode mode = null;
+        switch (rankType) {
+            case "每日":
+                cronExpression = Cron.daily(hour, minute); // "0 mm HH * * ?"
+                description = "P站每日排行榜";
+                mode = PixivRankPushMode.DALLY;
+                break;
+            case "每周":
+                cronExpression = Cron.weekly(DayOfWeek.of(5), hour, minute); // 2=Monday, "0 mm HH ? * 2"
+                description = "P站每周排行榜";
+                mode = PixivRankPushMode.WEEKLY;
+                break;
+            case "每月":
+                cronExpression = Cron.lastDayOfTheMonth(hour, minute); // 1st day of month, "0 mm HH 1 * ?"
+                description = "P站每月排行榜";
+                mode = PixivRankPushMode.MONTHLY;
+                break;
+        }
 
+        pixivRankPushScheduleService.schedulePush(groupId, mode, cronExpression, description);
+        String readableTime = pixivRankPushScheduleService.parseCronToDescription(cronExpression);
+        bot.sendMsg(event, String.format("成功订阅/更新【%s】！\n推送时间设置为：%s", description, readableTime), true);
+    }
+
+
+    @PluginFunction(group = "Pixiv", name = "取消P站排行榜订阅",
+            permission = Permission.ADMIN,
+            description = "取消订阅P站排行榜。用法: /取消P站排行榜 [类型]", commands = {"/取消P站排行榜 每日", "/取消P站排行榜 每周", "/取消P站排行榜 每月"})
+    @AnyMessageHandler
+    @MessageHandlerFilter(cmd = "^/取消P站排行榜\\s+(每日|每周|每月)$")
+    public void unsubscribeRankPush(Bot bot, AnyMessageEvent event, Matcher matcher) {
+        if (event.getGroupId() == null) {
+            bot.sendMsg(event, "此功能仅限群聊使用。", true);
+            return;
+        }
+        Long groupId = event.getGroupId();
+        String rankType = matcher.group(1);
+        PixivRankPushMode mode = switch (rankType) {
+            case "每日" -> PixivRankPushMode.DALLY;
+            case "每周" -> PixivRankPushMode.WEEKLY;
+            case "每月" -> PixivRankPushMode.MONTHLY;
+            default -> null;
+        };
+        if (mode == null) {
+            bot.sendMsg(event, "无效的排行榜类型！请使用 每日、每周 或 每月。", true);
+            return;
+        }
+        boolean success = pixivRankPushScheduleService.unschedulePush(groupId, mode);
         if (success) {
-            bot.sendMsg(event, "已成功关闭P站排行推送。", true);
+            String description = switch (mode) {
+                case DALLY -> "P站每日排行榜";
+                case WEEKLY -> "P站每周排行榜";
+                case MONTHLY -> "P站每月排行榜";
+            };
+            bot.sendMsg(event, String.format("已成功取消【%s】的订阅。", description), true);
         } else {
-            bot.sendMsg(event, "关闭失败，请稍后再试或联系管理员。", true);
+            bot.sendMsg(event, "取消失败，可能本群未订阅该类型的排行榜。", true);
         }
     }
-
-
-//    @PluginFunction(group = "Pixiv", name = "修改P站排行推送时间", description = "修改每日推送时间，格式为 HH:mm (24小时制)。", commands = {"/修改P站排行推送时间 HH:mm"})
-    @AnyMessageHandler
-    @MessageHandlerFilter(cmd = "^/修改P站排行推送时间\\s+([0-2][0-9]):([0-5][0-9])$")
-    public void updateRankPushTime(Bot bot, AnyMessageEvent event, Matcher matcher) {
-        String targetType = event.getGroupId() != null ? "group" : "private";
-        long targetId = event.getGroupId() != null ? event.getGroupId() : event.getUserId();
-        String taskId = RANK_SUB_DESCRIPTION_PREFIX + targetType.toUpperCase() + "_" + targetId;
-
-        Optional<ScheduleTask> taskOptional = scheduleTaskService.findTaskByTaskId(taskId);
-        if (taskOptional.isEmpty() || taskOptional.get().getStatus() != TaskStatus.PENDING) {
-            bot.sendMsg(event, "本会话未开启P站排行推送，无法修改时间。", true);
-            return;
-        }
-
-        try {
-            int hour = Integer.parseInt(matcher.group(1));
-            int minute = Integer.parseInt(matcher.group(2));
-
-            // 构建新的Cron表达式
-            String newCron = String.format("0 %d %d * * ?", minute, hour);
-            ScheduleTask task = taskOptional.get();
-            task.setCronExpression(newCron);
-            // 重新计算下一次执行时间
-            scheduleTaskService.calculateAndSetNextExecutionTime(task);
-            // 更新数据库
-            scheduleTaskService.updateById(task);
-            // 重新调度任务（内部会先取消旧的）
-            taskScheduler.scheduleTask(task); // 你需要注入 DynamicTaskScheduler
-
-            bot.sendMsg(event, String.format("推送时间已成功修改为每天的 %02d:%02d。", hour, minute), true);
-        } catch (Exception e) {
-            log.error("修改P站排行推送时间失败", e);
-            bot.sendMsg(event, "时间修改失败，请确保格式正确或联系管理员。", true);
-        }
-    }
-
-
 
 
     @Async
@@ -314,52 +268,51 @@ public class PixivPlugin {
     }
 
     @Async
-    @PluginFunction(group = "Pixiv", name = "Pixiv 今日排行榜获取", description = "获取 Pixiv 当日排行榜前6名作品。如果不指定参数，则默认查询插画", commands = {"/p站本日排行榜", "/P站本日排行榜"})
+    @PluginFunction(group = "Pixiv", name = "Pixiv 今日排行榜获取", description = "获取 Pixiv 当日排行榜前6名插画作品。", commands = {"/p站本日排行榜", "/P站本日排行榜"})
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/((p|P)站(本|今)日排行榜|prd)(?:\\s+(\\S+))?$")
     public void getRankToday(Bot bot, AnyMessageEvent event, Matcher matcher) {
-        if (isFetchRank.get()) {
-            bot.sendMsg(event, "当前已有排行榜获取任务在进行中，请稍后再试。", false);
-            return;
-        }
-        isFetchRank.set(true);
         bot.sendMsg(event, "正在获取 Pixiv 今日排行榜，请稍候...", false);
         String params = matcher.group(2);
         PixivRankService.Content content = params != null ? PixivRankService.Content.valueOf(params.toUpperCase()) : PixivRankService.Content.ILLUST;
-        getPixivRank(bot, event, matcher, PixivRankService.Mode.DAILY, content, false);
+        getPixivRank(bot, event, matcher, PixivRankPushMode.DALLY, content, false);
     }
+
+
+    @Async
+    @PluginFunction(group = "Pixiv", name = "Pixiv 本周排行榜获取", description = "获取 Pixiv 当周排行榜前6名插画作品。", commands = {"/p站本日排行榜", "/P站本日排行榜"})
+    @AnyMessageHandler
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/((p|P)站(本|今)周排行榜|prw)(?:\\s+(\\S+))?$")
+    public void getRankWeek(Bot bot, AnyMessageEvent event, Matcher matcher) {
+        bot.sendMsg(event, "正在获取 Pixiv 本周排行榜，请稍候...", false);
+        String params = matcher.group(2);
+        PixivRankService.Content content = params != null ? PixivRankService.Content.valueOf(params.toUpperCase()) : PixivRankService.Content.ILLUST;
+        getPixivRank(bot, event, matcher, PixivRankPushMode.WEEKLY, content, false);
+    }
+
+
+    @Async
+    @PluginFunction(group = "Pixiv", name = "Pixiv 本月排行榜获取", description = "获取 Pixiv 当月排行榜前6名插画作品。", commands = {"/p站本日排行榜", "/P站本日排行榜"})
+    @AnyMessageHandler
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/((p|P)站(本|今)月排行榜|prm)(?:\\s+(\\S+))?$")
+    public void getRankMonth(Bot bot, AnyMessageEvent event, Matcher matcher) {
+        bot.sendMsg(event, "正在获取 Pixiv 本月排行榜，请稍候...", false);
+        String params = matcher.group(2);
+        PixivRankService.Content content = params != null ? PixivRankService.Content.valueOf(params.toUpperCase()) : PixivRankService.Content.ILLUST;
+        getPixivRank(bot, event, matcher, PixivRankPushMode.MONTHLY, content, false);
+    }
+
+    /*
 
     @Async
     @PluginFunction(group = "Pixiv", name = "Pixiv 今日R18排行榜获取", description = "获取 Pixiv 当日r18排行榜前6名作品。如果不指定参数，则默认查询插画", commands = {"/p站本日排行榜", "/P站本日排行榜"})
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/((p|P)站(本|今)日r18排行榜|prd18)(?:\\s+(\\S+))?$")
     public void getRankR18Today(Bot bot, AnyMessageEvent event, Matcher matcher) {
-        if (isFetchRank.get()) {
-            bot.sendMsg(event, "当前已有排行榜获取任务在进行中，请稍后再试。", false);
-            return;
-        }
-        isFetchRank.set(true);
         bot.sendMsg(event, "正在获取 Pixiv 今日排行榜，请稍候...", false);
         String params = matcher.group(2);
         PixivRankService.Content content = params != null ? PixivRankService.Content.valueOf(params.toUpperCase()) : PixivRankService.Content.ILLUST;
-        getPixivRank(bot, event, matcher, PixivRankService.Mode.DAILY, content, true);
-    }
-
-
-    @Async
-    @PluginFunction(group = "Pixiv", name = "Pixiv 本周排行榜获取", description = "获取 Pixiv 当周排行榜前6名作品。如果不指定参数，则默认查询插画", commands = {"/p站本日排行榜", "/P站本日排行榜"})
-    @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/((p|P)站(本|今)周排行榜|prw)(?:\\s+(\\S+))?$")
-    public void getRankWeek(Bot bot, AnyMessageEvent event, Matcher matcher) {
-        if (isFetchRank.get()) {
-            bot.sendMsg(event, "当前已有排行榜获取任务在进行中，请稍后再试。", false);
-            return;
-        }
-        isFetchRank.set(true);
-        bot.sendMsg(event, "正在获取 Pixiv 本周排行榜，请稍候...", false);
-        String params = matcher.group(2);
-        PixivRankService.Content content = params != null ? PixivRankService.Content.valueOf(params.toUpperCase()) : PixivRankService.Content.ILLUST;
-        getPixivRank(bot, event, matcher, PixivRankService.Mode.WEEKLY, content, false);
+        getPixivRank(bot, event, matcher, PixivRankPushMode.DALLY, content, true);
     }
 
     @Async
@@ -367,53 +320,28 @@ public class PixivPlugin {
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/((p|P)站(本|今)周r18排行榜|prw18)(?:\\s+(\\S+))?$")
     public void getRankR18Week(Bot bot, AnyMessageEvent event, Matcher matcher) {
-        if (isFetchRank.get()) {
-            bot.sendMsg(event, "当前已有排行榜获取任务在进行中，请稍后再试。", false);
-            return;
-        }
-        isFetchRank.set(true);
         bot.sendMsg(event, "正在获取 Pixiv 本周排行榜，请稍候...", false);
         String params = matcher.group(2);
         PixivRankService.Content content = params != null ? PixivRankService.Content.valueOf(params.toUpperCase()) : PixivRankService.Content.ILLUST;
-        getPixivRank(bot, event, matcher, PixivRankService.Mode.WEEKLY, content, true);
+        getPixivRank(bot, event, matcher, PixivRankPushMode.WEEKLY, content, true);
     }
-
-    @Async
-    @PluginFunction(group = "Pixiv", name = "Pixiv 本月排行榜获取", description = "获取 Pixiv 当月排行榜前6名作品。如果不指定参数，则默认查询插画", commands = {"/p站本日排行榜", "/P站本日排行榜"})
-    @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/((p|P)站(本|今)月排行榜|prm)(?:\\s+(\\S+))?$")
-    public void getRankMonth(Bot bot, AnyMessageEvent event, Matcher matcher) {
-        if (isFetchRank.get()) {
-            bot.sendMsg(event, "当前已有排行榜获取任务在进行中，请稍后再试。", false);
-            return;
-        }
-        isFetchRank.set(true);
-        bot.sendMsg(event, "正在获取 Pixiv 本月排行榜，请稍候...", false);
-        String params = matcher.group(2);
-        PixivRankService.Content content = params != null ? PixivRankService.Content.valueOf(params.toUpperCase()) : PixivRankService.Content.ILLUST;
-        getPixivRank(bot, event, matcher, PixivRankService.Mode.WEEKLY, content, false);
-    }
-
 
     @Async
     @PluginFunction(group = "Pixiv", name = "Pixiv 本月排行榜获取", description = "获取 Pixiv 当月排行榜前6名作品。如果不指定参数，则默认查询插画", commands = {"/p站本日排行榜", "/P站本日排行榜"})
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/((p|P)站(本|今)月排行榜|prm18)(?:\\s+(\\S+))?$")
     public void getRankR18Month(Bot bot, AnyMessageEvent event, Matcher matcher) {
-        if (isFetchRank.get()) {
-            bot.sendMsg(event, "当前已有排行榜获取任务在进行中，请稍后再试。", false);
-            return;
-        }
-        isFetchRank.set(true);
         bot.sendMsg(event, "正在获取 Pixiv 本月排行榜，请稍候...", false);
         String params = matcher.group(2);
         PixivRankService.Content content = params != null ? PixivRankService.Content.valueOf(params.toUpperCase()) : PixivRankService.Content.ILLUST;
-        getPixivRank(bot, event, matcher, PixivRankService.Mode.MONTHLY, content, true);
+        getPixivRank(bot, event, matcher, PixivRankPushMode.MONTHLY, content, true);
     }
 
-    private void getPixivRank(Bot bot, AnyMessageEvent event, Matcher matcher , PixivRankService.Mode mode , PixivRankService.Content content , boolean isR18) {
+
+     */
+
+    private void getPixivRank(Bot bot, AnyMessageEvent event, Matcher matcher, PixivRankPushMode mode, PixivRankService.Content content, boolean isR18) {
         String params = matcher.group(2);
-        Integer messageId = event.getMessageId();
         try {
             List<String> msgList = new ArrayList<>();
             List<String> rankIds = pixivRankService.getRank(mode, content, isR18);
@@ -466,9 +394,6 @@ public class PixivPlugin {
         } catch (Exception e) {
             log.error("处理 Pixiv 图片失败", e);
             bot.sendMsg(event, "处理 Pixiv 图片失败：" + e.getMessage(), false);
-        } finally {
-            isFetchRank.set(false);
-            System.gc();
         }
     }
 

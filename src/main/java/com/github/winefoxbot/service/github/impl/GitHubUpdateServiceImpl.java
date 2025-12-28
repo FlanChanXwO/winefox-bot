@@ -14,7 +14,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -52,7 +51,6 @@ public class GitHubUpdateServiceImpl {
     // 使用 @Scheduled 注解来创建定时任务
     // fixedDelayString = "PT1H" 表示每小时检查一次。 "PT10M" 表示每10分钟。
     // initialDelayString = "PT1M" 表示应用启动1分钟后开始第一次检查。
-    @Scheduled(initialDelayString = "PT1M", fixedDelayString = "${app.update.check-interval:PT1H}")
     public void checkForUpdate() {
         // ... (前面的 enabled 和 inProgress 检查不变) ...
         try {

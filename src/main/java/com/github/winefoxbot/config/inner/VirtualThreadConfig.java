@@ -3,7 +3,8 @@ package com.github.winefoxbot.config.inner;
 import lombok.NonNull;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnThreading;
 import org.springframework.boot.autoconfigure.thread.Threading;
-import org.springframework.context.annotation.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -37,6 +38,7 @@ public class VirtualThreadConfig {
             }
         };
     }
+
 
 
     /**

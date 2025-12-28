@@ -1,9 +1,9 @@
 package com.github.winefoxbot.service.shiro.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.github.winefoxbot.mapper.ShiroGroupsMapper;
 import com.github.winefoxbot.model.entity.ShiroGroup;
 import com.github.winefoxbot.service.shiro.ShiroGroupsService;
-import com.github.winefoxbot.mapper.ShiroGroupsMapper;
 import org.springframework.stereotype.Service;
 
 /**

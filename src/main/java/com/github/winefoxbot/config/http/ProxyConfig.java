@@ -4,6 +4,9 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * @author FlanChan (badapple495@outlook.com)
  * @since 2025-12-09-15:46
@@ -32,4 +35,6 @@ public class ProxyConfig {
     public enum ProxyType {
         HTTP, SOCKS5
     }
+
+    private List<String> noProxyHosts = new ArrayList<>();
 }

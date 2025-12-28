@@ -2,6 +2,7 @@ package com.github.winefoxbot.service.shiro;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.github.winefoxbot.model.entity.ShiroMessage;
+import com.github.winefoxbot.model.entity.ShiroUserMessage;
 
 import java.util.List;
 
@@ -28,5 +29,5 @@ public interface ShiroMessagesService extends IService<ShiroMessage> {
      * @param limit      消息数量限制
      * @return 消息列表
      */
-    List<ShiroMessage> findLatestMessagesForContext(Long sessionId, String sessionType, int limit);
+    List<ShiroUserMessage> findLatestMessagesForContext(Long sessionId, String sessionType, int limit);
 }

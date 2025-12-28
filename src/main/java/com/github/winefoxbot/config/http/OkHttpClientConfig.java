@@ -12,10 +12,12 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
-import java.net.InetSocketAddress;
-import java.net.Proxy;
+import java.io.IOException;
+import java.net.*;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -82,18 +84,65 @@ public class OkHttpClientConfig {
             // ==============================================================
 
 
-            // 【您的原始代码】保留代理配置逻辑
             if (proxyConfig.getEnabled()) {
                 Proxy.Type type = proxyConfig.getType() == ProxyConfig.ProxyType.HTTP
                         ? Proxy.Type.HTTP
                         : Proxy.Type.SOCKS;
-                Proxy proxy = new Proxy(type, new InetSocketAddress(proxyConfig.getHost(), proxyConfig.getPort()));
-                builder.proxy(proxy);
-                log.info("Using proxy: {}://{}:{} (enable={})",
+                final Proxy proxy = new Proxy(
+                        type,
+                        new InetSocketAddress(proxyConfig.getHost(), proxyConfig.getPort())
+                );
+
+                log.info("proxy config : {}://{}:{} (enable={})",
                         proxyConfig.getType().name().toLowerCase(),
                         proxyConfig.getHost(),
                         proxyConfig.getPort(),
                         proxyConfig.getEnabled());
+
+                final List<String> noProxyHosts = proxyConfig.getNoProxyHosts();
+
+                builder.proxySelector(new ProxySelector() {
+                    /**
+                     * 这个方法决定对给定的URI使用哪个代理。
+                     * @param uri 正在请求的统一资源标识符。
+                     * @return 代理列表。通常我们只返回一个。
+                     */
+                    @Override
+                    public List<Proxy> select(URI uri) {
+                        // 获取请求的主机名
+                        String requestHost = uri.getHost();
+                        // 检查该主机名是否在“不使用代理”的列表中
+                        boolean shouldProxy = noProxyHosts == null || noProxyHosts.stream().noneMatch(requestHost::endsWith
+                        );
+                        if (shouldProxy) {
+                            // 如果主机名不在 noProxyHosts 列表中，使用我们配置的代理
+                            log.info("Using proxy for: " + requestHost);
+                            System.out.println();
+                            // 返回包含我们代理的列表
+                            return Collections.singletonList(proxy);
+                        } else {
+                            // 如果主机名在 noProxyHosts 列表中，选择直连
+                            log.info("Direct connection (no proxy) for: " + requestHost);
+                            // 返回包含 Proxy.NO_PROXY 的列表，表示直连
+                            return Collections.singletonList(Proxy.NO_PROXY);
+                        }
+                    }
+
+                    /**
+                     * 当连接到代理服务器失败时，此方法会被调用。
+                     * 您可以在这里记录日志或实现故障转移逻辑。
+                     * @param uri 失败的URI
+                     * @param sa 失败的代理服务器地址
+                     * @param ioe 发生的IO异常
+                     */
+                    @Override
+                    public void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+                        // 例如，记录一条错误日志
+                        System.err.println("Failed to connect to proxy " + sa + " for URI " + uri);
+                        ioe.printStackTrace();
+                    }
+                });
+
             } else {
                 log.info("Proxy disabled");
             }

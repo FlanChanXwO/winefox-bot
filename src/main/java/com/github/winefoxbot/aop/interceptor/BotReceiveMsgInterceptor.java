@@ -1,6 +1,6 @@
 package com.github.winefoxbot.aop.interceptor;
 
-import com.github.winefoxbot.aop.handler.BotAuthenticationHandler;
+import com.github.winefoxbot.aop.handler.BotCommandAuthenticationHandler;
 import com.github.winefoxbot.aop.handler.BotReceiveMsgHandler;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.BotMessageEventInterceptor;
@@ -15,12 +15,12 @@ import org.springframework.stereotype.Component;
 public class BotReceiveMsgInterceptor implements BotMessageEventInterceptor {
 
     private final BotReceiveMsgHandler botReceiveMsgHandler;
-    private final BotAuthenticationHandler botAuthenticationHandler;
+    private final BotCommandAuthenticationHandler botCommandAuthenticationHandler;
 
     @Override
     public boolean preHandle(Bot bot, MessageEvent event) {
         try {
-            if (!botAuthenticationHandler.handle(bot, event)) {
+            if (!botCommandAuthenticationHandler.handle(bot, event)) {
                 return false;
             }
             botReceiveMsgHandler.handle(bot, event);

@@ -1,5 +1,7 @@
 package com.github.winefoxbot.annotation;
 
+import com.github.winefoxbot.model.enums.Permission;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -28,16 +30,12 @@ public @interface PluginFunction {
      */
     String description();
     /**
-     * @return 该功能所需的权限级别，例如 "ADMIN"、"MODERATOR"、"USER" 等
+     * 执行此功能所需的最低权限。
+     * 默认为 USER，即所有普通用户都可以使用。
      */
-    String permission() default "普通用户";
+    Permission permission() default Permission.USER;
     /**
      * @return 触发该功能的命令（包括别名）。可选参数。
      */
     String[] commands() default {};
-
-    /**
-     * @return 功能在图中的优先级，数值越大优先级越高，默认为0
-     */
-    int priority() default 0;
 }

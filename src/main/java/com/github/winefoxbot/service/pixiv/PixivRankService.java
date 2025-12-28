@@ -1,5 +1,6 @@
 package com.github.winefoxbot.service.pixiv;
 
+import com.github.winefoxbot.model.enums.PixivRankPushMode;
 import lombok.Getter;
 
 import java.io.IOException;
@@ -11,30 +12,9 @@ import java.util.List;
  */
 public interface PixivRankService {
 
+    void fetchAndPushRank(Long groupId, PixivRankPushMode mode, Content content);
 
-    List<String> getRank(Mode mode, Content content, boolean enabledR18) throws IOException;
-
-    @Getter
-    enum Mode {
-         /**
-          * 日榜
-          */
-        DAILY("daily"),
-         /**
-          * 周榜
-          */
-         WEEKLY("weekly"),
-         /**
-          * 月榜
-          */
-         MONTHLY("monthly");
-
-        private final String value;
-
-        Mode(String value) {
-            this.value = value;
-        }
-    }
+    List<String> getRank(PixivRankPushMode mode, Content content, boolean enabledR18) throws IOException;
 
     @Getter
      enum Content {

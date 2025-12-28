@@ -14,7 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Component
 @RequiredArgsConstructor
@@ -38,7 +40,6 @@ public class BotSendMsgHandler {
             Integer messageId = event.getMessageId();
             ShiroMessage message = new ShiroMessage();
             message.setMessageId(Long.valueOf(messageId));
-            message.setTime(LocalDateTime.now());
             message.setSelfId(bot.getSelfId());
             message.setMessageType(messageType);
             message.setDirection("message_sent");
@@ -54,7 +55,7 @@ public class BotSendMsgHandler {
                 message.setMessage(JSONUtil.parseArray(BotUtils.parseCQtoJsonStr(messageContent)));
                 message.setPlainText(BotUtils.getPlainTextMessage(msg));
             } else {
-                        message.setMessage(JSONUtil.parseArray(messageContent));
+                message.setMessage(JSONUtil.parseArray(messageContent));
                 message.setPlainText("");
             }
 
@@ -81,7 +82,6 @@ public class BotSendMsgHandler {
             Integer messageId = res.getData().getMessageId();
             ShiroMessage message = new ShiroMessage();
             message.setMessageId(Long.valueOf(messageId));
-            message.setTime(LocalDateTime.now());
             message.setSelfId(bot.getSelfId());
             message.setMessageType(messageType);
             message.setDirection("message_sent");
@@ -92,7 +92,7 @@ public class BotSendMsgHandler {
                 message.setMessage(JSONUtil.parseArray(BotUtils.parseCQtoJsonStr(messageContent)));
                 message.setPlainText(BotUtils.getPlainTextMessage(msg));
             } else {
-                        message.setMessage(JSONUtil.parseArray(messageContent));
+                message.setMessage(JSONUtil.parseArray(messageContent));
                 message.setPlainText("");
             }
 
@@ -112,13 +112,12 @@ public class BotSendMsgHandler {
 
         try {
             ActionData<MsgId> res = (ActionData<MsgId>) result;
-            Object messageContent =  methodArgs[1];
+            Object messageContent = methodArgs[1];
             String messageType = "private";
             MsgId data = res.getData();
             Integer messageId = data != null ? data.getMessageId() : RandomUtil.randomInt();
             ShiroMessage message = new ShiroMessage();
             message.setMessageId(Long.valueOf(messageId));
-            message.setTime(LocalDateTime.now());
             message.setSelfId(bot.getSelfId());
             message.setMessageType(messageType);
             message.setDirection("message_sent");
@@ -126,7 +125,7 @@ public class BotSendMsgHandler {
             log.info("instance of messageContent: {}", messageContent.getClass().getName());
             log.info("messageContent: {}", messageContent);
             if (messageContent instanceof String msg) {
-                        message.setMessage(JSONUtil.parseArray(BotUtils.parseCQtoJsonStr(msg)));
+                message.setMessage(JSONUtil.parseArray(BotUtils.parseCQtoJsonStr(msg)));
                 message.setPlainText(BotUtils.getPlainTextMessage(msg));
             } else {
                 message.setMessage(JSONUtil.parseArray(messageContent));

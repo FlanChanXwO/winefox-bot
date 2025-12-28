@@ -2,6 +2,10 @@ package com.github.winefoxbot.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.github.winefoxbot.model.entity.ShiroMessage;
+import com.github.winefoxbot.model.entity.ShiroUserMessage;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
 
 /**
 * @author FlanChan
@@ -11,6 +15,14 @@ import com.github.winefoxbot.model.entity.ShiroMessage;
 */
 public interface ShiroMessagesMapper extends BaseMapper<ShiroMessage> {
 
+    /**
+     * 查詢詳細的用戶訊息列表（包含暱稱和羣名片）
+     *
+     * @param sessionId     ID
+     * @param sessionType
+     * @return 包含詳細訊息的列表
+     */
+    List<ShiroUserMessage> selectUserMessages(@Param("sessionId") Long sessionId , @Param("sessionType") String sessionType, @Param("limit") int limit);
 }
 
 

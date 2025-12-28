@@ -2,8 +2,11 @@ package com.github.winefoxbot.service.bot.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.winefoxbot.model.dto.reply.BotReply;
+import com.github.winefoxbot.model.dto.reply.BotReplyParams;
 import com.github.winefoxbot.service.bot.BotReplyService;
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -11,66 +14,51 @@ import java.io.InputStream;
 import java.util.Random;
 
 @Component
+@RequiredArgsConstructor
 public class BotReplyServiceImpl implements BotReplyService {
 
     private JsonNode root;
     private final Random random = new Random();
 
     // 如果希望通过 application.properties 配置 JSON 路径
-    private final String configPath = "reply.json"; // 可改为 @Value("${bot.reply.path}")
-
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final String configPath = "config/reply.json"; // 可改为 @Value("${bot.reply.path}")
+    private final String defaultReply = "Hello %s";
+    private final ObjectMapper objectMapper;
 
     @PostConstruct
     public void init() throws IOException {
-        loadConfig(configPath);
-    }
-
-
-    public void loadConfig(String path) throws IOException {
-        root = objectMapper.readTree(getClass().getClassLoader().getResource(path));
+        root = objectMapper.readTree(getClass().getClassLoader().getResource(configPath));
     }
 
     @Override
-    public Reply getWelcomeReply(String username) {
-        return getReply("welcome", username);
-    }
-
-    @Override
-    public Reply getFarewellReply(String username) {
-        return getReply("farewell", username);
-    }
-
-    @Override
-    public Reply getMasterStopReply(String username) {
-        return getReply("master-stop", username);
-    }
-
-
-    private Reply getReply(String type, String username) {
+    public BotReply getReply(BotReplyParams params) {
+        String type = params.getType().getValue();
+        String username = params.getUsername() == null ? "用户" : params.getUsername();
         if (root == null || !root.has(type)) {
-            return new Reply("Hello " + username, null); // 默认值
+            return new BotReply(defaultReply.formatted(username), null);
         }
 
         JsonNode array = root.get(type);
         if (array.isEmpty()) {
-            return new Reply("Hello " + username, null);
+            return new BotReply(defaultReply.formatted(username), null);
         }
 
         int index = random.nextInt(array.size());
         JsonNode item = array.get(index);
 
-        String text = " " + item.path("text").asText().replace("{username}", username);
-        byte [] picture = new byte[0];
-        try(InputStream inputStream = getClass().getClassLoader().getResourceAsStream(item.path("picture").asText())) {
+        String text = " " + (item.has("text") ? item.path("text").asText().replace("{username}", username) : "你好，%s".formatted(username));
+        byte[] picture = null;
+        String pictureSrc = item.has("picture") ? item.path("picture").asText() : null;
+        if (pictureSrc == null || pictureSrc.isEmpty()) {
+            return new BotReply(text, null);
+        }
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(item.path("picture").asText())) {
             if (inputStream != null) {
                 picture = inputStream.readAllBytes();
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        return new Reply(text, picture);
+        return new BotReply(text, picture);
     }
-
-    public record Reply(String text, byte [] picture) {}
 }

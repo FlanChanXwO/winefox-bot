@@ -1,6 +1,7 @@
 package com.github.winefoxbot.plugins;
 
 import com.github.winefoxbot.annotation.PluginFunction;
+import com.github.winefoxbot.model.enums.Permission;
 import com.github.winefoxbot.service.core.HelpImageService;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
@@ -38,7 +39,8 @@ public class HelpPlugin {
 
     @PluginFunction(
             group = "核心功能", name = "帮助文档",
-            description = "生成并发送帮助图片，展示所有可用功能及其说明。", permission = "普通用户", commands = {"/help", "/支援", "/h", "/酒狐的特殊能力", "/wf帮助"})
+            description = "生成并发送帮助图片，展示所有可用功能及其说明。", permission = Permission.USER,
+            commands = {"/help", "/支援", "/h", "/酒狐的特殊能力", "/wf帮助"})
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/(支援|help|h|酒狐的特殊能力|wf帮助)(?:\\s+(.+))?$")
     public void helpCommand(Bot bot, AnyMessageEvent event, Matcher matcher) {

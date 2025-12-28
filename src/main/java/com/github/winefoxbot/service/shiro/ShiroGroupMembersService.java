@@ -1,7 +1,10 @@
 package com.github.winefoxbot.service.shiro;
 
-import com.github.winefoxbot.model.entity.ShiroGroupMember;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.github.winefoxbot.model.entity.ShiroGroupMember;
+import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
+import com.mikuac.shiro.dto.event.notice.GroupAdminNoticeEvent;
+import com.mikuac.shiro.dto.event.notice.GroupCardChangeNoticeEvent;
 
 /**
 * @author FlanChan
@@ -10,4 +13,12 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface ShiroGroupMembersService extends IService<ShiroGroupMember> {
 
+    void saveOrUpdateGroupMemberInfo(GroupMessageEvent groupEvent);
+
+    void saveOrUpdateGroupMemberInfo(GroupAdminNoticeEvent groupEvent);
+
+    void saveOrUpdateGroupMemberInfo(GroupCardChangeNoticeEvent event);
+    ShiroGroupMember getGroupMemberInfo(Long groupId, Long userId);
+
+    void deleteGroupMemberInfo(Long groupId, Long userId);
 }

@@ -7,6 +7,8 @@ import org.apache.ibatis.reflection.MetaObject;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
 
 /**
  * MyBatis-Plus 自动填充处理器
@@ -17,23 +19,29 @@ import java.time.LocalDateTime;
 public class MybatisPlusMetaObjectHandler implements MetaObjectHandler {
 
     /**
-     * 插入时填充
+     * 插入时的填充策略
+     * @param metaObject 元数据对象
      */
     @Override
     public void insertFill(MetaObject metaObject) {
-        log.info("start insert fill ....");
-        // setFieldValByName(字段名, 字段值, metaObject)
-        // 严格模式下，如果实体类中没有这个字段，会抛出异常
-        this.strictInsertFill(metaObject, "createTime", LocalDateTime::now, LocalDateTime.class);
-        this.strictInsertFill(metaObject, "updateTime", LocalDateTime::now, LocalDateTime.class);
+        log.debug("start insert fill ....");
+        // setFieldValByName("字段名", "字段值", metaObject)
+        this.strictInsertFill(metaObject, "createdAt", LocalDateTime.class, LocalDateTime.now());
+        this.strictInsertFill(metaObject, "createTime", LocalDateTime.class, LocalDateTime.now());
+        this.strictInsertFill(metaObject, "updatedAt", LocalDateTime.class, LocalDateTime.now());
+        this.strictInsertFill(metaObject, "time", LocalDateTime.class, LocalDateTime.now());
+        this.strictInsertFill(metaObject, "lastUpdated", LocalDateTime.class, LocalDateTime.now());
     }
 
     /**
-     * 更新时填充
+     * 更新时的填充策略
+     * @param metaObject 元数据对象
      */
     @Override
     public void updateFill(MetaObject metaObject) {
-        log.info("start update fill ....");
-        this.strictUpdateFill(metaObject, "updateTime", LocalDateTime::now, LocalDateTime.class);
+        log.debug("start update fill ....");
+        this.strictUpdateFill(metaObject, "updatedAt", LocalDateTime.class, LocalDateTime.now());
+        this.strictUpdateFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
+        this.strictUpdateFill(metaObject,"lastUpdated", LocalDateTime.class, LocalDateTime.now());
     }
 }
