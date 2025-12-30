@@ -119,7 +119,7 @@ public class WaterGroupPosterDrawServiceImpl implements WaterGroupPosterDrawServ
         String template;
         try {
             // 1. 使用 resourceLoader 获取资源对象
-            Resource resource = resourceLoader.getResource("classpath:poster/water_group_poster.html");
+            Resource resource = resourceLoader.getResource("classpath:templates/water_group/water_group_poster.html");
             // 2. 从资源对象获取输入流 (InputStream)
             try (InputStream inputStream = resource.getInputStream()) {
                 // 3. 使用工具类将输入流复制到字符串，并指定编码
@@ -144,11 +144,12 @@ public class WaterGroupPosterDrawServiceImpl implements WaterGroupPosterDrawServ
                 new BrowserType.LaunchOptions()
                         .setHeadless(true)
                         .setArgs(List.of("--no-sandbox", "--disable-setuid-sandbox")))) {
-
-            Page page = browser.newPage();
+            Browser.NewPageOptions pageOptions = new Browser.NewPageOptions();
+            pageOptions.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
+            Page page = browser.newPage(pageOptions);
             page.setViewportSize(800, 100); // 初始视口可以小一点，后面会根据内容自适应
             page.setContent(html, new Page.SetContentOptions()
-                    .setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
+                    .setWaitUntil(WaitUntilState.NETWORKIDLE));
             // 获取 poster 元素的高度，并设置为视口高度，确保截图完整
             int height = (int) page.locator(".poster").boundingBox().height;
             page.setViewportSize(800, height);

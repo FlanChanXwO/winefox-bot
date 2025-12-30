@@ -12,6 +12,8 @@ import com.github.winefoxbot.model.dto.bittorrent.BitTorrentSearchResult;
 import com.github.winefoxbot.model.dto.bittorrent.BitTorrentSearchResultItem;
 import com.github.winefoxbot.service.bittorrent.BitTorrentService;
 import com.github.winefoxbot.service.shiro.ShiroSessionStateService;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Order;
@@ -55,7 +57,12 @@ public class BitTorrentPlugin {
 
     private final BitTorrentService bitTorrentService;
     private final BitTorrentConfig bitTorrentConfig;
-    private final Map<String, Pair<String,Integer>> nextPageMap = new ConcurrentHashMap<>();
+    private final Cache<String, Pair<String, Integer>> nextPageCache = CacheBuilder.newBuilder()
+            // 设置在最后一次写入后 1 分钟过期
+            .expireAfterWrite(1, TimeUnit.MINUTES)
+            // 设置缓存的最大容量，防止内存无限增长
+            .maximumSize(50)
+            .build();
     private final ShiroSessionStateService sessionStateService;
 
     @AnyMessageHandler
@@ -64,24 +71,36 @@ public class BitTorrentPlugin {
     public int nextPage(Bot bot, AnyMessageEvent event) {
         String message = event.getMessage();
         String mapKey = sessionStateService.getSessionKey(event);
+
         if (!"下一页".equals(message)) {
-            if (nextPageMap.containsKey(mapKey)) {
+            // ifPresent: 如果存在才执行，避免了 containsKey + get 的两次查找
+            if (nextPageCache.getIfPresent(mapKey) != null) {
                 // 删除翻页映射，退出命令模式
-                nextPageMap.remove(mapKey);
+                nextPageCache.invalidate(mapKey);
                 sessionStateService.exitCommandMode(mapKey);
                 bot.sendMsg(event, MsgUtils.builder().text("已退出搜索模式").build(), false);
             }
             return MESSAGE_IGNORE;
         }
+
         String userId = String.valueOf(event.getUserId());
         Integer messageId = event.getMessageId();
-        Pair<String,Integer> nextPageInfo = nextPageMap.get(mapKey);
+
+        // 使用 getIfPresent 获取，如果 key 不存在或已过期，返回 null
+        Pair<String, Integer> nextPageInfo = nextPageCache.getIfPresent(mapKey);
+
         if (nextPageInfo == null) {
+            // 这里可以给用户一个更友好的提示，比如：“当前没有可翻页的内哦，请先进行搜索。”
             return MESSAGE_IGNORE;
         }
+
         String keyword = nextPageInfo.getKey();
         Integer page = nextPageInfo.getValue();
+
+        // 在 executeSearch 中，当你更新页码时，也要用 put 方法更新缓存
+        // nextPageCache.put(mapKey, new Pair<>(keyword, newPage));
         executeSearch(bot, event, messageId, keyword, page, userId);
+
         return MESSAGE_BLOCK;
     }
 
@@ -186,11 +205,15 @@ public class BitTorrentPlugin {
             sessionStateService.exitCommandMode(mapKey); // 异常时也要退出
         } finally {
             if (result != null && result.getPageInfo() != null && result.getPageInfo().isHasNextPage()) {
-                // 更新下一页信息
-                nextPageMap.put(mapKey, Pair.of(keyword, page + 1));
+                // 如果有下一页，就更新缓存中的页码信息。
+                // 这会重置该 key 的过期计时器（无论是 expireAfterWrite 还是 expireAfterAccess）。
+                nextPageCache.put(mapKey, Pair.of(keyword, page + 1));
             } else {
-                // 如果没有下一页了，从翻页映射中移除，避免内存泄漏
-                nextPageMap.remove(mapKey);
+                // 如果没有下一页了，或者搜索失败 (result 为 null)，
+                // 应该显式地让这个 key 失效，立即释放资源并退出翻页模式。
+                nextPageCache.invalidate(mapKey);
+                // 最好也在这里显式退出命令模式，确保状态一致性
+                sessionStateService.exitCommandMode(mapKey);
             }
         }
     }

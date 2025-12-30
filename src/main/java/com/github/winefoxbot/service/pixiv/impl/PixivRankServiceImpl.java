@@ -11,6 +11,8 @@ import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.BotContainer;
+import com.mikuac.shiro.dto.action.common.ActionData;
+import com.mikuac.shiro.dto.action.common.MsgId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
@@ -21,6 +23,7 @@ import org.apache.tomcat.util.buf.StringUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import javax.net.ssl.SSLHandshakeException;
@@ -54,10 +57,11 @@ public class PixivRankServiceImpl implements PixivRankService {
             return;
         }
         Bot bot = botOptional.get();
+        List<List<File>> filesList = null;
         try {
             List<String> msgList = new ArrayList<>();
             List<String> rankIds = this.getRank(mode, content, false);
-            List<List<File>> filesList = new ArrayList<>();
+            filesList = new ArrayList<>();
             for (String rankId : rankIds) {
                 List<File> files = pixivService.fetchImages(rankId).join();
                 if (files.isEmpty()) {
@@ -88,27 +92,45 @@ public class PixivRankServiceImpl implements PixivRankService {
                 bot.sendGroupMsg(groupId, "未能获取到排行榜数据", false);
                 return;
             }
-            List<Map<String, Object>> forwardMsg = ShiroUtils.generateForwardMsg(bot.getSelfId(), "pixiv", msgList);
+            List<Map<String, Object>> forwardMsg = ShiroUtils.generateForwardMsg(bot, msgList);
             String description = switch (mode) {
                 case DALLY -> "每日";
                 case WEEKLY -> "每周";
                 case MONTHLY -> "每月";
             };
-            bot.sendGroupMsg(groupId,"那么这是最新的 Pixiv %s排行榜~".formatted(description), false);
-            bot.sendGroupForwardMsg(groupId, forwardMsg);
-            // 删除文件
-            for (List<File> files : filesList) {
-                File parentFile = files.getFirst().getParentFile();
-                if (parentFile.exists()) {
-                    FileUtils.deleteDirectory(parentFile);
-                }
+            bot.sendGroupMsg(groupId, "那么这是最新的 Pixiv %s排行榜~".formatted(description), false);
+            ActionData<MsgId> resp = bot.sendGroupForwardMsg(groupId, forwardMsg);
+            if (resp.getRetCode() == 0) {
+                log.info("Pixiv {} 排行榜推送成功，群号: {}", description, groupId);
+            } else {
+                log.error("Pixiv {} 排行榜推送失败，错误码: {}，群号: {}", description, resp.getRetCode(), groupId);
+                throw new RuntimeException("Pixiv 排行榜推送失败，错误码: " + resp.getRetCode());
             }
         } catch (SSLHandshakeException e) {
             log.error("Pixiv SSL 握手失败，可能是 Pixiv 证书发生变更导致，请检查！", e);
             bot.sendGroupMsg(groupId, "因为网络问题，图片获取失败，请重试", false);
-        }catch (Exception e) {
+        } catch (Exception e) {
             log.error("处理 Pixiv 图片失败", e);
             bot.sendGroupMsg(groupId, "处理 Pixiv 图片失败：" + e.getMessage(), false);
+        } finally {
+            // 删除文件
+            clearFiles(filesList);
+        }
+    }
+
+    @Async
+    public void clearFiles (List<List<File>> filesList) {
+        if (!filesList.isEmpty()) {
+            for (List<File> files : filesList) {
+                File parentFile = files.getFirst().getParentFile();
+                if (parentFile.exists()) {
+                    try {
+                        FileUtils.deleteDirectory(parentFile);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
         }
     }
 

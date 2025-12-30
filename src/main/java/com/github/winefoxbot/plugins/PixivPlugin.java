@@ -275,7 +275,7 @@ public class PixivPlugin {
         bot.sendMsg(event, "正在获取 Pixiv 今日排行榜，请稍候...", false);
         String params = matcher.group(2);
         PixivRankService.Content content = params != null ? PixivRankService.Content.valueOf(params.toUpperCase()) : PixivRankService.Content.ILLUST;
-        getPixivRank(bot, event, matcher, PixivRankPushMode.DALLY, content, false);
+        getPixivRank(bot, event, matcher, PixivRankPushMode.DALLY, content);
     }
 
 
@@ -287,7 +287,7 @@ public class PixivPlugin {
         bot.sendMsg(event, "正在获取 Pixiv 本周排行榜，请稍候...", false);
         String params = matcher.group(2);
         PixivRankService.Content content = params != null ? PixivRankService.Content.valueOf(params.toUpperCase()) : PixivRankService.Content.ILLUST;
-        getPixivRank(bot, event, matcher, PixivRankPushMode.WEEKLY, content, false);
+        getPixivRank(bot, event, matcher, PixivRankPushMode.WEEKLY, content);
     }
 
 
@@ -299,7 +299,7 @@ public class PixivPlugin {
         bot.sendMsg(event, "正在获取 Pixiv 本月排行榜，请稍候...", false);
         String params = matcher.group(2);
         PixivRankService.Content content = params != null ? PixivRankService.Content.valueOf(params.toUpperCase()) : PixivRankService.Content.ILLUST;
-        getPixivRank(bot, event, matcher, PixivRankPushMode.MONTHLY, content, false);
+        getPixivRank(bot, event, matcher, PixivRankPushMode.MONTHLY, content);
     }
 
     /*
@@ -340,11 +340,11 @@ public class PixivPlugin {
 
      */
 
-    private void getPixivRank(Bot bot, AnyMessageEvent event, Matcher matcher, PixivRankPushMode mode, PixivRankService.Content content, boolean isR18) {
+    private void getPixivRank(Bot bot, AnyMessageEvent event, Matcher matcher, PixivRankPushMode mode, PixivRankService.Content content) {
         String params = matcher.group(2);
         try {
             List<String> msgList = new ArrayList<>();
-            List<String> rankIds = pixivRankService.getRank(mode, content, isR18);
+            List<String> rankIds = pixivRankService.getRank(mode, content, false);
             List<List<File>> filesList = new ArrayList<>();
             for (String rankId : rankIds) {
                 List<File> files = pixivService.fetchImages(rankId).join();
@@ -376,7 +376,7 @@ public class PixivPlugin {
                 bot.sendMsg(event, "未能获取到排行榜数据", false);
                 return;
             }
-            List<Map<String, Object>> forwardMsg = ShiroUtils.generateForwardMsg(bot.getSelfId(), "pixiv", msgList);
+            List<Map<String, Object>> forwardMsg = ShiroUtils.generateForwardMsg(bot, msgList);
             bot.sendForwardMsg(event, forwardMsg);
             // 删除文件
             for (List<File> files : filesList) {

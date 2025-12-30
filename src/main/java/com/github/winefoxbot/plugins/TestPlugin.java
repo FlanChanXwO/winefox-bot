@@ -1,5 +1,6 @@
 package com.github.winefoxbot.plugins;
 
+import cn.hutool.core.lang.Pair;
 import com.github.winefoxbot.annotation.PluginFunction;
 import com.github.winefoxbot.model.enums.Permission;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
@@ -13,7 +14,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
 import java.util.regex.Matcher;
+import java.util.stream.Stream;
 
 /**
  * @author FlanChan (badapple495@outlook.com)
@@ -25,9 +32,9 @@ import java.util.regex.Matcher;
 @RequiredArgsConstructor
 public class TestPlugin {
 
-    @PluginFunction(group = "测试", name = "echo模块", description = "回复收到的消息内容", permission = Permission.SUPERADMIN)
+    @PluginFunction(group = "测试", name = "echo模块", description = "回复收到的消息内容",            hidden = true, permission = Permission.SUPERADMIN)
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text,   cmd = "echo\\s.+$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text,   cmd = "/echo\\s.+$")
     public void echo(Bot bot, AnyMessageEvent event, Matcher matcher) {
         String messageContent = matcher.group(0);
         log.info("echo模块 接收到 {}", messageContent);
@@ -36,6 +43,5 @@ public class TestPlugin {
                         .text(messageContent)
                         .build(), false);
     }
-
 
 }

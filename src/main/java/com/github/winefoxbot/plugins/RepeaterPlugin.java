@@ -82,7 +82,7 @@ public class RepeaterPlugin{
     }
 
     // 关闭复读跟随
-    @PluginFunction(group = "复读机", name = "/", description = "使用 /停止复读跟随 命令关闭复读跟随功能。", commands = {"/停止复读跟随"})
+    @PluginFunction(group = "复读机", name = "停止复读跟随", description = "使用 /停止复读跟随 命令关闭复读跟随功能。", commands = {"/停止复读跟随", "/关闭复读跟随", "/取消复读跟随"})
     @GroupMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/(停止|关闭|取消)复读跟随$")
     public void disableFollowRepeat(Bot bot, GroupMessageEvent event) {

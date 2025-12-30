@@ -38,4 +38,10 @@ public @interface PluginFunction {
      * @return 触发该功能的命令（包括别名）。可选参数。
      */
     String[] commands() default {};
+
+    /**
+     * 是否隐藏？
+     * @return
+     */
+    boolean hidden() default false;
 }

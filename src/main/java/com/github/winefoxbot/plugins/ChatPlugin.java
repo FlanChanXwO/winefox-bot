@@ -57,11 +57,7 @@ public class ChatPlugin {
     }
 
 
-    @PluginFunction(group = "聊天功能",
-            name = "聊天回复",
-            description = "当用户在在私聊中发送消息时，进行智能回复。",
-            permission = Permission.SUPERADMIN
-    )
+
     @PrivateMessageHandler
     @Async
     @Order(100)
@@ -162,12 +158,7 @@ public class ChatPlugin {
         deepSeekService.handlePokeMessage(bot, event, event.getGroupId() != null);
     }
 
-    @PluginFunction(
-            group = "聊天功能",
-            name = "私聊戳一戳回复",
-            description = "当用户戳一戳机器人时，进行智能回复。",
-            permission = Permission.SUPERADMIN
-    )
+
     @PrivatePokeNoticeHandler
     @Limit(userPermits = 1, timeInSeconds = 1, notificationIntervalSeconds = 30, message = "戳得太快了，酒狐需要休息一下哦~")
     @Async

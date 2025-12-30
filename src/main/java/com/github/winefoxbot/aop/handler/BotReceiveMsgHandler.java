@@ -59,7 +59,7 @@ public class BotReceiveMsgHandler {
         message.setSelfId(bot.getSelfId());
         message.setMessageType(event.getMessageType());
         message.setUserId(event.getUserId());
-        message.setMessage(JSONUtil.parseArray(BotUtils.parseCQtoJsonStr(event.getRawMessage())));
+        message.setMessage(JSONUtil.parseArray(BotUtils.parseCQtoJsonStr(event.getRawMessage(),true)));
 
         log.info("Received message: {}", message.getMessage());
         message.setPlainText(BotUtils.getPlainTextMessage(event.getMessage()));

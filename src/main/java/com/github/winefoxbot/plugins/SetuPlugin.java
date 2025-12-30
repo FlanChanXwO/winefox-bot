@@ -52,6 +52,7 @@ public class SetuPlugin {
     private final SetuApiConfig setuApiConfig;
     private final SetuConfigService setuConfigService;
     private final SemaphoreManager semaphoreManager;
+    private final int retryTimes = 3;
     @PluginFunction(group = "瑟瑟功能", name = "解除限制开关", description = "解除限制", permission = Permission.ADMIN, commands = {"/解除瑟瑟限制", "/开启瑟瑟限制"})
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^" + WineFoxBotConfig.COMMAND_PREFIX_REGEX + "(解除瑟瑟限制|开启瑟瑟限制)" + "$")
@@ -89,7 +90,7 @@ public class SetuPlugin {
             return;
         }
         boolean updated = setuConfigService.toggleAutoRevokeSetting(config);
-        bot.sendMsg(event, updated ? "设置已更新，当前自动撤回状态：" + (config.getR18Enabled() ? "开启" : "关闭") : "设置更新失败，请重试", false);
+        bot.sendMsg(event, updated ? "设置已更新，当前自动撤回状态：" + (config.getAutoRevoke() ? "开启" : "关闭") : "设置更新失败，请重试", false);
     }
 
     @PluginFunction(
@@ -163,66 +164,115 @@ public class SetuPlugin {
         Long groupId = event.getGroupId();
         boolean isInGroup = groupId != null;
         String tag = matcher.group(3); // 获取参数
+
         if (tag != null && !tag.isEmpty()) {
             log.info("收到了带标签的请求，标签: {}", tag);
         } else {
             log.info("收到了不带标签的随机图片请求");
         }
 
-        String filePath = null;
-        String fileName = null;
-        try {
-            List<SetuApiConfig.Api> apis = setuApiConfig.getApis();
-            if (apis.isEmpty()) {
-                bot.sendMsg(event, "未配置任何图片 API", false);
-                return;
-            }
-            SetuApiConfig.Api selectedApi = apis.get((int) (Math.random() * apis.size()));
-            HttpUrl.Builder builder = HttpUrl.parse(selectedApi.getUrl())
-                    .newBuilder()
-                    .addQueryParameter("num", "1") // 请求一张图片
-                    .addQueryParameter("excludeAI", "true");
-            if (enableR18) {
-                builder.addQueryParameter(selectedApi.getR18().getKey(), selectedApi.getR18().getTrueValue());
-            }
-            if (tag != null) {
-                builder.addQueryParameter("tag", tag);
-            }
-            String setuUrl = builder.build().toString();
-            log.info("Using API URL: {}", setuUrl);
-            SetuApiConfig.Api apiWithParams = new SetuApiConfig.Api();
-            BeanUtil.copyProperties(selectedApi, apiWithParams);
-            apiWithParams.setUrl(setuUrl);
-            byte[] image = fetchImage(apiWithParams);
-            if (image.length == 0) {
-                bot.sendMsg(event, "未能获取到图片，请稍后再试~", false);
-                return;
-            }
-            if (enableR18) {
-                String s = PdfUtil.wrapByteImagesIntoPdf(List.of(image), "setu");
-                if (s == null) {
-                    bot.sendMsg(event, "整理图片时出错，请稍后再试~", false);
-                    return;
+        final int MAX_RETRIES = 3; // 定义最大重试次数为3次
+        int attempt = 0;           // 当前尝试次数
+        boolean success = false;   // 任务是否成功的标志
+
+        // --- 新增：将主要逻辑放入 while 循环中实现重试 ---
+        while (attempt < MAX_RETRIES && !success) {
+            attempt++; // 增加尝试次数
+            log.info("开始第 {}/{} 次尝试获取图片...", attempt, MAX_RETRIES);
+
+            String filePath = null;
+            String fileName = null;
+
+            try {
+                // 检查 API 配置，这部分不需要重试，如果没配置，直接退出
+                List<SetuApiConfig.Api> apis = setuApiConfig.getApis();
+                if (apis.isEmpty()) {
+                    bot.sendMsg(event, "未配置任何图片 API", false);
+                    return; // 直接返回，无需重试
                 }
-                filePath = s.replace("\\", "/");
-                fileName = Path.of(s).getFileName().toString();
-                log.info("Attempting to upload file: path='{}', name='{}'", filePath, fileName);
-                ActionRaw actionRaw = isInGroup ? bot.uploadGroupFile(event.getGroupId(), filePath, fileName) : bot.uploadPrivateFile(event.getUserId(), filePath, fileName);
-                if (actionRaw == null || actionRaw.getRetCode() != 0) {
-                    log.error("File upload failed. Path: {}, Name: {}. Response: {}", filePath, fileName, actionRaw);
+
+                // 随机选择一个 API
+                SetuApiConfig.Api selectedApi = apis.get((int) (Math.random() * apis.size()));
+
+                // 构建请求 URL
+                HttpUrl.Builder builder = HttpUrl.parse(selectedApi.getUrl())
+                        .newBuilder()
+                        .addQueryParameter("num", "1")
+                        .addQueryParameter("excludeAI", "true");
+                if (enableR18) {
+                    builder.addQueryParameter(selectedApi.getR18().getKey(), selectedApi.getR18().getTrueValue());
                 }
-            } else {
-                bot.sendMsg(event, MsgUtils.builder().img(image).build(),false);
-            }
-        } catch (Exception e) {
-            log.error("Error during R18 picture fetch/upload", e);
-            bot.sendMsg(event, "获取图片时出错，请稍后再试~", false);
-        } finally {
-            if (enableR18) {
-                if (isInGroup) {
-                    deleteGroupFile(bot, event, fileName);
+                if (tag != null) {
+                    builder.addQueryParameter("tag", tag);
                 }
-                recycleTempFile(filePath);
+                String setuUrl = builder.build().toString();
+                log.info("第 {} 次尝试, 使用 API URL: {}", attempt, setuUrl);
+
+                // 创建包含参数的 API 配置对象
+                SetuApiConfig.Api apiWithParams = new SetuApiConfig.Api();
+                BeanUtil.copyProperties(selectedApi, apiWithParams);
+                apiWithParams.setUrl(setuUrl);
+
+                // --- 核心重试逻辑开始 ---
+                byte[] image = fetchImage(apiWithParams);
+
+                // 如果获取的图片为空，说明本次尝试失败，触发重试
+                if (image == null || image.length == 0) {
+                    log.warn("第 {} 次尝试失败：未能获取到图片或图片内容为空。", attempt);
+                    // 如果已经是最后一次尝试，则发送失败消息
+                    if (attempt >= MAX_RETRIES) {
+                        bot.sendMsg(event, "尝试多次后仍未能获取到图片，请稍后再试~", false);
+                    }
+                    continue; // 继续下一次循环（重试）
+                }
+
+
+                // --- 图片处理和发送逻辑 ---
+                if (enableR18) {
+                    String s = PdfUtil.wrapByteImagesIntoPdf(List.of(image), "setu");
+                    if (s == null) {
+                        // PDF转换失败通常是内部错误，可能不适合重试，但这里也将其纳入重试逻辑
+                        log.error("第 {} 次尝试失败：整理图片为PDF时出错。", attempt);
+                        if (attempt >= MAX_RETRIES) {
+                            bot.sendMsg(event, "整理图片时出错，请稍后再试~", false);
+                        }
+                        continue; // 触发重试
+                    }
+                    filePath = s.replace("\\", "/");
+                    fileName = Path.of(s).getFileName().toString();
+                    log.info("准备上传文件: path='{}', name='{}'", filePath, fileName);
+
+                    ActionRaw actionRaw = isInGroup ? bot.uploadGroupFile(event.getGroupId(), filePath, fileName) : bot.uploadPrivateFile(event.getUserId(), filePath, fileName);
+
+                    if (actionRaw == null || actionRaw.getRetCode() != 0) {
+                        log.error("第 {} 次尝试失败：文件上传失败. Path: {}, Name: {}. Response: {}", attempt, filePath, fileName, actionRaw);
+                        if (attempt >= MAX_RETRIES) {
+                            bot.sendMsg(event, "图片上传失败，请稍后再试~", false);
+                        }
+                        // 上传失败也可以重试
+                        continue;
+                    }
+
+                    // R18 逻辑成功，设置成功标志并清理资源
+                    success = true; // 标记成功，跳出重试循环
+                    if (isInGroup) {
+                        deleteGroupFile(bot, event, fileName);
+                    }
+                    recycleTempFile(filePath);
+
+                } else {
+                    // 非 R18 图片直接发送
+                    bot.sendMsg(event, MsgUtils.builder().img(image).build(), false);
+                    success = true; // 标记成功，跳出重试循环
+                }
+
+            } catch (Exception e) {
+                log.error("第 {}/{} 次尝试时发生异常", attempt, MAX_RETRIES, e);
+                // 如果已经是最后一次尝试，则发送错误消息
+                if (attempt >= MAX_RETRIES) {
+                    bot.sendMsg(event, "获取图片时出错，请稍后再试~", false);
+                }
+                // 发生异常后，循环将继续，进行下一次重试
             }
         }
     }

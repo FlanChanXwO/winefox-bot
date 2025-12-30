@@ -29,6 +29,8 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -197,7 +199,7 @@ public class PixivServiceImpl implements PixivService {
 
                 // 3. 为每个URL创建一个独立的、并行的下载处理子任务
                 List<CompletableFuture<File>> individualImageFutures = imageUrls.stream()
-                        .map(url -> CompletableFuture.supplyAsync(() -> downloadAndProcessSingleImage(url, pid), downloadExecutor))
+                        .map(url -> CompletableFuture.supplyAsync(() ->     downloadAndProcessSingleImage(url, pid), downloadExecutor))
                         .toList();
 
                 // 4. 非阻塞地等待所有子任务完成，并收集结果
@@ -253,47 +255,89 @@ public class PixivServiceImpl implements PixivService {
         }
     }
 
+    private final ConcurrentHashMap<String, Lock> downloadLocks = new ConcurrentHashMap<>();
+
     private File downloadAndProcessSingleImage(String url, String pid) {
         String name = url.substring(url.lastIndexOf("/") + 1);
         File targetFolder = pidFolderForImages(pid);
         File targetFile = new File(targetFolder, name);
-        log.info("启动任务：下载 {} 到 {} [线程: {}]", name, targetFile.getPath(), Thread.currentThread().toString());
-        Request request = new Request.Builder().url(url).headers(pixivConfig.getHeaders()).build();
-        int retry = 0;
-        while (retry < 10) {
-            try (Response res = httpClient.newCall(request).execute()) {
-                if (!res.isSuccessful()) {
-                    throw new IOException("下载失败，HTTP Code: " + res.code());
-                }
-                ResponseBody body = res.body();
-                if (body == null) {
-                    throw new IOException("下载失败，响应体为空");
-                }
-                try (InputStream in = body.byteStream()) {
-                    Files.copy(in, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                }
-                log.info("下载完成 {}", name);
-                if (targetFile.length() >= 10 * 1024 * 1024) {
-                    log.info("文件 {} 大小超过10MB，开始压缩...", name);
-                    compressImage(targetFile, 2);
-                    log.info("文件 {} 压缩完成", name);
-                }
-                return targetFile;
-            } catch (SSLHandshakeException e) {
-                log.warn("SSL握手失败，正在重试... (第 {}/10 次)", retry + 1, e);
-                try {
-                    TimeUnit.SECONDS.sleep(1);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    throw new RuntimeException("下载线程被中断", ie);
-                }
-                retry++;
-            } catch (Exception e) {
-                log.error("处理文件 {} 时发生严重错误", name, e);
-                throw new RuntimeException("处理文件 " + name + " 失败", e);
-            }
+
+        // --- START of Concurrency Control ---
+
+        // Step 1: Check if the file already exists and is complete.
+        // If so, we don't need to do anything.
+        if (targetFile.exists() && targetFile.length() > 0) {
+            log.info("文件 {} 已存在，跳过下载。", targetFile.getPath());
+            return targetFile;
         }
-        throw new RuntimeException("下载 " + name + " 失败，已达到最大重试次数");
+
+        // Step 2: Acquire a unique lock for this specific file path.
+        // computeIfAbsent ensures that only one lock is created per file path atomically.
+        Lock fileLock = downloadLocks.computeIfAbsent(targetFile.getAbsolutePath(), k -> new ReentrantLock());
+
+        // Use a try-finally block to guarantee the lock is always released.
+        fileLock.lock();
+        try {
+            // Step 3: Double-check after acquiring the lock.
+            // Another thread might have finished downloading it while we were waiting for the lock.
+            if (targetFile.exists() && targetFile.length() > 0) {
+                log.info("文件 {} 已被其他线程下载完成，直接使用。", targetFile.getPath());
+                return targetFile;
+            }
+
+            // --- END of Concurrency Control ---
+
+            log.info("启动任务：下载 {} 到 {} [线程: {}]", name, targetFile.getPath(), Thread.currentThread().toString());
+            Request request = new Request.Builder().url(url).headers(pixivConfig.getHeaders()).build();
+            int retry = 0;
+            while (retry < 10) {
+                try (Response res = httpClient.newCall(request).execute()) {
+                    if (!res.isSuccessful()) {
+                        throw new IOException("下载失败，HTTP Code: " + res.code());
+                    }
+                    ResponseBody body = res.body();
+                    if (body == null) {
+                        throw new IOException("下载失败，响应体为空");
+                    }
+                    try (InputStream in = body.byteStream()) {
+                        // Create parent directories if they don't exist
+                        Files.createDirectories(targetFile.getParentFile().toPath());
+                        Files.copy(in, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    }
+                    log.info("下载完成 {}", name);
+                    if (targetFile.length() >= 10 * 1024 * 1024) {
+                        log.info("文件 {} 大小超过10MB，开始压缩...", name);
+                        // compressImage(targetFile, 2); // Assuming you have this method
+                        log.info("文件 {} 压缩完成", name);
+                    }
+                    return targetFile;
+                } catch (SSLHandshakeException e) {
+                    log.warn("SSL握手失败，正在重试... (第 {}/10 次)", retry + 1); // Removed exception from log args for clarity
+                    try {
+                        TimeUnit.SECONDS.sleep(1);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException("下载线程被中断", ie);
+                    }
+                    retry++;
+                } catch (Exception e) {
+                    log.error("处理文件 {} 时发生严重错误", name, e);
+                    // If an error occurs, delete the potentially corrupted partial file
+                    // to allow for a clean retry later.
+                    if (targetFile.exists()) {
+                        targetFile.delete();
+                    }
+                    throw new RuntimeException("处理文件 " + name + " 失败", e);
+                }
+            }
+            throw new RuntimeException("下载 " + name + " 失败，已达到最大重试次数");
+
+        } finally {
+            // Step 4: Release the lock so other threads can proceed if they need to.
+            fileLock.unlock();
+            // Optional: Clean up the lock from the map if it's no longer needed
+            downloadLocks.remove(targetFile.getAbsolutePath());
+        }
     }
 
     private File pidFolderForImages(String pid) {

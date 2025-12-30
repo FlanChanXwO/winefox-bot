@@ -119,11 +119,11 @@ public class WaterGroupScheduleServiceImpl extends ServiceImpl<WaterGroupSchedul
             bot.sendGroupMsg(groupId, "没有足够的数据生成统计", false);
             return;
         }
-        bot.sendGroupMsg(groupId, "那么，这是今天的活跃榜~", false);
 
         File image = null;
         try {
             image = waterGroupPosterDrawService.drawPoster(ranks);
+            bot.sendGroupMsg(groupId, "那么，这是今天的活跃榜~", false);
             bot.sendGroupMsg(groupId, MsgUtils.builder()
                     .img(FileUtil.getFileUrlPrefix() + image.getAbsolutePath())
                     .build(), false);

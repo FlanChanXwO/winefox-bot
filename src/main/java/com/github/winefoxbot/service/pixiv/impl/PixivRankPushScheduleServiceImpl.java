@@ -41,7 +41,7 @@ public class PixivRankPushScheduleServiceImpl extends ServiceImpl<PixivRankPushS
         scheduleTaskService.scheduleOrUpdateRecurrentTask(
                 jobId,
                 cronExpression,
-                () -> executePush(groupId, mode) // 定义任务执行的具体逻辑
+                () -> executePush(groupId, mode.getValue()) // 定义任务执行的具体逻辑
         );
 
         // 从数据库查找是否已存在该订阅
@@ -110,6 +110,9 @@ public class PixivRankPushScheduleServiceImpl extends ServiceImpl<PixivRankPushS
 
             // 每月
             if (!dayOfMonth.equals("*") && dayOfWeek.equals("*")) {
+                if (dayOfMonth.equals("L")) {
+                    return String.format("每月最后一天 %s", timePart);
+                }
                 return String.format("每月%s日 %s", dayOfMonth, timePart);
             }
             // 每周
@@ -141,13 +144,14 @@ public class PixivRankPushScheduleServiceImpl extends ServiceImpl<PixivRankPushS
     }
 
     /**
+     * 注意请不要使用枚举传参，因为这是定时任务执行的方法，枚举无法序列化
      * 定时任务实际执行的推送逻辑
      * @param groupId 群组ID
      * @param mode 排行榜类型 (daily, weekly, monthly)
      */
-    public void executePush(Long groupId, PixivRankPushMode mode) {
-        log.info("开始执行P站排行榜推送任务, 群组ID: {}, 类型: {}", groupId, mode.getValue());
-        pixivRankService.fetchAndPushRank(groupId, mode, PixivRankService.Content.ILLUST);
+    public void executePush(Long groupId, String mode) {
+        log.info("开始执行P站排行榜推送任务, 群组ID: {}, 类型: {}", groupId, mode);
+        pixivRankService.fetchAndPushRank(groupId, PixivRankPushMode.fromValue(mode), PixivRankService.Content.ILLUST);
     }
 }
 

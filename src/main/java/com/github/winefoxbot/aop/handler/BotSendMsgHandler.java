@@ -52,7 +52,7 @@ public class BotSendMsgHandler {
             message.setUserId(bot.getSelfId());
             log.info("instance of messageContent: {}", messageContent.getClass().getName());
             if (messageContent instanceof String msg) {
-                message.setMessage(JSONUtil.parseArray(BotUtils.parseCQtoJsonStr(messageContent)));
+                message.setMessage(JSONUtil.parseArray(BotUtils.parseCQtoJsonStr(messageContent,true)));
                 message.setPlainText(BotUtils.getPlainTextMessage(msg));
             } else {
                 message.setMessage(JSONUtil.parseArray(messageContent));
@@ -89,7 +89,7 @@ public class BotSendMsgHandler {
             message.setUserId(bot.getSelfId());
             log.info("instance of messageContent: {}", messageContent.getClass().getName());
             if (messageContent instanceof String msg) {
-                message.setMessage(JSONUtil.parseArray(BotUtils.parseCQtoJsonStr(messageContent)));
+                message.setMessage(JSONUtil.parseArray(BotUtils.parseCQtoJsonStr(messageContent,true)));
                 message.setPlainText(BotUtils.getPlainTextMessage(msg));
             } else {
                 message.setMessage(JSONUtil.parseArray(messageContent));
@@ -125,7 +125,7 @@ public class BotSendMsgHandler {
             log.info("instance of messageContent: {}", messageContent.getClass().getName());
             log.info("messageContent: {}", messageContent);
             if (messageContent instanceof String msg) {
-                message.setMessage(JSONUtil.parseArray(BotUtils.parseCQtoJsonStr(msg)));
+                message.setMessage(JSONUtil.parseArray(BotUtils.parseCQtoJsonStr(msg,true)));
                 message.setPlainText(BotUtils.getPlainTextMessage(msg));
             } else {
                 message.setMessage(JSONUtil.parseArray(messageContent));

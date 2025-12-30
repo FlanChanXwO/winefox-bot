@@ -1,6 +1,9 @@
 package com.github.winefoxbot;
 
 import cn.hutool.core.lang.Dict;
+import cn.hutool.core.lang.Pair;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import cn.hutool.setting.yaml.YamlUtil;
 import com.fasterxml.jackson.dataformat.yaml.YAMLParser;
 import com.github.winefoxbot.config.http.ProxyConfig;
@@ -13,6 +16,9 @@ import org.springframework.http.HttpHeaders;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author FlanChan (badapple495@outlook.com)
@@ -34,8 +40,22 @@ public class PixivAuthorCrawlTest {
                 .headers(headers)
                 .build();
         try (Response response = client.newCall(request).execute()) {
-            if (response.isSuccessful())
-                System.out.println(response.body().string());
+            if (response.isSuccessful()) {
+                String jsonStr = response.body().string();
+                JSONObject entries = JSONUtil.parseObj(jsonStr);
+                boolean error = entries.get("error",boolean.class);
+                if (error) {
+                    System.out.println(jsonStr);
+                    System.err.println("请求出错");
+                    return;
+                }
+                Map<String,Object> byPath = entries.getByPath("body.illusts", Map.class);
+                if (byPath.isEmpty()) {
+                    return;
+                }
+                List<String> pids = byPath.keySet().stream().toList();
+                System.out.println(pids);
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

@@ -29,7 +29,7 @@ public class KeywordTriggerPlugin {
     private final DeepSeekService deepSeekService;
     private final ObjectMapper objectMapper;
 
-    @PluginFunction(group = "聊天功能", name = "关键词触发回复", description = "当关键词在群聊中被多次提及时，触发 AI 生成符合人设的回复。",
+    @PluginFunction(group = "聊天功能", name = "关键词触发回复", description = "当\"酒狐\"在群里被提到时，可能会冒泡",
             permission = Permission.USER
     )
     @GroupMessageHandler

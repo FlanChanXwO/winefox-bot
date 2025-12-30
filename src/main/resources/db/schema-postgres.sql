@@ -89,39 +89,6 @@ CREATE TABLE IF NOT EXISTS pixiv_rank_push_schedule
 CREATE INDEX IF NOT EXISTS idx_cron_schedule ON pixiv_rank_push_schedule (cron_schedule);
 
 
-CREATE TABLE IF NOT EXISTS dna_team
-(
-    id             SERIAL PRIMARY KEY,
-    status         SMALLINT  NOT NULL DEFAULT 0, -- 0-未满 1-已满 2-已解散
-    description    VARCHAR(64),
-    mode           VARCHAR(32),
-    member_count   SMALLINT  NOT NULL DEFAULT 1,
-    max_members    SMALLINT  NOT NULL DEFAULT 4,
-    create_user_id BIGINT    NOT NULL,
-    group_id       BIGINT    NOT NULL,
-    created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    version        INTEGER   NOT NULL DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_team_status ON dna_team (status);
-
-CREATE TABLE IF NOT EXISTS dna_team_member
-(
-    id        SERIAL PRIMARY KEY,
-    team_id   BIGINT    NOT NULL,
-    user_id   BIGINT    NOT NULL,
-    role      SMALLINT  NOT NULL DEFAULT 0, -- 0-成员 1-队长
-    joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uk_team_user UNIQUE (team_id, user_id),
-    CONSTRAINT fk_team_member_team
-        FOREIGN KEY (team_id)
-            REFERENCES dna_team (id)
-            ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_team_member_team_id ON dna_team_member (team_id);
-
 
 
 CREATE TABLE IF NOT EXISTS pixiv_author_subscription

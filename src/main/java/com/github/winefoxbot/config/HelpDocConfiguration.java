@@ -1,49 +1,64 @@
 package com.github.winefoxbot.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.winefoxbot.model.dto.helpdoc.HelpDoc;
-import com.github.winefoxbot.model.dto.helpdoc.HelpSystemConfig;
+// [修改] 导入新的DTO
+import com.github.winefoxbot.model.dto.helpdoc.HelpData;
 import jakarta.annotation.PostConstruct;
+import lombok.Getter; // [新增] 导入 Getter
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.List;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 @Configuration
 @Slf4j
 @RequiredArgsConstructor
 public class HelpDocConfiguration {
-    private HelpSystemConfig systemConfig;
+    @Getter
+    private HelpData helpData;
     private final ObjectMapper mapper;
 
     @PostConstruct
     public void init() {
         try {
-            // 假设文件在 resources 目录下
-            InputStream inputStream = getClass().getResourceAsStream("/help-docs.json");
-            this.systemConfig = mapper.readValue(inputStream, HelpSystemConfig.class);
+            // [推荐] 将文件名定义为常量，避免魔法字符串
+            String configFileName = "help-docs.json";
+            Path configPath = Path.of(configFileName);
+            boolean exists = Files.exists(configPath);
+
+            if (exists && !Files.isDirectory(configPath) && Files.isReadable(configPath)) {
+                log.info("Loading {} from application root path.", configFileName);
+                try (InputStream inputStream = Files.newInputStream(configPath)) {
+                    this.helpData = mapper.readValue(inputStream, HelpData.class);
+                }
+            } else {
+                log.info("Loading {} from classpath.", configFileName);
+                // [修改] 路径前缀'/'更可靠
+                try (InputStream inputStream = getClass().getResourceAsStream("/" + configFileName)) {
+                    if (inputStream == null) {
+                        throw new IOException("Classpath resource not found: " + configFileName);
+                    }
+                    this.helpData = mapper.readValue(inputStream, HelpData.class);
+
+                    if (!exists) {
+                        try (InputStream defaultConfigStream = getClass().getResourceAsStream("/" + configFileName)) {
+                            Files.copy(defaultConfigStream, configPath);
+                            log.info("Default {} created at application root path.", configFileName);
+                        } catch (IOException e) {
+                            log.error("Failed to create default {}:", configFileName, e);
+                        }
+                    }
+                }
+            }
+            log.info("HelpDocConfiguration initialized successfully.");
         } catch (IOException e) {
-            // 错误处理，例如记录日志或抛出异常
-            e.printStackTrace();
-            // 初始化一个空对象以避免 NullPointerException
-            this.systemConfig = new HelpSystemConfig();
+            log.error("Failed to initialize HelpDocConfiguration:", e);
+            log.warn("Using default empty HelpData due to initialization failure.");
+            this.helpData = new HelpData();
         }
-    }
-
-    // 提供获取排序列表的方法
-    public List<String> getGroupOrder() {
-        return (systemConfig != null && systemConfig.getGroupOrder() != null)
-                ? systemConfig.getGroupOrder()
-                : List.of();
-    }
-
-    // 提供获取文档列表的方法
-    public List<HelpDoc> getDocumentation() {
-        return (systemConfig != null && systemConfig.getDocumentation() != null)
-                ? systemConfig.getDocumentation()
-                : List.of();
     }
 }

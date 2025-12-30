@@ -27,7 +27,9 @@ public class QQGroupAutoHandleAddRequestPlugin {
     private final QQGroupService qqGroupService;
 
 
-    @PluginFunction(group = "QQ群", name = "自动处理加群请求", description = "自动处理加群请求功能开关指令，指令：/开启自动处理加群 | /关闭自动处理加群，需在群内使用", permission = Permission.ADMIN, commands = {"开启自动处理加群", "关闭自动处理加群"})
+    @PluginFunction(group = "QQ群", name = "自动处理加群请求", description = "自动处理加群请求功能开关指令，指令：/开启自动处理加群 | /关闭自动处理加群，需在群内使用",
+            hidden = true,
+            permission = Permission.ADMIN, commands = {"开启自动处理加群", "关闭自动处理加群"})
     @GroupMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^" + WineFoxBotConfig.COMMAND_PREFIX_REGEX + "(开启自动处理加群|关闭自动处理加群)" + "$")
     public void toggleAutoHandleAddRequest(Bot bot, GroupMessageEvent event, Matcher matcher) {

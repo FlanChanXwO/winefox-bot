@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+ <meta charset="utf-8">
+ <title>帮助文档</title>
+ <!-- CSS链接，我们会在Java中内联它 -->
+ <style>
+  /* 使用系统字体，确保服务器已安装这些字体 */
+  @font-face {
+   font-family: 'NotoSansSC-Regular';
+   src: local('Noto Sans SC Regular'), local('思源黑体 CN Regular');
+  }
+  @font-face {
+   font-family: 'NotoSansSC-Bold';
+   src: local('Noto Sans SC Bold'), local('思源黑体 CN Bold');
+  }
+  /* 在 @font-face 区域添加它 */
+  @font-face {
+   font-family: 'SSFangTangTi';
+   /* 确认字体在系统中的确切名称，例如 '得意黑' 或 'Smiley Sans' */
+   src: local('得意黑'), local('Smiley Sans'), local('SSFangTangTi');
+  }
+  body {
+   margin: 0;
+   padding: 0;
+   background-color: #f9f9f9; /* 浅灰色背景，便于调试时看清边界 */
+   font-family: 'NotoSansSC-Regular', sans-serif;
+   -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+   width: 800px; /* 固定宽度，方便截图 */
+   padding: 20px;
+   background-color: #fff0f5; /* 整体淡粉色背景 */
+   box-sizing: border-box;
+  }
+
+  .header {
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+   background-color: #ffdae5; /* 头部深一点的粉色 */
+   padding: 10px 20px;
+   border-radius: 12px;
+   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+   margin-bottom: 20px;
+  }
+
+  .character-placeholder img {
+   height: 90px;
+   width: auto;
+   /* 图片垂直居中对齐 */
+   vertical-align: middle;
+  }
+
+  .title-main {
+   text-align: center;
+   color: #d15a7c;
+  }
+
+  .title-jp {
+   font-family: 'NotoSansSC-Bold', sans-serif;
+   font-size: 24px;
+   margin: 0;
+   letter-spacing: 2px;
+  }
+
+  .title-cn {
+   font-size: 42px;
+   font-family: 'SSFangTangTi', 'NotoSansSC-Bold', sans-serif;
+   margin: 5px 0 0 0;
+  }
+
+  .help-card {
+   background-color: white;
+   border-radius: 12px;
+   margin-bottom: 20px;
+   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+   overflow: hidden; /* 防止内容溢出圆角 */
+  }
+
+  .card-header {
+   display: flex;
+   align-items: center;
+   padding: 12px 20px;
+   background-color: #fff7fa; /* 卡片头部极淡的粉色 */
+   border-bottom: 1px solid #ffe8ef;
+  }
+
+  .card-icon {
+   width: 24px;
+   height: 24px;
+   margin-right: 12px;
+  }
+
+  .card-title {
+   font-size: 20px;
+   font-weight: bold;
+   color: #e86488;
+  }
+
+  .card-body {
+   padding: 5px 20px 15px 20px;
+  }
+
+  .help-table {
+   width: 100%;
+   border-collapse: collapse; /* 合并边框 */
+   font-size: 15px;
+  }
+
+  .help-table thead tr {
+   border-bottom: 2px solid #fce3e9;
+  }
+
+  .help-table th {
+   padding: 12px 8px;
+   text-align: left;
+   color: #b36d81;
+   font-weight: bold;
+  }
+
+  .help-table tbody tr {
+   border-bottom: 1px solid #fef3f6;
+  }
+  .help-table tbody tr:last-child {
+   border-bottom: none; /* 最后一行无下边框 */
+  }
+
+  .help-table td {
+   padding: 12px 8px;
+   vertical-align: top;
+   color: #555;
+   line-height: 1.5;
+  }
+  /* 命令列特殊样式 */
+  .help-table td:last-child {
+   font-family: Consolas, Monaco, 'Courier New', monospace;
+   color: #e83e8c; /* 粉色代码 */
+   font-weight: bold;
+  }
+
+
+  .footer {
+      /* 核心：背景图片设置 */
+      background-image: url("[[${res['bottom.jpg']}]]");
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+
+      /* 布局与尺寸 */
+      height: 200px; /* 可以适当增加高度以容纳两行文字和留白 */
+      box-sizing: border-box; /* 让padding包含在height内，更容易控制尺寸 */
+      padding: 20px;
+      text-align: center;
+
+      /*
+       * 关键技巧：使用半透明叠加层
+       * 这会在背景图片上覆盖一层半透明的深色/浅色，
+       * 无论背景图片多花哨，文字的可读性都能得到保障。
+       */
+      position: relative; /* 必须设置，为伪元素定位提供基准 */
+      z-index: 1; /* 确保内容在伪元素之上 */
+      border-radius: 10px;
+      overflow: hidden; /* 隐藏伪元素超出圆角的部分 */
+  }
+
+  /* ::before 是一个伪元素，我们用它来创建叠加层 */
+  .footer::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      /*
+       * 设置一个半透明的黑色背景。0.3代表30%的不透明度。
+       * 你可以调整这个值 (0.1-0.9) 或者颜色 (rgba(255, 255, 255, 0.5) 是半透明白色)
+       * 来达到最佳效果。
+       */
+      background-color: rgba(0, 0, 0, 0.3);
+      z-index: -1; /* 将这个叠加层放在背景的最顶层，但在文字内容的下面 */
+      border-radius: 10px;
+  }
+
+  /* 统一设置 footer 内所有段落的基础样式 */
+  .footer p {
+      margin: 5px 0;
+      position: relative; /* 确保文字在叠加层之上 */
+      z-index: 2;
+      text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5); /* 给文字添加阴影，进一步提升可读性 */
+  }
+
+  /* 动态提示信息的样式 */
+  .hint-text {
+      font-size: 16px;
+      font-weight: bold;
+      color: #FFFFFF; /* 在深色叠加层上，白色文字效果最好 */
+  }
+
+  /* 支持/版权信息的样式 */
+  .support-info {
+      font-size: 13px;
+      color: #E0E0E0; /* 使用稍暗的灰色，与主提示信息形成对比 */
+      margin-top: 10px;
+  }
+
+
+
+ </style>
+</head>
+<body>
+<div class="container">
+ <div class="header">
+  <!-- 左侧角色图片占位符 -->
+  <div class="character-placeholder">
+   <img th:src="${res['character.png']}" alt="Character">
+  </div>
+  <!-- 中间标题 -->
+  <div class="title-main">
+   <p class="title-jp">WINEFOX BOT HELP</p>
+   <p class="title-cn">小酒狐の帮助文档</p>
+  </div>
+  <!-- 右侧留空，或可以放Logo -->
+  <div class="character-placeholder">
+   <img th:src="${res['bot_icon.png']}" alt="Bot Icon">
+  </div>
+ </div>
+
+ <!-- 功能分组卡片，使用 th:each 循环 -->
+ <div th:each="group : ${help_data.groups}" class="help-card">
+  <div class="card-header">
+   <!-- [修改] 动态决定图标 -->
+   <!-- 如果group.icon不为null，用它；否则，用help_data.defaultIcon -->
+   <img th:src="${res[group.icon != null ? group.icon : help_data.defaultIcon]}" class="card-icon" alt="">
+
+   <span class="card-title" th:text="${group.name}">功能分组标题</span>
+  </div>
+  <div class="card-body">
+   <table class="help-table">
+    <tbody>
+    <!-- [修改] 循环遍历 group.documentation -->
+    <tr th:each="doc : ${group.documentation}">
+     <td th:text="${doc.name}">功能名称</td>
+     <td th:text="${doc.permission}">权限</td>
+     <td th:text="${doc.description}">这是一段功能的详细描述信息...</td>
+     <td th:utext="${doc.getFormattedCommands().replace('\n', '<br/>')}">/command</td>
+    </tr>
+    </tbody>
+   </table>
+  </div>
+ </div>
+
+ <!-- 底部提示信息 -->
+ <div class="footer">
+  <p th:text="${hint_text}">“提示信息”</p>
+  <p class="support-info">Support By FlanChanXwO@github</p>
+ </div>
+
+</div>
+</body>
+</html>

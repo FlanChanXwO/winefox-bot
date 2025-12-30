@@ -2,16 +2,6 @@
   "apis": [
     {
       "id": 1,
-      "url": "https://sex.nyan.run/api/v2/img",
-      "responseType": "image",
-      "r18": {
-        "key": "r18",
-        "trueValue": "true",
-        "falseValue": "false"
-      }
-    },
-    {
-      "id": 2,
       "url": "https://api.lolicon.app/setu/v2",
       "responseType": "json",
       "jsonPath": "data.urls.original",
