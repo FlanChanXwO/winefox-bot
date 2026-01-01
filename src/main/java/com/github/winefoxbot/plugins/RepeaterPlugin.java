@@ -30,9 +30,6 @@ import java.util.regex.Pattern;
 @Component
 public class RepeaterPlugin{
 
-
-    // 用于存储开启了复读跟随功能的用户
-// Key: groupId, Value: Set of userIds
     private final Map<Long, Set<Long>> repeaterFollowers = new ConcurrentHashMap<>();
 
     // 每个群组的最大跟随人数限制
@@ -42,11 +39,20 @@ public class RepeaterPlugin{
     // 开启复读跟随
     @PluginFunction(group = "复读机", name = "复读跟随", description = "使用 /复读跟随 命令开启复读跟随功能，使用 /停止复读跟随 关闭该功能。当你发送消息时，机器人会自动复读你的消息。", commands = {"/复读跟随", "/停止复读跟随"})
     @GroupMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/复读跟随$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/(开启|打开|停止|关闭|取消)复读跟随$")
     public void enableFollowRepeat(Bot bot, GroupMessageEvent event) {
         Long userId = event.getSender().getUserId();
         Long groupId = event.getGroupId();
+        String message = event.getMessage();
+        if (message.matches("^/(停止|关闭|取消)复读跟随$")) {
+            // 如果是关闭命令，直接调用关闭方法
+            disableFollowRepeat(bot, event);
+        } else if (message.matches("^/(开启|打开)复读跟随$")) {
+            enableFollowRepeat(bot, groupId, userId);
+        }
+    }
 
+    private void enableFollowRepeat(Bot bot, Long groupId, Long userId) {
         // 1. 获取或创建当前群组的跟随者集合
         // computeIfAbsent 确保了线程安全地创建 Set
         Set<Long> followersInGroup = repeaterFollowers.computeIfAbsent(groupId, k -> ConcurrentHashMap.newKeySet());
@@ -81,11 +87,7 @@ public class RepeaterPlugin{
         }
     }
 
-    // 关闭复读跟随
-    @PluginFunction(group = "复读机", name = "停止复读跟随", description = "使用 /停止复读跟随 命令关闭复读跟随功能。", commands = {"/停止复读跟随", "/关闭复读跟随", "/取消复读跟随"})
-    @GroupMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/(停止|关闭|取消)复读跟随$")
-    public void disableFollowRepeat(Bot bot, GroupMessageEvent event) {
+    private void disableFollowRepeat(Bot bot, GroupMessageEvent event) {
         Long userId = event.getSender().getUserId();
         Long groupId = event.getGroupId();
 
@@ -111,13 +113,13 @@ public class RepeaterPlugin{
     }
 
 
-    @Order(100)
+    @Order(10)
     @GroupMessageHandler
     @Async
     public void handleFollowerMessage(Bot bot, GroupMessageEvent event) {
         Long userId = event.getSender().getUserId();
         Long groupId = event.getGroupId();
-        String message = event.getMessage();
+        String message = event.getRawMessage();
 
         Set<Long> followersInGroup = repeaterFollowers.get(groupId);
 
@@ -147,7 +149,7 @@ public class RepeaterPlugin{
             return;
         }
 
-        String rawMessage = event.getMessage();
+        String rawMessage = event.getRawMessage();
         Long currentSenderId = event.getSender().getUserId();
         long groupId = event.getGroupId();
 

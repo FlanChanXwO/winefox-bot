@@ -18,14 +18,39 @@ import java.util.function.Consumer;
 public class ObjectStorageService implements FileStorageService {
     private static final String NOT_IMPLEMENTED_MSG = "Object storage is not implemented yet.";
 
+
+    @Override
+    public byte[] getFileByCacheKey(String cacheKey) {
+        throw new UnsupportedOperationException(NOT_IMPLEMENTED_MSG);
+    }
+
+    @Override
+    public void saveFileByCacheKey(String cacheKey, byte[] data, Duration expireAfter) {
+        throw new UnsupportedOperationException(NOT_IMPLEMENTED_MSG);
+    }
+
     @Override
     public Path writeFile(String relativePath, InputStream inputStream) throws IOException {
         throw new UnsupportedOperationException(NOT_IMPLEMENTED_MSG);
     }
-    // ... 对所有接口方法都这样实现 ...
     @Override
     public Path writeFile(String relativePath, InputStream inputStream, Duration expireAfter, Consumer<Path> onDeleteCallback) throws IOException {
          throw new UnsupportedOperationException(NOT_IMPLEMENTED_MSG);
+    }
+
+    @Override
+    public void registerFile(Path absolutePath, Duration expireAfter, Consumer<Path> onDeleteCallback) {
+        throw new UnsupportedOperationException(NOT_IMPLEMENTED_MSG);
+    }
+
+    @Override
+    public boolean deleteDirectory(Path directoryPath) throws IOException {
+        throw new UnsupportedOperationException(NOT_IMPLEMENTED_MSG);
+    }
+
+    @Override
+    public boolean deleteDirectory(String directoryRelativePath) throws IOException {
+        throw new UnsupportedOperationException(NOT_IMPLEMENTED_MSG);
     }
 
     @Override

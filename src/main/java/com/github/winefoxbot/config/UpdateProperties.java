@@ -31,6 +31,11 @@ public class UpdateProperties {
     private String releaseTag = "latest";
 
     /**
+     * GitHub 访问令牌（可选），用于提高 API 速率限制
+     */
+    private String githubToken;
+
+    /**
      * 当前正在运行的 JAR 文件的名称。用于自我替换。
      * Spring Boot 会自动找到它，但提供一个明确的名称更可靠。
      */

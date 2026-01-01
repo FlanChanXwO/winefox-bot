@@ -15,6 +15,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.regex.Matcher;
 
+import static com.github.winefoxbot.config.WineFoxBotConfig.COMMAND_PREFIX_REGEX;
+import static com.github.winefoxbot.config.WineFoxBotConfig.COMMAND_SUFFIX_REGEX;
+
 /**
  * @author FlanChan (badapple495@outlook.com)
  * @since 2025-12-08-0:17
@@ -25,16 +28,11 @@ import java.util.regex.Matcher;
 @RequiredArgsConstructor
 public class CorePlugin {
 
-    @PluginFunction(group = "测试", name = "echo模块", description = "回复收到的消息内容",            hidden = true, permission = Permission.SUPERADMIN)
+    @PluginFunction(group = "核心功能", name = "关闭或开启机器人", description = "关闭或开启机器人的功能，关闭后该机器人不再处理任何事件（包括推送）",  permission = Permission.SUPERADMIN)
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text,   cmd = "/echo\\s.+$")
-    public void echo(Bot bot, AnyMessageEvent event, Matcher matcher) {
-        String messageContent = matcher.group(0);
-        log.info("echo模块 接收到 {}", messageContent);
-        bot.sendMsg(event, MsgUtils.builder()
-                        .at(event.getUserId())
-                        .text(messageContent)
-                        .build(), false);
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX  + "(开启机器人|关闭机器人)" + COMMAND_SUFFIX_REGEX)
+    public void botss(Bot bot, AnyMessageEvent event, Matcher matcher) {
+
     }
 
 }

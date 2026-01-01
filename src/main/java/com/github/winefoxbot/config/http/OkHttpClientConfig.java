@@ -116,13 +116,12 @@ public class OkHttpClientConfig {
                         );
                         if (shouldProxy) {
                             // 如果主机名不在 noProxyHosts 列表中，使用我们配置的代理
-                            log.info("Using proxy for: " + requestHost);
-                            System.out.println();
+                            log.debug("Using proxy for: " + requestHost);
                             // 返回包含我们代理的列表
                             return Collections.singletonList(proxy);
                         } else {
                             // 如果主机名在 noProxyHosts 列表中，选择直连
-                            log.info("Direct connection (no proxy) for: " + requestHost);
+                            log.debug("Direct connection (no proxy) for: " + requestHost);
                             // 返回包含 Proxy.NO_PROXY 的列表，表示直连
                             return Collections.singletonList(Proxy.NO_PROXY);
                         }

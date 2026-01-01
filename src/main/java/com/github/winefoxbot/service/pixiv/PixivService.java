@@ -34,6 +34,4 @@ public interface PixivService {
      * 返回已经落地到磁盘的文件列表（可能是多张图片或一个 GIF）
      */
     CompletableFuture<List<File>> fetchImages(String pid) throws Exception;
-
-    void addSchedulePush(Long groupId);
 }

@@ -10,6 +10,8 @@ spring:
       spec: > # 使用 spec 字符串进行详细配置
         maximumSize=500,
         expireAfterWrite=10m
+  main:
+    lazy-initialization: true
 shiro:
   task-pool:
     enable-task-pool: false

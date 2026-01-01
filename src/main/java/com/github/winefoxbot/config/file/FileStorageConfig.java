@@ -1,6 +1,7 @@
 package com.github.winefoxbot.config.file;
 
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.service.file.FileStorageService;
 import com.github.winefoxbot.service.file.impl.LocalStorageService;
 import com.github.winefoxbot.service.file.impl.ObjectStorageService;
@@ -20,14 +21,16 @@ import java.nio.file.Paths;
 public class FileStorageConfig {
 
     private final FileStorageProperties properties;
+    private final ObjectMapper objectMapper;
+    private final static String LOCAL_RECORD_FILENAME = ".records.json";
 
     @Bean
     public FileStorageService fileStorageService() {
         return switch (properties.getType().toLowerCase()) {
             case "local" -> {
                 Path basePath = Paths.get(properties.getLocal().getBasePath());
-                Path recordPath = basePath.resolve(".records.json");
-                yield new LocalStorageService(basePath, recordPath);
+                Path recordPath = basePath.resolve(LOCAL_RECORD_FILENAME);
+                yield new LocalStorageService(basePath, objectMapper ,recordPath);
             }
             case "object" -> new ObjectStorageService();
             default -> throw new IllegalArgumentException("Unknown storage type: " + properties.getType());

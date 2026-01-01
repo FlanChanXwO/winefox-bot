@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.net.URI;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.function.Consumer;
@@ -22,7 +23,7 @@ public class FileRecord implements Serializable {
     /**
      * 文件的绝对路径。
      */
-    private String absolutePath;
+    private URI absolutePath;
 
     /**
      * 文件的写入时间。

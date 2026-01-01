@@ -4,12 +4,12 @@ import com.github.winefoxbot.init.HelpDocLoader;
 import com.github.winefoxbot.model.dto.helpdoc.HelpData;
 import com.github.winefoxbot.model.dto.helpdoc.HelpGroup;
 import com.github.winefoxbot.service.core.HelpImageService;
+import com.github.winefoxbot.service.file.FileStorageService;
 import com.microsoft.playwright.*;
+import com.microsoft.playwright.options.ScreenshotType;
 import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Service;
@@ -17,12 +17,8 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
-import java.util.stream.Stream;
 
 /**
  * 帮助图片生成服务的实现类。
@@ -37,20 +33,53 @@ public class HelpImageServiceImpl implements HelpImageService {
     private final HelpDocLoader helpDocLoader;
     private final TemplateEngine templateEngine;
     private final ResourcePatternResolver resourceResolver;
-    private Playwright playwright;
-    private Browser browser;
-
+    private final Browser browser;
+    private final FileStorageService fileStorageService;
+    private static final String HTML_TEMPLATE = "help_report/main";
+    private static final String RESOURCE_BASE_PATH = "templates/help_report/res";
 
     @Override
     public byte[] generateAllHelpImage(){
+        String cacheKey = "help/all_help_image.png"; // 使用层级结构，更清晰
+        byte[] cachedImage = fileStorageService.getFileByCacheKey(cacheKey);
+        if (cachedImage != null) {
+            log.info("Cache hit for all help image using key: {}", cacheKey);
+            return cachedImage;
+        }
+
+        log.info("Cache miss for all help image. Generating new one...");
         // 1. 获取所有分组的数据
         HelpData allHelpData = helpDocLoader.getSortedHelpData();
+
         // 2. 渲染图片
-        return renderHelpImage(allHelpData); // 传入标题
+        byte[] image = renderHelpImage(allHelpData);
+
+        // 3. 缓存图片
+        fileStorageService.saveFileByCacheKey(cacheKey, image, Duration.ofDays(1));
+        log.info("All help image has been generated and cached with key: {}", cacheKey);
+
+        return image;
     }
 
     @Override
     public byte[] generateHelpImageByGroup(String groupName){
+        // 对 groupName 进行规范化处理，以用作缓存键的一部分
+        String normalizedGroupName = groupName.trim().toLowerCase();
+        if (normalizedGroupName.isEmpty()) {
+            log.warn("Group name cannot be empty.");
+            return null;
+        }
+
+        // 根据规范化的分组名生成唯一的缓存键
+        String cacheKey = String.format("help/group_%s.png", normalizedGroupName);
+
+        byte[] cachedImage = fileStorageService.getFileByCacheKey(cacheKey);
+        if (cachedImage != null) {
+            log.info("Cache hit for group '{}' help image using key: {}", groupName, cacheKey);
+            return cachedImage;
+        }
+
+        log.info("Cache miss for group '{}' help image. Generating new one...", groupName);
         // 1. 获取所有数据
         HelpData allHelpData = helpDocLoader.getSortedHelpData();
 
@@ -69,59 +98,30 @@ public class HelpImageServiceImpl implements HelpImageService {
         singleGroupData.setDefaultIcon(allHelpData.getDefaultIcon());
         singleGroupData.setGroups(List.of(targetGroupOpt.get()));
 
-        // 4. 渲染图片，标题就是分组名
-        return renderHelpImage(singleGroupData);
+        // 4. 渲染图片
+        byte[] image = renderHelpImage(singleGroupData);
+
+        // 5. 缓存图片
+        fileStorageService.saveFileByCacheKey(cacheKey, image, Duration.ofDays(1));
+        log.info("Help image for group '{}' has been generated and cached with key: {}", groupName, cacheKey);
+
+        return image;
     }
-
-
-    @PostConstruct
-    public void init() {
-        try {
-            log.info("Initializing Playwright and launching browser...");
-            playwright = Playwright.create();
-            BrowserType browserType = playwright.chromium();
-            browser = browserType.launch(new BrowserType.LaunchOptions().setHeadless(true));
-            log.info("Playwright initialized and browser launched successfully.");
-        } catch (Exception e) {
-            log.error("Failed to initialize Playwright. Help image generation will be disabled.", e);
-            if (playwright != null) {
-                playwright.close();
-            }
-            throw new RuntimeException("Could not initialize Playwright.", e);
-        }
-    }
-
-    @PreDestroy
-    public void destroy() {
-        log.info("Closing Playwright and browser...");
-        if (browser != null && browser.isConnected()) {
-            browser.close();
-        }
-        if (playwright != null) {
-            playwright.close();
-        }
-        log.info("Playwright closed.");
-    }
-
 
     private byte[] renderHelpImage(HelpData helpData) {
         Context context = new Context();
         context.setVariable("help_data", helpData);
         context.setVariable("hint_text", "具体命令参数请查看详细说明或咨询管理员。");
-
-        Map<String, String> imageResourcesAsDataUri = loadResourcesAsDataUri("templates/help_report/res");
-        context.setVariable("res", imageResourcesAsDataUri);
-        // [核心修改] 一次性完成所有渲染，不再需要手动拼接CSS
-        String htmlContent = templateEngine.process("help_report/main", context);
-        try (BrowserContext browserContext = browser.newContext(/*...*/)) {
-            Page page = browserContext.newPage();
-            try {
+        Map<String, String> res = loadResourcesAsDataUri(RESOURCE_BASE_PATH);
+        context.setVariable("res", res);
+        String htmlContent = templateEngine.process(HTML_TEMPLATE, context);
+        try (BrowserContext browserContext = browser.newContext(
+                new Browser.NewContextOptions().setDeviceScaleFactor(1))) {
+            try (Page page = browserContext.newPage()) {
                 // 直接使用完全渲染好的HTML
                 page.setContent(htmlContent);
                 Locator container = page.locator(".container");
-                return container.screenshot(/*...*/);
-            } finally {
-                page.close();
+                return container.screenshot(new Locator.ScreenshotOptions().setType(ScreenshotType.PNG));
             }
         }
     }
@@ -150,8 +150,10 @@ public class HelpImageServiceImpl implements HelpImageService {
                         String filename = resource.getFilename();
                         if (filename != null) {
                             String dataUri = loadResourceAsDataUri(resource);
-                            // [关键修改] 直接使用完整的文件名作为 key
-                            String key = filename;
+                            String fullPath = resource.getURI().toString();
+                            // 找到 basePath 在完整路径中的位置，然后取其后的部分
+                            String relativePath = fullPath.substring(fullPath.indexOf(basePath) + basePath.length() + 1);
+                            String key = relativePath;
                             resourceMap.put(key, dataUri);
                             log.debug("Loaded resource: {} as key: {}", resource.getURI(), key);
                         }

@@ -1,261 +1,275 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
- <meta charset="utf-8">
- <title>帮助文档</title>
- <!-- CSS链接，我们会在Java中内联它 -->
- <style>
-  /* 使用系统字体，确保服务器已安装这些字体 */
-  @font-face {
-   font-family: 'NotoSansSC-Regular';
-   src: local('Noto Sans SC Regular'), local('思源黑体 CN Regular');
-  }
-  @font-face {
-   font-family: 'NotoSansSC-Bold';
-   src: local('Noto Sans SC Bold'), local('思源黑体 CN Bold');
-  }
-  /* 在 @font-face 区域添加它 */
-  @font-face {
-   font-family: 'SSFangTangTi';
-   /* 确认字体在系统中的确切名称，例如 '得意黑' 或 'Smiley Sans' */
-   src: local('得意黑'), local('Smiley Sans'), local('SSFangTangTi');
-  }
-  body {
-   margin: 0;
-   padding: 0;
-   background-color: #f9f9f9; /* 浅灰色背景，便于调试时看清边界 */
-   font-family: 'NotoSansSC-Regular', sans-serif;
-   -webkit-font-smoothing: antialiased;
-  }
+    <meta charset="utf-8">
+    <title>帮助文档</title>
+    <!-- CSS链接，我们会在Java中内联它 -->
+    <style>
+        /* 使用系统字体，确保服务器已安装这些字体 */
+        @font-face {
+            font-family: 'NotoSansSC-Regular';
+            src: local('Noto Sans SC Regular'), local('思源黑体 CN Regular');
+        }
 
-  .container {
-   width: 800px; /* 固定宽度，方便截图 */
-   padding: 20px;
-   background-color: #fff0f5; /* 整体淡粉色背景 */
-   box-sizing: border-box;
-  }
+        @font-face {
+            font-family: 'NotoSansSC-Bold';
+            src: local('Noto Sans SC Bold'), local('思源黑体 CN Bold');
+        }
 
-  .header {
-   display: flex;
-   justify-content: space-between;
-   align-items: center;
-   background-color: #ffdae5; /* 头部深一点的粉色 */
-   padding: 10px 20px;
-   border-radius: 12px;
-   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-   margin-bottom: 20px;
-  }
+        /* 在 @font-face 区域添加它 */
+        @font-face {
+            font-family: 'SSFangTangTi';
+            /* 确认字体在系统中的确切名称，例如 '得意黑' 或 'Smiley Sans' */
+            src: local('得意黑'), local('Smiley Sans'), local('SSFangTangTi');
+        }
 
-  .character-placeholder img {
-   height: 90px;
-   width: auto;
-   /* 图片垂直居中对齐 */
-   vertical-align: middle;
-  }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9; /* 浅灰色背景，便于调试时看清边界 */
+            font-family: 'NotoSansSC-Regular', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
 
-  .title-main {
-   text-align: center;
-   color: #d15a7c;
-  }
+        .container {
+            width: 800px; /* 固定宽度，方便截图 */
+            padding: 20px;
+            background-color: #fff0f5; /* 整体淡粉色背景 */
+            box-sizing: border-box;
+        }
 
-  .title-jp {
-   font-family: 'NotoSansSC-Bold', sans-serif;
-   font-size: 24px;
-   margin: 0;
-   letter-spacing: 2px;
-  }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #ffdae5; /* 头部深一点的粉色 */
+            padding: 10px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
 
-  .title-cn {
-   font-size: 42px;
-   font-family: 'SSFangTangTi', 'NotoSansSC-Bold', sans-serif;
-   margin: 5px 0 0 0;
-  }
+        .character-placeholder img {
+            height: 90px;
+            width: auto;
+            /* 图片垂直居中对齐 */
+            vertical-align: middle;
+        }
 
-  .help-card {
-   background-color: white;
-   border-radius: 12px;
-   margin-bottom: 20px;
-   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-   overflow: hidden; /* 防止内容溢出圆角 */
-  }
+        .title-main {
+            text-align: center;
+            color: #d15a7c;
+        }
 
-  .card-header {
-   display: flex;
-   align-items: center;
-   padding: 12px 20px;
-   background-color: #fff7fa; /* 卡片头部极淡的粉色 */
-   border-bottom: 1px solid #ffe8ef;
-  }
+        .title-jp {
+            font-family: 'NotoSansSC-Bold', sans-serif;
+            font-size: 24px;
+            margin: 0;
+            letter-spacing: 2px;
+        }
 
-  .card-icon {
-   width: 24px;
-   height: 24px;
-   margin-right: 12px;
-  }
+        .title-cn {
+            font-size: 42px;
+            font-family: 'SSFangTangTi', 'NotoSansSC-Bold', sans-serif;
+            margin: 5px 0 0 0;
+        }
 
-  .card-title {
-   font-size: 20px;
-   font-weight: bold;
-   color: #e86488;
-  }
+        .help-card {
+            background-color: white;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            overflow: hidden; /* 防止内容溢出圆角 */
+        }
 
-  .card-body {
-   padding: 5px 20px 15px 20px;
-  }
+        .card-header {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            background-color: #fff7fa; /* 卡片头部极淡的粉色 */
+            border-bottom: 1px solid #ffe8ef;
+        }
 
-  .help-table {
-   width: 100%;
-   border-collapse: collapse; /* 合并边框 */
-   font-size: 15px;
-  }
+        .card-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 12px;
+        }
 
-  .help-table thead tr {
-   border-bottom: 2px solid #fce3e9;
-  }
+        .card-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #e86488;
+        }
 
-  .help-table th {
-   padding: 12px 8px;
-   text-align: left;
-   color: #b36d81;
-   font-weight: bold;
-  }
+        .card-body {
+            padding: 5px 20px 15px 20px;
+        }
 
-  .help-table tbody tr {
-   border-bottom: 1px solid #fef3f6;
-  }
-  .help-table tbody tr:last-child {
-   border-bottom: none; /* 最后一行无下边框 */
-  }
+        .help-table {
+            width: 100%;
+            border-collapse: collapse; /* 合并边框 */
+            font-size: 15px;
+        }
 
-  .help-table td {
-   padding: 12px 8px;
-   vertical-align: top;
-   color: #555;
-   line-height: 1.5;
-  }
-  /* 命令列特殊样式 */
-  .help-table td:last-child {
-   font-family: Consolas, Monaco, 'Courier New', monospace;
-   color: #e83e8c; /* 粉色代码 */
-   font-weight: bold;
-  }
+        .help-table thead tr {
+            border-bottom: 2px solid #fce3e9;
+        }
 
+        .help-table th {
+            padding: 12px 8px;
+            text-align: left;
+            color: #b36d81;
+            font-weight: bold;
+        }
 
-  .footer {
-      /* 核心：背景图片设置 */
-      background-image: url("[[${res['bottom.jpg']}]]");
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
+        .help-table tbody tr {
+            border-bottom: 1px solid #fef3f6;
+        }
 
-      /* 布局与尺寸 */
-      height: 200px; /* 可以适当增加高度以容纳两行文字和留白 */
-      box-sizing: border-box; /* 让padding包含在height内，更容易控制尺寸 */
-      padding: 20px;
-      text-align: center;
+        .help-table tbody tr:last-child {
+            border-bottom: none; /* 最后一行无下边框 */
+        }
 
-      /*
-       * 关键技巧：使用半透明叠加层
-       * 这会在背景图片上覆盖一层半透明的深色/浅色，
-       * 无论背景图片多花哨，文字的可读性都能得到保障。
-       */
-      position: relative; /* 必须设置，为伪元素定位提供基准 */
-      z-index: 1; /* 确保内容在伪元素之上 */
-      border-radius: 10px;
-      overflow: hidden; /* 隐藏伪元素超出圆角的部分 */
-  }
+        .help-table td {
+            padding: 12px 8px;
+            vertical-align: top;
+            color: #555;
+            line-height: 1.5;
+        }
 
-  /* ::before 是一个伪元素，我们用它来创建叠加层 */
-  .footer::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      /*
-       * 设置一个半透明的黑色背景。0.3代表30%的不透明度。
-       * 你可以调整这个值 (0.1-0.9) 或者颜色 (rgba(255, 255, 255, 0.5) 是半透明白色)
-       * 来达到最佳效果。
-       */
-      background-color: rgba(0, 0, 0, 0.3);
-      z-index: -1; /* 将这个叠加层放在背景的最顶层，但在文字内容的下面 */
-      border-radius: 10px;
-  }
-
-  /* 统一设置 footer 内所有段落的基础样式 */
-  .footer p {
-      margin: 5px 0;
-      position: relative; /* 确保文字在叠加层之上 */
-      z-index: 2;
-      text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5); /* 给文字添加阴影，进一步提升可读性 */
-  }
-
-  /* 动态提示信息的样式 */
-  .hint-text {
-      font-size: 16px;
-      font-weight: bold;
-      color: #FFFFFF; /* 在深色叠加层上，白色文字效果最好 */
-  }
-
-  /* 支持/版权信息的样式 */
-  .support-info {
-      font-size: 13px;
-      color: #E0E0E0; /* 使用稍暗的灰色，与主提示信息形成对比 */
-      margin-top: 10px;
-  }
+        /* 命令列特殊样式 */
+        .help-table td:last-child {
+            font-family: Consolas, Monaco, 'Courier New', monospace;
+            color: #e83e8c; /* 粉色代码 */
+            font-weight: bold;
+        }
 
 
+        .footer {
+            /* 背景图片设置 (保持不变) */
+            background-image: url("[[${res['image/bottom.jpg']}]]");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
 
- </style>
+            /* 布局与尺寸 (保持不变) */
+            height: 200px;
+            box-sizing: border-box;
+            padding: 20px;
+            text-align: center;
+
+            /* 定位基准 (保持不变) */
+            position: relative;
+            z-index: 1;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        /*
+         * 【优化点 1: 使用渐变叠加层】
+         * 相比纯色叠加，从上到下的渐变可以保留图片顶部的更多细节，
+         * 同时又加深了底部文字区域的背景，让文字更清晰。
+         */
+        .footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            /* 从顶部完全透明，过渡到底部 60% 不透明度的黑色 */
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.6));
+            z-index: -1;
+            border-radius: 10px; /* 保持与父元素一致的圆角 */
+        }
+
+        /*
+         * 【优化点 2: 统一字体与基础阴影】
+         * 统一使用更通用的无衬线字体。
+         */
+        .footer p {
+            margin: 5px 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; /* 使用系统UI字体，更现代 */
+            z-index: 2;
+            /* 调整文字阴影，使其更清晰，轮廓感更强 */
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+        }
+
+        /* 动态提示信息的样式 */
+        .hint-text {
+            font-size: 18px; /* 稍微增大字号，使其更突出 */
+            font-weight: 500; /* 使用 medium 字重，比 bold 柔和但同样清晰 */
+            color: #FFFFFF;
+            padding-top: 40px;
+        }
+
+        /*
+         * 【优化点 3: 调整 support-info 样式】
+         * 减小字号，调整颜色和位置，使其更像一个次要的“版权”信息。
+         */
+        .support-info {
+            font-size: 12px; /* 减小字号，与主信息拉开差距 */
+            font-weight: 400; /* 普通字重 */
+            color: rgba(255, 255, 255, 0.85); /* 使用带透明度的白色，能更好地融入背景 */
+            position: absolute;
+            bottom: 15px; /* 向上微调，留出更多底部呼吸空间 */
+            right: 20px;
+            margin: 0;
+            z-index: 2;
+            letter-spacing: 0.5px; /* 增加一点字间距，提升精致感 */
+        }
+
+
+
+    </style>
 </head>
 <body>
 <div class="container">
- <div class="header">
-  <!-- 左侧角色图片占位符 -->
-  <div class="character-placeholder">
-   <img th:src="${res['character.png']}" alt="Character">
-  </div>
-  <!-- 中间标题 -->
-  <div class="title-main">
-   <p class="title-jp">WINEFOX BOT HELP</p>
-   <p class="title-cn">小酒狐の帮助文档</p>
-  </div>
-  <!-- 右侧留空，或可以放Logo -->
-  <div class="character-placeholder">
-   <img th:src="${res['bot_icon.png']}" alt="Bot Icon">
-  </div>
- </div>
+    <div class="header">
+        <!-- 左侧角色图片占位符 -->
+        <div class="character-placeholder">
+            <img th:src="${res['image/character.png']}" alt="Character">
+        </div>
+        <!-- 中间标题 -->
+        <div class="title-main">
+            <p class="title-jp">WINEFOX BOT HELP</p>
+            <p class="title-cn">小酒狐の帮助文档</p>
+        </div>
+        <!-- 右侧留空，或可以放Logo -->
+        <div class="character-placeholder">
+            <img th:src="${res['image/bot_icon.png']}" alt="Bot Icon">
+        </div>
+    </div>
 
- <!-- 功能分组卡片，使用 th:each 循环 -->
- <div th:each="group : ${help_data.groups}" class="help-card">
-  <div class="card-header">
-   <!-- [修改] 动态决定图标 -->
-   <!-- 如果group.icon不为null，用它；否则，用help_data.defaultIcon -->
-   <img th:src="${res[group.icon != null ? group.icon : help_data.defaultIcon]}" class="card-icon" alt="">
+    <!-- 功能分组卡片，使用 th:each 循环 -->
+    <div th:each="group : ${help_data.groups}" class="help-card">
+        <div class="card-header">
+            <!-- [修改] 动态决定图标 -->
+            <!-- 如果group.icon不为null，用它；否则，用help_data.defaultIcon -->
+            <img th:src="${group.icon != null ? res[group.icon] : res['icon/默认图标.png']}" class="card-icon" alt="">
+            <span class="card-title" th:text="${group.name}">功能分组标题</span>
+        </div>
+        <div class="card-body">
+            <table class="help-table">
+                <tbody>
+                <!-- [修改] 循环遍历 group.documentation -->
+                <tr th:each="doc : ${group.documentation}">
+                    <td th:text="${doc.name}">功能名称</td>
+                    <td th:text="${doc.permission}">权限</td>
+                    <td th:text="${doc.description}">这是一段功能的详细描述信息...</td>
+                    <td th:utext="${doc.getFormattedCommands().replace('\n', '<br/>')}">/command</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-   <span class="card-title" th:text="${group.name}">功能分组标题</span>
-  </div>
-  <div class="card-body">
-   <table class="help-table">
-    <tbody>
-    <!-- [修改] 循环遍历 group.documentation -->
-    <tr th:each="doc : ${group.documentation}">
-     <td th:text="${doc.name}">功能名称</td>
-     <td th:text="${doc.permission}">权限</td>
-     <td th:text="${doc.description}">这是一段功能的详细描述信息...</td>
-     <td th:utext="${doc.getFormattedCommands().replace('\n', '<br/>')}">/command</td>
-    </tr>
-    </tbody>
-   </table>
-  </div>
- </div>
-
- <!-- 底部提示信息 -->
- <div class="footer">
-  <p th:text="${hint_text}">“提示信息”</p>
-  <p class="support-info">Support By FlanChanXwO@github</p>
- </div>
+    <!-- 底部提示信息 -->
+    <div class="footer">
+        <p class="hint-text" th:text="${hint_text}">“提示信息”</p>
+        <p class="support-info">Support By FlanChanXwO@github</p>
+    </div>
 
 </div>
 </body>

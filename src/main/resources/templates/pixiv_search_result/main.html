@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <title>帮助文档</title>
+    <!-- CSS链接，我们会在Java中内联它 -->
+    <style>
+        /* 使用系统字体，确保服务器已安装这些字体 */
+        @font-face {
+            font-family: 'NotoSansSC-Regular';
+            src: local('Noto Sans SC Regular'), local('思源黑体 CN Regular');
+        }
+
+        @font-face {
+            font-family: 'NotoSansSC-Bold';
+            src: local('Noto Sans SC Bold'), local('思源黑体 CN Bold');
+        }
+
+        /* 在 @font-face 区域添加它 */
+        @font-face {
+            font-family: 'SSFangTangTi';
+            /* 确认字体在系统中的确切名称，例如 '得意黑' 或 'Smiley Sans' */
+            src: local('得意黑'), local('Smiley Sans'), local('SSFangTangTi');
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9; /* 浅灰色背景，便于调试时看清边界 */
+            font-family: 'NotoSansSC-Regular', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            width: 800px; /* 固定宽度，方便截图 */
+            padding: 20px;
+            background-color: #fff0f5; /* 整体淡粉色背景 */
+            box-sizing: border-box;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #ffdae5; /* 头部深一点的粉色 */
+            padding: 10px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+
+
+        /* 确保 logo 图片本身也能垂直对齐 */
+        .icon-placeholder img {
+            height: 30px; /* 可以适当调整logo大小以匹配文字 */
+            width: auto;
+            /* 因为父级已经是flex了，这个属性可以不用，但保留也无害 */
+            vertical-align: middle;
+            /* 为了让Logo和文字之间有空隙 */
+            margin-right: 8px;
+        }
+
+        /* 你可能需要移除或调整 .icon-placeholder 的默认样式，如果它有其他影响布局的属性 */
+        .icon-placeholder {
+            display: flex;
+            align-items: center;
+        }
+
+        .character-placeholder img {
+            height: 100px;
+            width: auto;
+            /* 图片垂直居中对齐 */
+            vertical-align: middle;
+        }
+
+        .title-main {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            color: #d15a7c;
+        }
+
+        .title-jp {
+            margin: 0; /* 确保它没有默认的 margin */
+            /* 下面是之前的样式，保持不变或微调 */
+            font-family: 'NotoSansSC-Bold', sans-serif;
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 1px;
+            color: #5A5A5A;
+        }
+
+
+        .title-cn {
+            font-size: 36px;
+            font-family: 'SSFangTangTi', 'NotoSansSC-Bold', sans-serif;
+            margin: 4px 0 0 0;
+            /* 关键：使用类似 Pixiv 品牌蓝的颜色，作为视觉焦点 */
+            color: #007BFF;
+            /* 可选：增加一点描边或阴影来模仿P站Logo质感 */
+            text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.05);
+        }
+
+        .pixiv-card {
+            background-color: white;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            overflow: hidden; /* 防止内容溢出圆角 */
+        }
+
+        .pixiv-card img {
+            display: block;
+            margin: 0 auto;
+            max-width: 100%; /* 确保图片不会超出容器宽度 */
+            height: auto; /* 保持图片比例 */
+        }
+
+        .footer {
+            /* 背景图片设置 (保持不变) */
+            background-image: url("[[${res['image/bottom.jpg']}]]");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+
+            /* 布局与尺寸 (保持不变) */
+            height: 200px;
+            box-sizing: border-box;
+            padding: 20px;
+            text-align: center;
+
+            /* 定位基准 (保持不变) */
+            position: relative;
+            z-index: 1;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        /*
+         * 同时又加深了底部文字区域的背景，让文字更清晰。
+         */
+        .footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            /* 从顶部完全透明，过渡到底部 60% 不透明度的黑色 */
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.6));
+            z-index: -1;
+            border-radius: 10px; /* 保持与父元素一致的圆角 */
+        }
+
+        /*
+         * 【优化点 2: 统一字体与基础阴影】
+         * 统一使用更通用的无衬线字体。
+         */
+        .footer p {
+            margin: 5px 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; /* 使用系统UI字体，更现代 */
+            z-index: 2;
+            /* 调整文字阴影，使其更清晰，轮廓感更强 */
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+        }
+
+        /* 动态提示信息的样式 */
+        .hint-text {
+            font-size: 18px; /* 稍微增大字号，使其更突出 */
+            font-weight: 500; /* 使用 medium 字重，比 bold 柔和但同样清晰 */
+            color: #FFFFFF;
+            padding-top: 40px;
+        }
+
+        /*
+         * 【优化点 3: 调整 support-info 样式】
+         * 减小字号，调整颜色和位置，使其更像一个次要的“版权”信息。
+         */
+        .support-info {
+            font-size: 12px; /* 减小字号，与主信息拉开差距 */
+            font-weight: 400; /* 普通字重 */
+            color: rgba(255, 255, 255, 0.85); /* 使用带透明度的白色，能更好地融入背景 */
+            position: absolute;
+            bottom: 15px; /* 向上微调，留出更多底部呼吸空间 */
+            right: 20px;
+            margin: 0;
+            z-index: 2;
+            letter-spacing: 0.5px; /* 增加一点字间距，提升精致感 */
+        }
+
+        /* 顶部信息栏 */
+        .info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 25px;
+            background-color: #fafafa;
+            border-radius: 12px;
+            border: 1px solid #e8e8e8;
+            margin-bottom: 20px;
+        }
+
+        .search-tags {
+            font-size: 24px;
+            font-family: 'NotoSansSC-Bold', sans-serif;
+            color: #333;
+        }
+
+        .pagination-info {
+            font-size: 20px;
+            color: #555;
+            font-family: 'NotoSansSC-Bold', sans-serif;
+        }
+
+        .pagination-info .current-page {
+            color: #007bff; /* 蓝色高亮当前页 */
+            font-size: 24px;
+        }
+
+        .total-artworks {
+            font-size: 16px;
+            color: #888;
+            text-align: right;
+        }
+
+
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="character-placeholder">
+            <img th:src="${res['image/bot_icon.png']}" alt="Bot Icon">
+        </div>
+        <!-- 中间标题 -->
+        <div class="title-main">
+            <div class="icon-placeholder">
+                <img th:src="${res['icon/pixivNewLogo2025.svg']}" alt="Website Icon">
+                <p class="title-jp">
+                    SEARCH
+                </p>
+            </div>
+            <p class="title-cn">小酒狐のP站搜索</p>
+        </div>
+        <!-- 关键：在右边添加一个看不见的“占位符” -->
+        <div class="character-placeholder">
+            <img th:src="${res['image/character.png']}" alt="Character">
+        </div>
+    </div>
+
+    <div class="info-bar">
+        <div class="search-tags" th:text="'TAGS: ' + ${tags}">
+            TAGS: 没有哦
+        </div>
+        <div class="pagination-info">
+            <span>Page </span>
+            <span class="current-page" th:text="${currentPage}">1</span>
+            <span th:text="'/ ' + ${totalPages}">/ 1</span>
+            <div class="total-artworks" th:text="'Total: ' + ${totalArtworks} + ' artworks'">
+                Total: 0 artworks
+            </div>
+        </div>
+    </div>
+
+    <div class="pixiv-card">
+<!--        插入动态图片-->
+        <img th:src="${gridImage}"  alt="pixiv_search"/>
+    </div>
+
+    <!-- 底部提示信息 -->
+    <div class="footer">
+        <p class="hint-text" th:text="${hint_text}">“提示信息”</p>
+        <p class="support-info">Support By FlanChanXwO@github</p>
+    </div>
+
+</div>
+</body>
+</html>

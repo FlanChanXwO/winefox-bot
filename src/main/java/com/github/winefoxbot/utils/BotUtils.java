@@ -4,6 +4,7 @@ import cn.hutool.extra.spring.SpringUtil;
 import com.github.winefoxbot.model.dto.MessageSegment;
 import com.github.winefoxbot.model.dto.shiro.GroupMemberInfo;
 import com.github.winefoxbot.model.enums.GroupMemberRole;
+import com.github.winefoxbot.model.enums.MessageType;
 import com.google.gson.*;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.action.common.ActionData;
@@ -27,6 +28,7 @@ import java.util.regex.Pattern;
 @Slf4j
 public final class BotUtils {
     private BotUtils() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
     }
 
     /**
@@ -409,7 +411,10 @@ public final class BotUtils {
     }
 
     public static Long getSessionId(AnyMessageEvent event) {
-        return event.getGroupId() != null ? event.getGroupId() : event.getUserId();
+        return switch (MessageType.fromValue(event.getMessageType())) {
+            case PRIVATE -> event.getUserId();
+            case GROUP -> event.getGroupId();
+        };
     }
 
     public static Long getSessionId(GroupMessageEvent event) {

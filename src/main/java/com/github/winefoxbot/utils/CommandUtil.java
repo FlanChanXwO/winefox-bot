@@ -7,7 +7,9 @@ import java.io.InputStream;
  * @since 2025-12-10-20:29
  */
 public final class CommandUtil {
-    private CommandUtil () {}
+    private CommandUtil () {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
 
     public static void runCmd(String... cmd) throws Exception {
         ProcessBuilder pb = new ProcessBuilder(cmd);

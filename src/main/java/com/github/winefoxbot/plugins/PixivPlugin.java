@@ -253,11 +253,6 @@ public class PixivPlugin {
                 builder.img(filePath);
             }
             bot.sendMsg(event, builder.build(), false);
-            File parentFile = files.getFirst().getParentFile();
-            // 删除文件
-            if (parentFile.exists()) {
-                FileUtils.deleteDirectory(parentFile);
-            }
         } catch (Exception e) {
             log.error("处理 Pixiv 图片失败 pid={}", pid, e);
             bot.sendMsg(event, MsgUtils.builder()
@@ -268,77 +263,27 @@ public class PixivPlugin {
     }
 
     @Async
-    @PluginFunction(group = "Pixiv", name = "Pixiv 今日排行榜获取", description = "获取 Pixiv 当日排行榜前6名插画作品。", commands = {"/p站本日排行榜", "/P站本日排行榜"})
+    @PluginFunction(group = "Pixiv", name = "Pixiv 排行榜获取", description = "获取 Pixiv 排行榜前6名插画作品。", commands = {"/p站本日排行榜", "/P站本日排行榜", "/p站本周排行榜", "/P站本周排行榜", "/p站本月排行榜", "/P站本月排行榜"})
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/((p|P)站(本|今)日排行榜|prd)(?:\\s+(\\S+))?$")
-    public void getRankToday(Bot bot, AnyMessageEvent event, Matcher matcher) {
-        bot.sendMsg(event, "正在获取 Pixiv 今日排行榜，请稍候...", false);
-        String params = matcher.group(2);
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/((p|P)站(本|今)(日|周|月)排行榜|pr(d|w|m))(?:\\s+(\\S+))?$")
+    public void getPixivRankByType(Bot bot, AnyMessageEvent event, Matcher matcher) {
+        bot.sendMsg(event, "正在获取 Pixiv 排行榜，请稍候...", false);
+        String rankType = matcher.group(4); // 日, 周, 月
+        String params = matcher.group(6);
+        PixivRankPushMode mode;
+        switch (rankType) {
+            case "日" -> mode = PixivRankPushMode.DALLY;
+            case "周" -> mode = PixivRankPushMode.WEEKLY;
+            case "月" -> mode = PixivRankPushMode.MONTHLY;
+            default -> {
+                bot.sendMsg(event, "无效的排行榜类型！请使用 日、周 或 月。", true);
+                return;
+            }
+        }
         PixivRankService.Content content = params != null ? PixivRankService.Content.valueOf(params.toUpperCase()) : PixivRankService.Content.ILLUST;
-        getPixivRank(bot, event, matcher, PixivRankPushMode.DALLY, content);
+        getPixivRank(bot, event, matcher, mode, content);
     }
 
-
-    @Async
-    @PluginFunction(group = "Pixiv", name = "Pixiv 本周排行榜获取", description = "获取 Pixiv 当周排行榜前6名插画作品。", commands = {"/p站本日排行榜", "/P站本日排行榜"})
-    @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/((p|P)站(本|今)周排行榜|prw)(?:\\s+(\\S+))?$")
-    public void getRankWeek(Bot bot, AnyMessageEvent event, Matcher matcher) {
-        bot.sendMsg(event, "正在获取 Pixiv 本周排行榜，请稍候...", false);
-        String params = matcher.group(2);
-        PixivRankService.Content content = params != null ? PixivRankService.Content.valueOf(params.toUpperCase()) : PixivRankService.Content.ILLUST;
-        getPixivRank(bot, event, matcher, PixivRankPushMode.WEEKLY, content);
-    }
-
-
-    @Async
-    @PluginFunction(group = "Pixiv", name = "Pixiv 本月排行榜获取", description = "获取 Pixiv 当月排行榜前6名插画作品。", commands = {"/p站本日排行榜", "/P站本日排行榜"})
-    @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/((p|P)站(本|今)月排行榜|prm)(?:\\s+(\\S+))?$")
-    public void getRankMonth(Bot bot, AnyMessageEvent event, Matcher matcher) {
-        bot.sendMsg(event, "正在获取 Pixiv 本月排行榜，请稍候...", false);
-        String params = matcher.group(2);
-        PixivRankService.Content content = params != null ? PixivRankService.Content.valueOf(params.toUpperCase()) : PixivRankService.Content.ILLUST;
-        getPixivRank(bot, event, matcher, PixivRankPushMode.MONTHLY, content);
-    }
-
-    /*
-
-    @Async
-    @PluginFunction(group = "Pixiv", name = "Pixiv 今日R18排行榜获取", description = "获取 Pixiv 当日r18排行榜前6名作品。如果不指定参数，则默认查询插画", commands = {"/p站本日排行榜", "/P站本日排行榜"})
-    @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/((p|P)站(本|今)日r18排行榜|prd18)(?:\\s+(\\S+))?$")
-    public void getRankR18Today(Bot bot, AnyMessageEvent event, Matcher matcher) {
-        bot.sendMsg(event, "正在获取 Pixiv 今日排行榜，请稍候...", false);
-        String params = matcher.group(2);
-        PixivRankService.Content content = params != null ? PixivRankService.Content.valueOf(params.toUpperCase()) : PixivRankService.Content.ILLUST;
-        getPixivRank(bot, event, matcher, PixivRankPushMode.DALLY, content, true);
-    }
-
-    @Async
-    @PluginFunction(group = "Pixiv", name = "Pixiv 本周R18排行榜获取", description = "获取 Pixiv 当周排行榜前6名作品。如果不指定参数，则默认查询插画", commands = {"/p站本日排行榜", "/P站本日排行榜"})
-    @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/((p|P)站(本|今)周r18排行榜|prw18)(?:\\s+(\\S+))?$")
-    public void getRankR18Week(Bot bot, AnyMessageEvent event, Matcher matcher) {
-        bot.sendMsg(event, "正在获取 Pixiv 本周排行榜，请稍候...", false);
-        String params = matcher.group(2);
-        PixivRankService.Content content = params != null ? PixivRankService.Content.valueOf(params.toUpperCase()) : PixivRankService.Content.ILLUST;
-        getPixivRank(bot, event, matcher, PixivRankPushMode.WEEKLY, content, true);
-    }
-
-    @Async
-    @PluginFunction(group = "Pixiv", name = "Pixiv 本月排行榜获取", description = "获取 Pixiv 当月排行榜前6名作品。如果不指定参数，则默认查询插画", commands = {"/p站本日排行榜", "/P站本日排行榜"})
-    @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/((p|P)站(本|今)月排行榜|prm18)(?:\\s+(\\S+))?$")
-    public void getRankR18Month(Bot bot, AnyMessageEvent event, Matcher matcher) {
-        bot.sendMsg(event, "正在获取 Pixiv 本月排行榜，请稍候...", false);
-        String params = matcher.group(2);
-        PixivRankService.Content content = params != null ? PixivRankService.Content.valueOf(params.toUpperCase()) : PixivRankService.Content.ILLUST;
-        getPixivRank(bot, event, matcher, PixivRankPushMode.MONTHLY, content, true);
-    }
-
-
-     */
 
     private void getPixivRank(Bot bot, AnyMessageEvent event, Matcher matcher, PixivRankPushMode mode, PixivRankService.Content content) {
         String params = matcher.group(2);
@@ -378,13 +323,6 @@ public class PixivPlugin {
             }
             List<Map<String, Object>> forwardMsg = ShiroUtils.generateForwardMsg(bot, msgList);
             bot.sendForwardMsg(event, forwardMsg);
-            // 删除文件
-            for (List<File> files : filesList) {
-                File parentFile = files.getFirst().getParentFile();
-                if (parentFile.exists()) {
-                    FileUtils.deleteDirectory(parentFile);
-                }
-            }
         } catch (SSLHandshakeException e) {
             log.error("Pixiv SSL 握手失败，可能是 Pixiv 证书发生变更导致，请检查！", e);
             bot.sendMsg(event, "因为网络问题，图片获取失败，请重试", false);

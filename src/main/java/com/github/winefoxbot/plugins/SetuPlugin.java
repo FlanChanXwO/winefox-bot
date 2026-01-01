@@ -52,14 +52,14 @@ public class SetuPlugin {
     private final SetuApiConfig setuApiConfig;
     private final SetuConfigService setuConfigService;
     private final SemaphoreManager semaphoreManager;
-    private final int retryTimes = 3;
+
     @PluginFunction(group = "瑟瑟功能", name = "解除限制开关", description = "解除限制", permission = Permission.ADMIN, commands = {"/解除瑟瑟限制", "/开启瑟瑟限制"})
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^" + WineFoxBotConfig.COMMAND_PREFIX_REGEX + "(解除瑟瑟限制|开启瑟瑟限制)" + "$")
     public void toggleR18(Bot bot, AnyMessageEvent event) {
         String msg = event.getMessage().replace(WineFoxBotConfig.COMMAND_PREFIX_REGEX, "");
-        Long groupId = event.getGroupId();
-        SetuConfig config = setuConfigService.getOrCreateSetuConfig(groupId, SessionType.fromValue(event.getMessageType()));
+        Long sessionId = BotUtils.getSessionId(event);
+        SetuConfig config = setuConfigService.getOrCreateSetuConfig(sessionId, SessionType.fromValue(event.getMessageType()));
         Boolean r18Enabled = config.getR18Enabled();
         // 功能开关指令
         if ("解除瑟瑟限制".equals(msg) && r18Enabled) {
@@ -78,8 +78,8 @@ public class SetuPlugin {
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^" + WineFoxBotConfig.COMMAND_PREFIX_REGEX + "(开启自动撤回|关闭自动撤回)" + "$")
     public void toggleAutoRevoke(Bot bot, AnyMessageEvent event) {
         String msg = event.getMessage().replace(WineFoxBotConfig.COMMAND_PREFIX_REGEX, "");
-        Long groupId = event.getGroupId();
-        SetuConfig config = setuConfigService.getOrCreateSetuConfig(groupId, SessionType.fromValue(event.getMessageType()));
+        Long sessionId = BotUtils.getSessionId(event);
+        SetuConfig config = setuConfigService.getOrCreateSetuConfig(sessionId, SessionType.fromValue(event.getMessageType()));
         Boolean autoRevoke = config.getAutoRevoke();
         // 功能开关指令
         if ("开启自动撤回".equals(msg) && autoRevoke) {

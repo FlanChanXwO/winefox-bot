@@ -1,11 +1,10 @@
 {
-  "bottom-background": "bottom.jpg",
-  "default-icon":"默认图标.png",
+  "default-icon":"icon/默认图标.png",
   "groups": [
     {
       "name": "核心功能",
       "priority": 1,
-      "icon": "core.png",
+      "icon": "icon/core.png",
       "documentation": [
         {
           "name": "查询运行状态",
@@ -22,7 +21,7 @@
     {
       "name": "游戏信息查询功能",
       "priority": 2,
-      "icon": "游戏功能.png",
+      "icon": "icon/游戏功能.png",
       "documentation": [
         {
           "name": "二重螺旋帮助",
@@ -97,7 +96,7 @@
     {
       "name": "steam",
       "priority": 3,
-      "icon": "steam.ico",
+      "icon": "icon/steam.ico",
       "documentation": [
         {
           "name": "绑定Steam",
@@ -177,7 +176,7 @@
     {
       "name": "实用功能",
       "priority": 4,
-      "icon": "实用工具.ico",
+      "icon": "icon/实用工具.ico",
       "documentation": [
         {
           "name": "搜图",
@@ -192,7 +191,7 @@
     {
       "name": "鹿管功能",
       "priority": 5,
-      "icon": "鹿.png",
+      "icon": "icon/鹿.png",
       "documentation": [
         {
           "name": "鹿管一次",
@@ -205,7 +204,7 @@
         },
         {
           "name": "帮他人鹿管",
-          "description": "帮指定的群友（@xxx）记录一次鹿管。\n用法: /🦌 @某人 或 /鹿 @某人",
+          "description": "帮指定的群友（@xxx）记录一次鹿管。\n用法: 🦌 @某人 或 鹿 @某人",
           "permission": "普通用户",
           "commands": [
             "🦌",
@@ -214,7 +213,7 @@
         },
         {
           "name": "补记鹿管",
-          "description": "为本月的指定日期补记一次鹿管。\n用法: /补🦌 [日期]，例如 /补🦌 15",
+          "description": "为本月的指定日期补记一次鹿管。\n用法: 补🦌 [日期]，例如 补🦌 15",
           "permission": "普通用户",
           "commands": [
             "补🦌",
@@ -223,7 +222,7 @@
         },
         {
           "name": "查看鹿历",
-          "description": "查看自己或指定群友（@xxx）的本月鹿管日历。\n用法1: /🦌历\n用法2: /🦌历 @某人",
+          "description": "查看自己或指定群友（@xxx）的本月鹿管日历。\n用法1: 🦌历\n用法2: 🦌历 @某人",
           "permission": "普通用户",
           "commands": [
             "🦌历",
@@ -244,7 +243,7 @@
     {
       "name": "JMComic功能",
       "priority": 6,
-      "icon": "jm.png",
+      "icon": "icon/jm.png",
       "documentation": [
         {
           "name": "下载JMComic",
@@ -363,7 +362,7 @@
     {
       "name": "娱乐功能",
       "priority": 7,
-      "icon": "娱乐功能.png",
+      "icon": "icon/娱乐功能.png",
       "documentation": [
         {
           "name": "今日运势",
@@ -406,6 +405,14 @@
           ]
         },
         {
+          "name": "即梦视频",
+          "description": "生成视频作品。文/图生视频。启动交互式向导设置参数然后生成视频。",
+          "permission": "普通用户",
+          "commands": [
+            "/即梦视频"
+          ]
+        },
+        {
           "name": "字符画",
           "description": "生成字符画。\n用法1: /字符画 图片\n用法2: 回复一张图片并附上 /字符画",
           "permission": "普通用户",
@@ -418,7 +425,7 @@
     {
       "name": "词云功能（失效中，等待作者大大帮我）",
       "priority": 9,
-      "icon": "云朵.png",
+      "icon": "icon/云朵.png",
       "documentation": [
         {
           "name": "查看今日词云",
@@ -634,13 +641,13 @@
     {
       "name": "瑟瑟功能",
       "priority": 12,
-      "icon": "瑟瑟功能.ico",
+      "icon": "icon/瑟瑟功能.ico",
       "documentation": []
     },
     {
       "name": "Pixiv",
       "priority": 13,
-      "icon": "pixiv.ico",
+      "icon": "icon/pixiv.ico",
       "documentation": []
     }
   ]

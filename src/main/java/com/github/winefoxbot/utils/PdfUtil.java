@@ -23,7 +23,9 @@ import java.util.concurrent.TimeUnit;
  * @since 2025-12-21-23:33
  */
 public final class PdfUtil {
-    private PdfUtil() {}
+    private PdfUtil() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
 
     public static String wrapByteImagesIntoPdf(List<byte[]> images, String outputPath) {
         // 1. 确定输出文件路径

@@ -1,13 +1,13 @@
 package com.github.winefoxbot.plugins;
 
-import com.github.winefoxbot.model.dto.reply.BotReply;
-import com.github.winefoxbot.model.dto.reply.BotReplyParams;
+import com.github.winefoxbot.model.dto.reply.TextReply;
+import com.github.winefoxbot.model.dto.reply.TextReplyParams;
 import com.github.winefoxbot.model.entity.QQGroupAutoHandleAddRequestFeatureConfig;
 import com.github.winefoxbot.model.enums.BotReplyTemplateType;
 import com.github.winefoxbot.model.enums.GroupAddRequestType;
 import com.github.winefoxbot.model.enums.GroupAdminChangeType;
 import com.github.winefoxbot.model.enums.GroupMemberDecreaseType;
-import com.github.winefoxbot.service.bot.BotReplyService;
+import com.github.winefoxbot.service.reply.TextReplyService;
 import com.github.winefoxbot.service.qqgroup.QQGroupService;
 import com.github.winefoxbot.service.shiro.ShiroGroupMembersService;
 import com.github.winefoxbot.utils.BotUtils;
@@ -37,7 +37,7 @@ import static com.mikuac.shiro.core.BotPlugin.MESSAGE_BLOCK;
 @RequiredArgsConstructor
 public class QQGroupPlugin {
 
-    private final BotReplyService botReplyService;
+    private final TextReplyService textReplyService;
     private final ShiroGroupMembersService shiroGroupMembersService;
     private final QQGroupService qqGroupService;
 
@@ -59,7 +59,7 @@ public class QQGroupPlugin {
         }
         String username = BotUtils.getGroupMemberNickname(bot, groupId, userId);
         // 获取模板
-        BotReply reply = botReplyService.getReply(new BotReplyParams(username, BotReplyTemplateType.WELCOME));
+        TextReply reply = textReplyService.getReply(new TextReplyParams(username, BotReplyTemplateType.WELCOME));
         sendReply(bot, reply, event.getGroupId(), userId);
         return MESSAGE_BLOCK;
     }
@@ -78,17 +78,17 @@ public class QQGroupPlugin {
         Long operatorId = event.getOperatorId();
         String username = BotUtils.getStrangeNickname(bot, userId);
         GroupMemberDecreaseType groupMemberDecreaseType = GroupMemberDecreaseType.fromValue(event.getSubType());
-        BotReply reply = null;
+        TextReply reply = null;
         switch (groupMemberDecreaseType) {
             case GroupMemberDecreaseType.KICK -> {
                 log.info("群成员 {} 被管理员 {} 踢出群 {}", userId, operatorId, groupId);
                 // 获取模板
-                reply = botReplyService.getReply(new BotReplyParams(username, BotReplyTemplateType.KICK));
+                reply = textReplyService.getReply(new TextReplyParams(username, BotReplyTemplateType.KICK));
             }
             case GroupMemberDecreaseType.LEAVE -> {
                 log.info("群成员 {} 从群 {} 中离开", userId, groupId);
                 // 获取模板
-                reply = botReplyService.getReply(new BotReplyParams(username, BotReplyTemplateType.FAREWELL));
+                reply = textReplyService.getReply(new TextReplyParams(username, BotReplyTemplateType.FAREWELL));
             }
             case GroupMemberDecreaseType.KICK_ME -> {
                 log.info("群成员 {} 主动将 Bot {} 踢出群 {}", operatorId, bot.getSelfId(), groupId);
@@ -107,16 +107,16 @@ public class QQGroupPlugin {
         Long userId = event.getUserId();
         Long botId = bot.getSelfId();
         GroupAdminChangeType groupAdminChangeType = GroupAdminChangeType.fromValue(event.getSubType());
-        BotReply reply = null;
+        TextReply reply = null;
         if (userId.equals(botId)) {
             switch (groupAdminChangeType) {
                 case SET -> {
                     log.info("Bot {} 在群 {} 中被提升为管理员", botId, groupId);
-                    reply = botReplyService.getReply(new BotReplyParams(null, BotReplyTemplateType.PROMOTE));
+                    reply = textReplyService.getReply(new TextReplyParams(null, BotReplyTemplateType.PROMOTE));
                 }
                 case UNSET -> {
                     log.info("Bot {} 在群 {} 中被降级为普通成员", botId, groupId);
-                    reply = botReplyService.getReply(new BotReplyParams(null, BotReplyTemplateType.DEMOTE));
+                    reply = textReplyService.getReply(new TextReplyParams(null, BotReplyTemplateType.DEMOTE));
                 }
             }
         }
@@ -153,7 +153,7 @@ public class QQGroupPlugin {
         return MESSAGE_BLOCK;
     }
 
-    private void sendReply(Bot bot, BotReply reply, Long groupId, Long userId,  boolean at) {
+    private void sendReply(Bot bot, TextReply reply, Long groupId, Long userId,  boolean at) {
         if (reply != null) {
             // 构建消息
             MsgUtils msgBuilder = MsgUtils.builder();
@@ -170,11 +170,11 @@ public class QQGroupPlugin {
         }
     }
 
-    private void sendReply(Bot bot, BotReply reply, Long groupId,Long userId) {
+    private void sendReply(Bot bot, TextReply reply, Long groupId,Long userId) {
         sendReply(bot, reply, groupId, userId, true);
     }
 
-    private void sendReply(Bot bot, BotReply reply, Long groupId) {
+    private void sendReply(Bot bot, TextReply reply, Long groupId) {
         sendReply(bot, reply, groupId, null, false);
     }
 

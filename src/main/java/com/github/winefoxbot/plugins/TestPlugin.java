@@ -2,6 +2,7 @@ package com.github.winefoxbot.plugins;
 
 import cn.hutool.core.lang.Pair;
 import com.github.winefoxbot.annotation.PluginFunction;
+import com.github.winefoxbot.config.WineFoxBotConfig;
 import com.github.winefoxbot.model.enums.Permission;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
@@ -22,6 +23,9 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.stream.Stream;
 
+import static com.github.winefoxbot.config.WineFoxBotConfig.COMMAND_PREFIX_REGEX;
+import static com.github.winefoxbot.config.WineFoxBotConfig.COMMAND_SUFFIX_REGEX;
+
 /**
  * @author FlanChan (badapple495@outlook.com)
  * @since 2025-12-08-0:17
@@ -32,16 +36,16 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class TestPlugin {
 
-    @PluginFunction(group = "测试", name = "echo模块", description = "回复收到的消息内容",            hidden = true, permission = Permission.SUPERADMIN)
+    @PluginFunction(group = "测试", name = "echo模块", description = "回复收到的消息内容", hidden = true, permission = Permission.SUPERADMIN)
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text,   cmd = "/echo\\s.+$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "echo\\s.+" + COMMAND_SUFFIX_REGEX)
     public void echo(Bot bot, AnyMessageEvent event, Matcher matcher) {
         String messageContent = matcher.group(0);
         log.info("echo模块 接收到 {}", messageContent);
         bot.sendMsg(event, MsgUtils.builder()
-                        .at(event.getUserId())
-                        .text(messageContent)
-                        .build(), false);
+                .at(event.getUserId())
+                .text(messageContent)
+                .build(), false);
     }
 
 }

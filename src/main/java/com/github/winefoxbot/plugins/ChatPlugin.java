@@ -7,7 +7,7 @@ import com.github.winefoxbot.annotation.Limit;
 import com.github.winefoxbot.annotation.PluginFunction;
 import com.github.winefoxbot.config.WineFoxBotConfig;
 import com.github.winefoxbot.model.enums.Permission;
-import com.github.winefoxbot.service.ai.DeepSeekService;
+import com.github.winefoxbot.service.chat.DeepSeekService;
 import com.github.winefoxbot.service.shiro.ShiroMessagesService;
 import com.github.winefoxbot.utils.BotUtils;
 import com.mikuac.shiro.annotation.*;

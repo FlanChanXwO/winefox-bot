@@ -4,6 +4,7 @@ package com.github.winefoxbot.config;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.options.Proxy;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -46,3 +47,5 @@ public class WebDriverConfig {
         );
     }
 }
+
+//#__next > div > div:nth-child(2) > div.__top_side_menu_body section ul

@@ -8,7 +8,9 @@ import org.springframework.util.unit.DataSize;
  */
 public final class FileUtil {
 
-    private FileUtil() {}
+    private FileUtil() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
 
     public static String getFileUrlPrefix() {
         return System.getProperty("os.name").toLowerCase().contains("linux") ? "file://" : "file:///";
