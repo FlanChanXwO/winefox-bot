@@ -74,11 +74,14 @@ jobs:
           echo "Generated $PROPERTIES_FILE content:"
           cat $PROPERTIES_FILE
 
-      # 【关键修改】将 package 和 repackage 合并到一步执行
       - name: Build 'fat' JAR with Maven
         run: mvn -B package spring-boot:repackage --file pom.xml
 
-      # 【关键修改】最后一步：上传打包好的胖 JAR
+      - name: List target directory contents
+        run: |
+          echo "--- Contents of target directory ---"
+          ls -lh target
+
       - name: Upload final 'fat' JAR to Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
