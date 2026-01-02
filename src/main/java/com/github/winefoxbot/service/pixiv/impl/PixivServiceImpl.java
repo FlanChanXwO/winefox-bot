@@ -48,6 +48,7 @@ public class PixivServiceImpl implements PixivService {
     private final ObjectMapper objectMapper;
     private final FileStorageService fileStorageService;
     private final ExecutorService downloadExecutor = Executors.newVirtualThreadPerTaskExecutor();
+    private final ConcurrentHashMap<String, Lock> pidLocks = new ConcurrentHashMap<>();
 
     // 常量
     private static final String PIXIV_BASE = "https://www.pixiv.net";
@@ -56,107 +57,139 @@ public class PixivServiceImpl implements PixivService {
 
     private static final boolean ENABLE_COMPRESSION = false;
 
-    private final Lock lock = new ReentrantLock();
+    private final Semaphore downloadPermits = new Semaphore(20);
 
     /**
      * 异步获取作品图片，优先使用本地缓存。
+     *
      * @param pid 作品ID
      * @return 一个代表未来文件列表的 CompletableFuture<List<File>>
      */
     @Override
     public CompletableFuture<List<File>> fetchImages(String pid) {
+        // 使用 computeIfAbsent 来原子性地获取或创建锁，确保每个PID只有一个锁实例
+        Lock pidLock = pidLocks.computeIfAbsent(pid, k -> new ReentrantLock());
         return CompletableFuture.supplyAsync(() -> {
-
+            String pidRelativePath = PIXIV_IMAGE_SUBFOLDER + "/" + pid;
+            boolean lockAcquired = false;
             try {
-                if (lock.tryLock(2, TimeUnit.MINUTES)) {
+                // 等待获取特定PID的锁
+                if (pidLock.tryLock(2, TimeUnit.MINUTES)) {
+                    lockAcquired = true;
                     log.info("Acquired lock for PID: {}", pid);
+                    try {
+                        List<Path> cachedPaths = fileStorageService.listFiles(pidRelativePath);
+                        if (cachedPaths != null && !cachedPaths.isEmpty()) {
+                            List<File> cachedFiles = cachedPaths.stream()
+                                    .map(Path::toFile)
+                                    .filter(file -> file.length() > 0)
+                                    .collect(Collectors.toList());
+                            if (!cachedFiles.isEmpty()) {
+                                log.info("PID: {} 命中缓存，找到 {} 个文件，直接返回。", pid, cachedFiles.size());
+                                cachedFiles.forEach(file -> fileStorageService.registerFile(file.toPath(), CACHE_EXPIRATION, null));
+                                return cachedFiles;
+                            }
+                        }
+
+                    } catch (IOException e) {
+                        log.info("检查 PID: {} 的缓存时未找到文件或出错，将继续下载。({})", pid, e.getClass().getSimpleName());
+                    }
+
+                    log.info("PID: {} 缓存未命中或为空，开始从网络获取。", pid);
+                    try {
+                        String ugoiraZipUrl = checkUgoiraZip(pid);
+                        if (ugoiraZipUrl != null) {
+                            log.info("PID: {} 识别为动图，开始下载并转换为GIF...", pid);
+                            File gif = downloadUgoiraToGif(pid, ugoiraZipUrl);
+                            if (ENABLE_COMPRESSION && gif.length() >= 15 * 1024 * 1024) {
+                                gif = compressImage(gif, 15, pid);
+                            }
+                            return List.of(gif);
+                        }
+
+                        List<String> imageUrls = getStaticImageUrls(pid);
+                        if (imageUrls.isEmpty()) return List.of();
+
+                        log.info("PID: {}，发现 {} 张静态图片，提交并行下载任务...", pid, imageUrls.size());
+                        List<CompletableFuture<File>> imageFutures = imageUrls.stream()
+                                .map(url -> CompletableFuture.supplyAsync(() -> downloadAndProcessSingleImage(url, pid), downloadExecutor))
+                                .toList();
+
+                        List<File> downloadedFiles = CompletableFuture.allOf(imageFutures.toArray(new CompletableFuture[0]))
+                                .thenApply(v -> imageFutures.stream().map(CompletableFuture::join).collect(Collectors.toList()))
+                                .join();
+
+                        return downloadedFiles; // 简化返回，压缩逻辑可以在 downloadAndProcessSingleImage 内部处理或像之前一样并行处理
+
+                    } catch (Exception e) {
+                        log.error("异步 fetchImages 任务中发生严重错误, PID: {}", pid, e);
+                        throw new CompletionException(e);
+                    }
                 } else {
-                    log.warn("Could not acquire lock for PID: {} within timeout, proceeding without lock.", pid);
+                    log.warn("Could not acquire lock for PID: {} within timeout.", pid);
+                    // 考虑返回一个特定的异常或空列表，让调用者知道操作超时
                     return List.of();
                 }
-                String pidRelativePath = PIXIV_IMAGE_SUBFOLDER + "/" + pid;
-                try {
-                    List<Path> cachedPaths = fileStorageService.listFiles(pidRelativePath);
-                    if (cachedPaths != null && !cachedPaths.isEmpty()) {
-                        List<File> cachedFiles = cachedPaths.stream()
-                                .map(Path::toFile)
-                                .filter(file -> file.length() > 0)
-                                .collect(Collectors.toList());
-                        if (!cachedFiles.isEmpty()) {
-                            log.info("PID: {} 命中缓存，找到 {} 个文件，直接返回。", pid, cachedFiles.size());
-                            cachedFiles.forEach(file -> fileStorageService.registerFile(file.toPath(), CACHE_EXPIRATION, null));
-                            return cachedFiles;
-                        }
-                    }
-                } catch (IOException e) {
-                    log.info("检查 PID: {} 的缓存时未找到文件或出错，将继续下载。({})", pid, e.getClass().getSimpleName());
-                }
-
-                log.info("PID: {} 缓存未命中或为空，开始从网络获取。", pid);
-                try {
-                    String ugoiraZipUrl = checkUgoiraZip(pid);
-                    if (ugoiraZipUrl != null) {
-                        log.info("PID: {} 识别为动图，开始下载并转换为GIF...", pid);
-                        File gif = downloadUgoiraToGif(pid, ugoiraZipUrl);
-                        if (ENABLE_COMPRESSION && gif.length() >= 15 * 1024 * 1024) {
-                            gif = compressImage(gif, 15, pid);
-                        }
-                        return List.of(gif);
-                    }
-
-                    List<String> imageUrls = getStaticImageUrls(pid);
-                    if (imageUrls.isEmpty()) return List.of();
-
-                    log.info("PID: {}，发现 {} 张静态图片，提交并行下载任务...", pid, imageUrls.size());
-                    List<CompletableFuture<File>> imageFutures = imageUrls.stream()
-                            .map(url -> CompletableFuture.supplyAsync(() -> downloadAndProcessSingleImage(url, pid), downloadExecutor))
-                            .toList();
-
-                    List<File> downloadedFiles = CompletableFuture.allOf(imageFutures.toArray(new CompletableFuture[0]))
-                            .thenApply(v -> imageFutures.stream().map(CompletableFuture::join).collect(Collectors.toList()))
-                            .join();
-
-                    return downloadedFiles; // 简化返回，压缩逻辑可以在 downloadAndProcessSingleImage 内部处理或像之前一样并行处理
-
-                } catch (Exception e) {
-                    log.error("异步 fetchImages 任务中发生严重错误, PID: {}", pid, e);
-                    throw new CompletionException(e);
-                }
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                Thread.currentThread().interrupt(); // 恢复中断状态
+                log.error("Lock acquisition interrupted for PID: {}", pid, e);
+                throw new CompletionException(e);
             } finally {
-                lock.unlock();
+                if (lockAcquired) {
+                    pidLock.unlock();
+                    log.info("Released lock for PID: {}", pid);
+                    // 可选：当确定一个PID在短时间内不会被再次请求时，可以考虑移除锁以节省内存
+                    // 但对于机器人这类应用，为简单起见，一直保留也可以接受
+                    // pidLocks.remove(pid);
+                }
             }
         }, downloadExecutor);
     }
 
 
     private File downloadAndProcessSingleImage(String url, String pid) {
-        String name = url.substring(url.lastIndexOf("/") + 1);
-        String relativePath = PIXIV_IMAGE_SUBFOLDER + "/" + pid + "/" + name;
-        log.info("启动下载任务：{} ", relativePath);
-        Request request = new Request.Builder().url(url).headers(pixivConfig.getHeaders()).build();
-        int retry = 0;
-        while (retry < 10) {
-            try (Response res = httpClient.newCall(request).execute()) {
-                if (!res.isSuccessful()) throw new IOException("下载失败，HTTP Code: " + res.code());
-                ResponseBody body = res.body();
-                if (body == null) throw new IOException("下载失败，响应体为空");
-                try (InputStream in = body.byteStream()) {
-                    Path finalPath = fileStorageService.writeFile(relativePath, in, CACHE_EXPIRATION, null);
-                    log.info("下载完成并注册缓存：{}", finalPath.toAbsolutePath());
-                    return finalPath.toFile();
+        try {
+            // 在开始下载前获取一个许可，如果许可不够，当前线程会阻塞在这里
+            downloadPermits.acquire();
+            String name = url.substring(url.lastIndexOf("/") + 1);
+            String relativePath = PIXIV_IMAGE_SUBFOLDER + "/" + pid + "/" + name;
+            log.info("启动下载任务：{} ", relativePath);
+            Request request = new Request.Builder().url(url).headers(pixivConfig.getHeaders()).build();
+            int retry = 0;
+            while (retry < 10) {
+                try (Response res = httpClient.newCall(request).execute()) {
+                    if (!res.isSuccessful()) throw new IOException("下载失败，HTTP Code: " + res.code());
+                    ResponseBody body = res.body();
+                    if (body == null) throw new IOException("下载失败，响应体为空");
+                    try (InputStream in = body.byteStream()) {
+                        Path finalPath = fileStorageService.writeFile(relativePath, in, CACHE_EXPIRATION, null);
+                        log.info("下载完成并注册缓存：{}", finalPath.toAbsolutePath());
+                        return finalPath.toFile();
+                    }
+                } catch (SSLHandshakeException e) {
+                    log.warn("SSL握手失败，正在重试... (第 {}/10 次) for {}", retry + 1, name);
+                    try {
+                        TimeUnit.SECONDS.sleep(1);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException(ie);
+                    }
+                    retry++;
+                } catch (Exception e) {
+                    log.error("处理文件 {} 时发生严重错误", name, e);
+                    throw new RuntimeException("处理文件 " + name + " 失败", e);
                 }
-            } catch (SSLHandshakeException e) {
-                log.warn("SSL握手失败，正在重试... (第 {}/10 次) for {}", retry + 1, name);
-                try { TimeUnit.SECONDS.sleep(1); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); throw new RuntimeException(ie); }
-                retry++;
-            } catch (Exception e) {
-                log.error("处理文件 {} 时发生严重错误", name, e);
-                throw new RuntimeException("处理文件 " + name + " 失败", e);
             }
+            throw new RuntimeException("Download failed for " + name + " after max retries.");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Download task for {} was interrupted while waiting for permit.", url);
+            throw new RuntimeException("Download interrupted", e);
+        } finally {
+            // 无论下载成功、失败还是抛出异常，都必须释放许可！
+            downloadPermits.release();
+            log.info("Permit released for {}", url);
         }
-        throw new RuntimeException("下载 " + name + " 失败，已达到最大重试次数");
     }
 
     private File downloadUgoiraToGif(String pid, String zipUrl) throws Exception {
@@ -188,12 +221,15 @@ public class PixivServiceImpl implements PixivService {
         } finally {
             try (Stream<Path> walk = Files.walk(tempDir)) {
                 walk.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
-                    try { Files.delete(path); } catch (IOException e) { log.warn("Failed to delete temp file: {}", path); }
+                    try {
+                        Files.delete(path);
+                    } catch (IOException e) {
+                        log.warn("Failed to delete temp file: {}", path);
+                    }
                 });
             }
         }
     }
-
 
 
     private List<String> getStaticImageUrls(String pid) throws IOException {
@@ -265,7 +301,7 @@ public class PixivServiceImpl implements PixivService {
                 if (info == null) throw new IOException("ffmpeg -i command returned null for " + currentPath);
 
                 int[] wh = extractDimensions(info);
-                int w = Math.max((int)(wh[0] * 0.8), 10);
+                int w = Math.max((int) (wh[0] * 0.8), 10);
 
                 runCmd("ffmpeg", "-i", currentPath.toAbsolutePath().toString(), "-vf", "scale=" + w + ":-1", "-q:v", "4", tempOut.toAbsolutePath().toString(), "-y");
 
@@ -294,7 +330,11 @@ public class PixivServiceImpl implements PixivService {
         } finally {
             try (Stream<Path> walk = Files.walk(tempDir)) {
                 walk.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
-                    try { Files.delete(path); } catch (IOException e) { log.warn("Failed to delete temp compression file: {}", path); }
+                    try {
+                        Files.delete(path);
+                    } catch (IOException e) {
+                        log.warn("Failed to delete temp compression file: {}", path);
+                    }
                 });
             }
         }
@@ -388,7 +428,7 @@ public class PixivServiceImpl implements PixivService {
             JsonNode tagsList = tagsBody.get("tags");
             List<String> tags = new ArrayList<>();
             tagsList.forEach(t -> tags.add(t.path("tag").asText()));
-            return new PixivDetail(id, illustTitle, uid, userName, description,isR18,artworkType, tags);
+            return new PixivDetail(id, illustTitle, uid, userName, description, isR18, artworkType, tags);
         }
     }
 

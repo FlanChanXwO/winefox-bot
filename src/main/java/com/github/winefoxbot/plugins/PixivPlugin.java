@@ -317,13 +317,17 @@ public class PixivPlugin {
                     builder.img(imgFilePath);
                 }
                 ActionData<MsgId> sendResp = bot.sendMsg(event, builder.build(), false);
+                // 添加重试逻辑
                 int retryTimes = 3;
-                while (sendResp.getRetCode() != 0 && retryTimes-- > 0) {
+                while ((sendResp == null || sendResp.getRetCode() != 0) && retryTimes-- > 0) {
                     log.warn("发送 Pixiv 图片失败，正在重试，剩余次数={}，pid={}", retryTimes, pid);
+                    // 稍作等待再重试
+                    Thread.sleep(1000);
                     sendResp = bot.sendMsg(event, builder.build(), false);
                 }
-                if (sendResp.getRetCode() != 0) {
+                if (sendResp == null || sendResp.getRetCode() != 0) {
                     log.error("发送 Pixiv 图片最终失败，pid={}", pid);
+                    bot.sendMsg(event, MsgUtils.builder().text("图片发送失败，请稍后重试。").build(), false);
                 }
             }
 

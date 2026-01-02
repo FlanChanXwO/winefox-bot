@@ -65,7 +65,7 @@ public class PixivSearchPlugin {
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     private static final Pattern NUMBER_SELECTION_PATTERN = Pattern.compile("^[\\d,，\\s]+$");
-    private static final long SESSION_TIMEOUT_SECONDS = 90;
+    private static final long SESSION_TIMEOUT_SECONDS = 60 * 5;
     private static final String FILE_OUTPUT_DIR = "data/files/pixiv/wrappers";
     private static class LastSearchResult {
         PixivSearchParams params;
@@ -293,19 +293,19 @@ public class PixivSearchPlugin {
                     builder.img(FileUtil.getFileUrlPrefix() + file.getAbsolutePath());
                 }
                 // 在图片后追加提示信息
-                builder.text("\n可以继续发送【序号】获取其他作品，或发送【退出】或任意内容结束本次搜索。");
+                builder.text("\n可以继续发送【序号】获取其他作品，或发送【退出】结束本次搜索。");
 
                 ActionData<MsgId> sendResp = bot.sendMsg(event, builder.build(), false);
 
                 // 添加重试逻辑
                 int retryTimes = 3;
-                while (sendResp.getRetCode() != 0 && retryTimes-- > 0) {
+                while ((sendResp == null || sendResp.getRetCode() != 0) && retryTimes-- > 0) {
                     log.warn("发送 Pixiv 图片失败，正在重试，剩余次数={}，pid={}", retryTimes, pid);
                     // 稍作等待再重试
                     Thread.sleep(1000);
                     sendResp = bot.sendMsg(event, builder.build(), false);
                 }
-                if (sendResp.getRetCode() != 0) {
+                if (sendResp == null || sendResp.getRetCode() != 0) {
                     log.error("发送 Pixiv 图片最终失败，pid={}", pid);
                     bot.sendMsg(event, MsgUtils.builder().text("图片发送失败，请稍后重试。").build(), false);
                 }
@@ -373,7 +373,7 @@ public class PixivSearchPlugin {
                                 result.getTotalArtworks(), result.getCurrentPage(), result.getTotalPages()))
                         .img(result.getScreenshot())
                         .text(String.format("\n你可以发送【上一页】/【下一页】翻页，或【%s<页码>】跳转。\n", previousCommand))
-                        .text(String.format("发送图片上的【序号】可获取原图。发送【退出】或任意内容结束会话。\n(会话将在%d秒后无操作自动结束)", SESSION_TIMEOUT_SECONDS));
+                        .text(String.format("发送图片上的【序号】可获取原图。发送【退出】结束会话。\n(会话将在%d秒后无操作自动结束)", SESSION_TIMEOUT_SECONDS));
                 bot.sendMsg(event, msg.build(), false);
             } else {
                 clearSession(sessionId);
