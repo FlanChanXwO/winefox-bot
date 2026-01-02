@@ -20,23 +20,67 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build with Maven
-        run: mvn -B clean package spring-boot:repackage --file pom.xml
+      - name: Build 'thin' JAR with Maven
+        run: mvn -B clean package --file pom.xml
 
       - name: Get JAR name and path
         id: get_jar_info
         run: |
-          JAR_PATH=$(ls target/*.jar | head -n 1)
+          JAR_PATH=$(ls target/*.jar | grep -v 'original' | head -n 1)
           echo "jar_path=$JAR_PATH" >> $GITHUB_OUTPUT
           echo "jar_name=$(basename $JAR_PATH)" >> $GITHUB_OUTPUT
 
-      - name: Create/Update Release and Upload Initial JAR
+      - name: Delete old JAR assets from Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Searching for old .jar assets in 'latest' release to delete them..."
+          # 获取所有 .jar 结尾的 asset 的名字
+          OLD_JARS=$(gh release view latest --json assets --jq '.assets[].name' | grep '\.jar$' || true)
+          if [ -n "$OLD_JARS" ]; then
+            echo "Found old JARs to delete:"
+            echo "$OLD_JARS"
+            # gh release delete-asset latest <asset-name>
+            echo "$OLD_JARS" | xargs -I {} gh release delete-asset latest "{}" --yes
+            echo "Successfully deleted old JAR assets."
+          else
+            echo "No old .jar assets found to delete."
+          fi
+      - name: Create/Update Release to get ID
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ steps.get_jar_info.outputs.jar_path }}
           tag_name: latest
+          # 注意：这里 files 是空的，我们后面再上传
           body: "Latest development build, updated at ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+      - name: Generate and place release-info.properties
+        run: |
+          RELEASE_ID='${{ steps.create_release.outputs.id }}'
+          
+          # 因为我们还没有上传JAR，所以 asset.id 暂时无法获取，这很关键！
+          # 我们先用一个临时值，比如 -1。
+          # 你的Java代码在启动时会联网获取最新的信息，所以这个值不影响最终的“版本”命令显示。
+          # 它只在“更新”命令中用于比较，而 release_id 不同就足以触发更新了。
+          ASSET_ID='-1' 
+
+          if [ -z "$RELEASE_ID" ]; then
+            echo "Error: Could not determine Release ID."
+            exit 1
+          fi
+
+          echo "Release ID is: $RELEASE_ID"
+          echo "Using temporary Asset ID: $ASSET_ID"
+          
+          # 直接在 target/classes 目录创建文件，这是Maven打包的标准资源路径
+          mkdir -p target/classes
+          PROPERTIES_FILE="target/classes/release-info.properties"
+          echo "github.release.id=$RELEASE_ID" > $PROPERTIES_FILE
+          echo "github.asset.id=$ASSET_ID" >> $PROPERTIES_FILE
+          
+          echo "Generated $PROPERTIES_FILE content:"
+          cat $PROPERTIES_FILE
+      - name: Repackage to 'fat' JAR
+        run: mvn -B spring-boot:repackage --file pom.xml
 
       - name: Generate release-info.properties
         id: generate_properties
@@ -53,11 +97,11 @@ jobs:
 
           echo "Release ID is: $RELEASE_ID"
           echo "Asset ID for $JAR_NAME is: $ASSET_ID"
-          
+
           PROPERTIES_FILE="release-info.properties"
           echo "github.release.id=$RELEASE_ID" > $PROPERTIES_FILE
           echo "github.asset.id=$ASSET_ID" >> $PROPERTIES_FILE
-          
+
           echo "Generated $PROPERTIES_FILE content:"
           cat $PROPERTIES_FILE
 
@@ -67,23 +111,6 @@ jobs:
           mv release-info.properties BOOT-INF/classes/
           jar uf ${{ steps.get_jar_info.outputs.jar_path }} -C BOOT-INF/classes/ release-info.properties
           echo "Injected release-info.properties into ${{ steps.get_jar_info.outputs.jar_path }}"
-
-      - name: Delete old JAR assets
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Searching for old .jar assets in 'latest' release to delete them..."
-          gh release download latest --pattern "*.jar" --skip-existing || echo "No old JARs to download/delete, continuing."
-          
-          OLD_JARS=$(ls *.jar 2>/dev/null)
-          if [ -n "$OLD_JARS" ]; then
-            echo "Found old JARs to delete:"
-            echo "$OLD_JARS"
-            gh release delete-asset latest $OLD_JARS --yes
-            echo "Successfully deleted old JAR assets."
-          else
-            echo "No old .jar assets found to delete."
-          fi
 
       - name: Upload final JAR to Release (overwrite)
         env:
