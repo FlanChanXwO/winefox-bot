@@ -2,7 +2,9 @@ package com.github.winefoxbot.plugins;
 
 import com.github.winefoxbot.annotation.PluginFunction;
 import com.github.winefoxbot.config.app.WineFoxBotProperties;
+import com.github.winefoxbot.model.dto.core.RestartInfo;
 import com.github.winefoxbot.model.dto.github.GitHubRelease;
+import com.github.winefoxbot.model.enums.MessageType;
 import com.github.winefoxbot.model.enums.Permission;
 import com.github.winefoxbot.service.github.GitHubUpdateService;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
@@ -16,10 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
-import java.lang.management.ManagementFactory;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
 
 import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_PREFIX_REGEX;
 import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_SUFFIX_REGEX;
@@ -40,15 +39,35 @@ public class CorePlugin {
     /**
      * 应用重启
      */
-    @PluginFunction(hidden = true, permission = Permission.ADMIN, group = "核心功能", name = "查看当前版本", description = "查看当前版本" ,commands = {
+    @PluginFunction(hidden = true, permission = Permission.ADMIN, group = "核心功能", name = "查看当前版本", description = "查看当前版本", commands = {
             COMMAND_PREFIX_REGEX + "restart" + COMMAND_PREFIX_REGEX,
             COMMAND_PREFIX_REGEX + "重启" + COMMAND_SUFFIX_REGEX
     })
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(restart|重启)" + COMMAND_SUFFIX_REGEX)
     public void restartApplication(Bot bot, AnyMessageEvent event) {
-        bot.sendMsg(event, "收到重启指令，应用将在稍后重启...", false);
+        // 1. 准备重启信息
+        MessageType messageType = MessageType.fromValue(event.getMessageType());
+        Long targetId = switch (messageType) {
+            case GROUP -> event.getGroupId();
+            case PRIVATE -> event.getUserId();
+        };
+        // 成功消息模板， {duration} 和 {version} 是占位符，将在重启后填充
+        String successMsgTemplate = String.format("[CQ:at,qq=%d] 应用重启成功！\n耗时: {duration}\n当前版本: {version}", event.getUserId());
+
+        // 记录当前时间戳
+        long startTime = System.currentTimeMillis();
+
+        RestartInfo restartInfo = new RestartInfo(messageType, targetId, successMsgTemplate, startTime);
+
+        // 2. 保存重启信息到文件
+        updateService.saveRestartInfo(restartInfo);
+
+        // 3. 发送即将重启的通知
+        bot.sendMsg(event, "收到重启指令，正在保存状态并准备重启...", false);
         log.info("接收到来自 {} 的重启指令", event.getUserId());
+
+        // 4. 执行重启
         updateService.restartApplication();
     }
 
@@ -56,7 +75,7 @@ public class CorePlugin {
     /**
      * 查看版本
      */
-    @PluginFunction( permission = Permission.USER, group = "核心功能", name = "查看当前版本", description = "查看当前版本" ,commands = {
+    @PluginFunction(permission = Permission.USER, group = "核心功能", name = "查看当前版本", description = "查看当前版本", commands = {
             COMMAND_PREFIX_REGEX + "version" + COMMAND_PREFIX_REGEX,
             COMMAND_PREFIX_REGEX + "当前版本" + COMMAND_SUFFIX_REGEX
     })
@@ -90,7 +109,7 @@ public class CorePlugin {
     /**
      * 更新版本
      */
-    @PluginFunction(permission = Permission.ADMIN, group = "核心功能", name = "版本更新", description = "版本更新" ,commands = {
+    @PluginFunction(permission = Permission.ADMIN, group = "核心功能", name = "版本更新", description = "版本更新", commands = {
             COMMAND_PREFIX_REGEX + "update" + COMMAND_PREFIX_REGEX,
             COMMAND_PREFIX_REGEX + "更新版本" + COMMAND_SUFFIX_REGEX
     })

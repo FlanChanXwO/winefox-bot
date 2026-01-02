@@ -30,13 +30,13 @@ public class TestPlugin {
 
     @PluginFunction(group = "测试", name = "echo模块", description = "回复收到的消息内容", hidden = true, permission = Permission.SUPERADMIN)
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "echo\\s.+" + COMMAND_SUFFIX_REGEX)
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "echo(?:\\s+(\\S+))?" + COMMAND_SUFFIX_REGEX)
     public void echo(Bot bot, AnyMessageEvent event, Matcher matcher) {
-        String messageContent = matcher.group(0);
+        String messageContent = matcher.group(1);
         log.info("echo模块 接收到 {}", messageContent);
         bot.sendMsg(event, MsgUtils.builder()
                 .at(event.getUserId())
-                .text(messageContent)
+                .text(" " +messageContent)
                 .build(), false);
     }
 

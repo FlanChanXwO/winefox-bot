@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -66,6 +67,15 @@ public class PixivSearchServiceImpl implements PixivSearchService {
 
     private static final String HTML_TEMPLATE = "pixiv_search_result/main";
     private static final String RESOURCE_BASE_PATH = "templates/pixiv_search_result/res";
+    /**
+     * Playwright 操作的最大重试次数
+     */
+    private static final int MAX_RETRIES = 3;
+
+    /**
+     * 每次重试之间的间隔时间（毫秒）
+     */
+    private static final long RETRY_INTERVAL_MS = 500L;
 
 
     @Data
@@ -98,92 +108,110 @@ public class PixivSearchServiceImpl implements PixivSearchService {
 
     @Override
     public PixivSearchResult search(PixivSearchParams params) {
+        // 重试循环
         try (BrowserContext context = createBrowserContext()) {
             Page page = context.newPage();
+            for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                // 步骤 1: 导航并加载原始页面
+                String searchUrl = buildSearchUrl(params);
+                log.info("[Attempt {}/{}] Navigating to Pixiv search URL: {}", attempt, MAX_RETRIES, searchUrl);
+                try {
+                    page.navigate(searchUrl, new Page.NavigateOptions().setTimeout(60000));
+                    page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(30000));
+                    log.info("Page loaded. URL: {}", page.url());
 
-            // 步骤 1: 导航并加载原始页面
-            String searchUrl = buildSearchUrl(params);
-            log.info("Navigating to Pixiv search URL: {}", searchUrl);
-            page.navigate(searchUrl, new Page.NavigateOptions().setTimeout(60000));
-            page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(30000));
-            log.info("Page loaded. URL: {}", page.url());
+                    smoothAutoScroll(page);
+                    log.info("Page scrolling complete.");
 
-            smoothAutoScroll(page);
-            log.info("Page scrolling complete.");
+                    // 步骤 2: 提取元数据
+                    long totalArtworks = extractTotalArtworks(page);
+                    int totalPages = totalArtworks > 0 ? (int) Math.ceil((double) totalArtworks / 60) : 0;
+                    List<PixivSearchResult.ArtworkData> artworksData = extractArtworksPidsAndUids(page);
 
-            // 步骤 2: 提取元数据
-            long totalArtworks = extractTotalArtworks(page);
-            int totalPages = totalArtworks > 0 ? (int) Math.ceil((double) totalArtworks / 60) : 0;
-            List<PixivSearchResult.ArtworkData> artworksData = extractArtworksPidsAndUids(page);
+                    if (artworksData.isEmpty()) {
+                        log.warn("No artworks found on the page for tags: {}", params.getTags());
+                        return PixivSearchResult.builder().artworks(List.of()).totalPages(0).totalArtworks(0).screenshot(new byte[0]).build();
+                    }
 
-            if (artworksData.isEmpty()) {
-                log.warn("No artworks found on the page for tags: {}", params.getTags());
-                return PixivSearchResult.builder().artworks(List.of()).totalPages(0).totalArtworks(0).screenshot(new byte[0]).build();
+                    // 步骤 3: 在浏览器中直接操作DOM，准备截图区域
+                    removeStarIcons(page);
+                    if (params.isR18()) {
+                        blurArtworks(page);
+                    }
+                    addNumberingToArtworks(page);
+
+                    // 步骤 4: 截取核心作品列表区域
+                    Locator artworkContainer = page.locator(ARTWORK_LIST_CSS_SELECTOR);
+                    byte[] gridImageBytes = artworkContainer.screenshot(new Locator.ScreenshotOptions().setType(ScreenshotType.PNG));
+                    String gridImageBase64 = "data:image/png;base64," + Base64.getEncoder().encodeToString(gridImageBytes);
+                    log.info("Artwork grid screenshot captured successfully, size: {} bytes.", gridImageBytes.length);
+
+                    // 步骤 5: 准备最终模板所需的所有数据
+                    Map<String, String> res = loadResourcesAsDataUri(RESOURCE_BASE_PATH);
+                    Context thymeleafContext = new Context();
+                    thymeleafContext.setVariable("tags", String.join(" ", params.getTags()));
+                    thymeleafContext.setVariable("currentPage", params.getPageNo());
+                    thymeleafContext.setVariable("totalPages", totalPages);
+                    thymeleafContext.setVariable("totalArtworks", totalArtworks);
+                    thymeleafContext.setVariable("res", res);
+                    thymeleafContext.setVariable("hint_text", "请不要在其它群聊分享或宣传此功能，本功能为酒狐独有");
+                    thymeleafContext.setVariable("gridImage", gridImageBase64);
+
+                    String finalHtml = templateEngine.process(HTML_TEMPLATE, thymeleafContext);
+
+                    byte[] finalScreenshot;
+                    try (BrowserContext screenshotContext = browser.newContext(new Browser.NewContextOptions().setDeviceScaleFactor(2))) {
+                        Page screenshotPage = screenshotContext.newPage();
+                        screenshotPage.setContent(finalHtml);
+                        Locator gridImageLocator = screenshotPage.locator(".pixiv-card img");
+                        gridImageLocator.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(10000));
+                        log.info("Embedded grid image is now visible in the final template.");
+
+                        Locator container = screenshotPage.locator(".container");
+                        finalScreenshot = container.screenshot(new Locator.ScreenshotOptions().setType(ScreenshotType.PNG));
+                        log.info("Final composite image captured successfully.");
+                    }
+                    // 如果代码执行到这里，说明成功了，直接返回结果并退出循环
+                    return PixivSearchResult.builder()
+                            .screenshot(finalScreenshot)
+                            .artworks(artworksData)
+                            .currentPage(params.getPageNo())
+                            .totalPages(totalPages)
+                            .totalArtworks(totalArtworks)
+                            .r18(params.isR18())
+                            .build();
+                } catch (PlaywrightException e) {
+                    log.warn("[Attempt {}/{}] Playwright operation failed: {}. Retrying in {}ms...",
+                            attempt, MAX_RETRIES, e.getMessage(), RETRY_INTERVAL_MS);
+
+                    // 如果这是最后一次尝试，则记录错误并抛出异常
+                    if (attempt == MAX_RETRIES) {
+                        log.error("All {} retries failed for Pixiv search. Aborting.", MAX_RETRIES, e);
+                        throw new RuntimeException("Failed to perform Pixiv search after " + MAX_RETRIES + " attempts.", e);
+                    }
+
+                    // 等待指定的间隔时间再进行下一次尝试
+                    try {
+                        TimeUnit.MILLISECONDS.sleep(RETRY_INTERVAL_MS);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt(); // 恢复中断状态
+                        log.error("Retry sleep was interrupted.", ie);
+                        throw new RuntimeException("Pixiv search retry was interrupted.", ie);
+                    }
+                }
             }
-
-            // 步骤 3: 在浏览器中直接操作DOM，准备截图区域
-            // 移除收藏按钮
-            removeStarIcons(page);
-            // 如果是R18，进行模糊处理
-            if (params.isR18()) {
-                blurArtworks(page);
-            }
-            // 给每个作品添加序号
-            addNumberingToArtworks(page);
-
-            // 步骤 4: 截取核心作品列表区域
-            Locator artworkContainer = page.locator(ARTWORK_LIST_CSS_SELECTOR);
-            byte[] gridImageBytes = artworkContainer.screenshot(new Locator.ScreenshotOptions().setType(ScreenshotType.PNG));
-            String gridImageBase64 = "data:image/png;base64," + Base64.getEncoder().encodeToString(gridImageBytes);
-            log.info("Artwork grid screenshot captured successfully, size: {} bytes.", gridImageBytes.length);
-
-            // 步骤 5: 准备最终模板所需的所有数据
-            Map<String, String> res = loadResourcesAsDataUri(RESOURCE_BASE_PATH);
-            Context thymeleafContext = new Context();
-            thymeleafContext.setVariable("tags", String.join(" ", params.getTags()));
-            thymeleafContext.setVariable("currentPage", params.getPageNo());
-            thymeleafContext.setVariable("totalPages", totalPages);
-            thymeleafContext.setVariable("totalArtworks", totalArtworks);
-            thymeleafContext.setVariable("res", res);
-            thymeleafContext.setVariable("hint_text", "请不要在其它群聊分享或宣传此功能，本功能为酒狐独有");
-            // 【关键】将截取到的作品列表图片传递给模板
-            thymeleafContext.setVariable("gridImage", gridImageBase64);
-
-            String finalHtml = templateEngine.process(HTML_TEMPLATE, thymeleafContext);
-
-            byte[] finalScreenshot;
-            try (BrowserContext screenshotContext = browser.newContext(new Browser.NewContextOptions().setDeviceScaleFactor(2))) {
-                Page screenshotPage = screenshotContext.newPage();
-                // 视口宽度最好与模板中的 .container 宽度匹配或更大
-                screenshotPage.setContent(finalHtml);
-                // 【关键修复】 定位到那张Base64图片，并等待它加载完成。
-                // 这会确保在截图时，图片已经解码并渲染在页面上。
-                // 我们选择等待的图片是 <div class="pixiv-card"> 里的那张。
-                Locator gridImageLocator = screenshotPage.locator(".pixiv-card img");
-                gridImageLocator.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(10000)); // 等待图片可见，设置10秒超时
-
-                log.info("Embedded grid image is now visible in the final template.");
-
-                // 现在截图，目标容器是.container，而不是.pixiv-card，以便截取完整的卡片
-                Locator container = screenshotPage.locator(".container");
-                finalScreenshot = container.screenshot(new Locator.ScreenshotOptions().setType(ScreenshotType.PNG));
-                log.info("Final composite image captured successfully.");
-            }
-
-            return PixivSearchResult.builder()
-                    .screenshot(finalScreenshot)
-                    .artworks(artworksData)
-                    .currentPage(params.getPageNo())
-                    .totalPages(totalPages)
-                    .totalArtworks(totalArtworks)
-                    .r18(params.isR18())
-                    .build();
-
         } catch (Exception e) {
-            log.error("An error occurred during Pixiv search with composite image generation", e);
-            throw new RuntimeException("Failed to perform Pixiv search", e);
+            // 对于非 PlaywrightException 的其他异常，不进行重试，直接抛出
+            log.error("An unexpected non-Playwright error occurred during Pixiv search", e);
+            throw new RuntimeException("Failed to perform Pixiv search due to an unexpected error.", e);
         }
+
+        // 正常情况下，代码不会执行到这里，因为循环要么成功返回，要么在最后一次失败时抛出异常。
+        // 添加此返回值是为了编译器满意，可以视为一个“不可能发生”的备用方案。
+        throw new RuntimeException("Pixiv search process failed unexpectedly after all retries.");
     }
+
+
 
 
     // 模糊处理
@@ -201,22 +229,22 @@ public class PixivSearchServiceImpl implements PixivSearchService {
     // 提取PID和UID，用于返回给调用者
     private List<PixivSearchResult.ArtworkData> extractArtworksPidsAndUids(Page page) {
         String jsScript = """
-            selector => {
-                const artworks = document.querySelectorAll(selector);
-                const data = [];
-                artworks.forEach(item => {
-                    const artworkLink = item.querySelector('a[href*="/artworks/"]');
-                    const authorLink = item.querySelector('a[href*="/users/"]');
-                    if (artworkLink && authorLink) {
-                        data.push({
-                            artworkUrl: artworkLink.href,
-                            authorUrl: authorLink.href
+                    selector => {
+                        const artworks = document.querySelectorAll(selector);
+                        const data = [];
+                        artworks.forEach(item => {
+                            const artworkLink = item.querySelector('a[href*="/artworks/"]');
+                            const authorLink = item.querySelector('a[href*="/users/"]');
+                            if (artworkLink && authorLink) {
+                                data.push({
+                                    artworkUrl: artworkLink.href,
+                                    authorUrl: authorLink.href
+                                });
+                            }
                         });
+                        return data;
                     }
-                });
-                return data;
-            }
-        """;
+                """;
         @SuppressWarnings("unchecked")
         List<Map<String, String>> rawData = (List<Map<String, String>>) page.evaluate(jsScript, ARTWORK_LIST_ITEM_CSS_SELECTOR);
 
@@ -289,27 +317,27 @@ public class PixivSearchServiceImpl implements PixivSearchService {
     private void addNumberingToArtworks(Page page) {
         log.info("Adding numbering to artworks...");
         String jsScript = """
-            (selector) => {
-                const artworks = document.querySelectorAll(selector);
-                artworks.forEach((artwork, index) => {
-                    if (artwork.querySelector('.number-label')) return; // 防止重复添加
-                    artwork.style.position = 'relative';
-                    const numberLabel = document.createElement('div');
-                    numberLabel.className = 'number-label'; // 添加一个class便于识别
-                    numberLabel.innerText = index + 1;
-                    Object.assign(numberLabel.style, {
-                        position: 'absolute', top: '50%', left: '50%',
-                        transform: 'translate(-50%, -50%)', zIndex: '100',
-                        backgroundColor: 'rgba(40, 40, 40, 0.8)', color: 'white',
-                        borderRadius: '50%', width: '60px', height: '60px',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '28px', fontWeight: 'bold',
-                        boxShadow: '0 0 5px rgba(0,0,0,0.7)'
-                    });
-                    artwork.appendChild(numberLabel);
-                });
-            }
-        """;
+                    (selector) => {
+                        const artworks = document.querySelectorAll(selector);
+                        artworks.forEach((artwork, index) => {
+                            if (artwork.querySelector('.number-label')) return; // 防止重复添加
+                            artwork.style.position = 'relative';
+                            const numberLabel = document.createElement('div');
+                            numberLabel.className = 'number-label'; // 添加一个class便于识别
+                            numberLabel.innerText = index + 1;
+                            Object.assign(numberLabel.style, {
+                                position: 'absolute', top: '50%', left: '50%',
+                                transform: 'translate(-50%, -50%)', zIndex: '100',
+                                backgroundColor: 'rgba(40, 40, 40, 0.8)', color: 'white',
+                                borderRadius: '50%', width: '60px', height: '60px',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: '28px', fontWeight: 'bold',
+                                boxShadow: '0 0 5px rgba(0,0,0,0.7)'
+                            });
+                            artwork.appendChild(numberLabel);
+                        });
+                    }
+                """;
         page.evaluate(jsScript, ARTWORK_LIST_ITEM_CSS_SELECTOR);
     }
 
