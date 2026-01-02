@@ -1,6 +1,7 @@
 package com.github.winefoxbot.config;
 
 
+import com.github.winefoxbot.config.http.ProxyConfig;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Playwright;
@@ -38,14 +39,21 @@ public class WebDriverConfig {
     }
 
 
+    @Bean
+    public Proxy playwrightProxy(ProxyConfig proxyConfig) {
+        if (proxyConfig.getEnabled()) {
+            return new Proxy(proxyConfig.getType().name().toUpperCase() + "://" +proxyConfig.getHost() + ":" + proxyConfig.getPort());
+        }
+        return null;
+    }
+
     @Bean(destroyMethod = "close")
-    public Browser browser(Playwright playwright) {
+    public Browser browser(Playwright playwright, Proxy proxy) {
         return playwright.chromium().launch(
                 new BrowserType.LaunchOptions()
+                        .setProxy(proxy)
                         .setExecutablePath(Paths.get(edgeBinaryPath))
                         .setHeadless(true)
         );
     }
 }
-
-//#__next > div > div:nth-child(2) > div.__top_side_menu_body section ul

@@ -1,6 +1,7 @@
 package com.github.winefoxbot.listener;
 
-import com.github.winefoxbot.config.WineFoxBotConfig;
+import com.github.winefoxbot.config.app.WineFoxBotConfig;
+import com.github.winefoxbot.config.app.WineFoxBotProperties;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.CoreEvent;
 import lombok.RequiredArgsConstructor;
@@ -16,13 +17,13 @@ import org.springframework.web.socket.WebSocketSession;
 public class BotStatusEventListener extends CoreEvent {
 
 
-    private final WineFoxBotConfig wineFoxBotConfig;
+    private final WineFoxBotProperties wineFoxBotProperties;
     @Override
     public void online(Bot bot) {
         // 客户端上线事件
         // 例如上线后发送消息给指定的群或好友
         // 如需获取上线的机器人账号可以调用 bot.getSelfId()
-        for (Long superuser : wineFoxBotConfig.getSuperusers()) {
+        for (Long superuser : wineFoxBotProperties.getSuperusers()) {
             bot.sendPrivateMsg(superuser, "我上线啦～", false);
         }
     }

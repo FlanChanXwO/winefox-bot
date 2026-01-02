@@ -4,14 +4,12 @@ import cn.hutool.json.JSONUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.github.winefoxbot.config.WineFoxBotConfig;
 import com.github.winefoxbot.config.ai.WineFoxBotChatConfig;
 import com.github.winefoxbot.model.entity.ShiroUserMessage;
+import com.github.winefoxbot.service.chat.AiInteractionHelper;
 import com.github.winefoxbot.service.chat.DeepSeekService;
 import com.github.winefoxbot.service.shiro.ShiroMessagesService;
 import com.github.winefoxbot.utils.BotUtils;
-import com.mikuac.shiro.core.Bot;
-import com.mikuac.shiro.dto.event.notice.PokeNoticeEvent;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,59 +23,39 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 @ConditionalOnBean(name = "deepSeekChatClient")
 public class DeepSeekiServiceImpl implements DeepSeekService {
-
     @Resource(name = "deepSeekChatClient")
     private ChatClient chatClient;
     private final WineFoxBotChatConfig botChatConfig;
-    private final WineFoxBotConfig wineFoxBotConfig;
     private final ShiroMessagesService shiroMessagesService;
+    private final AiInteractionHelper aiInteractionHelper;
     private final ObjectMapper objectMapper;
-    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final int CONTEXT_READ_LIMIT = 200;
 
-    /**
-     * The single entry point for all AI chat completions.
-     * It fetches context, calls the AI, and returns the response.
-     */
     @Override
     public String complete(Long sessionId, String sessionType, ObjectNode userMsg) {
         List<Message> messages = new ArrayList<>();
         messages.add(new SystemMessage(botChatConfig.getSystemPrompt()));
 
+        // --- 核心优化点：使用 Helper 构建历史消息 ---
         List<ShiroUserMessage> history = shiroMessagesService.findLatestMessagesForContext(sessionId, sessionType, CONTEXT_READ_LIMIT);
         for (int i = history.size() - 1; i >= 0; i--) {
             ShiroUserMessage shiroMsg = history.get(i);
             try {
                 String filteredText = BotUtils.getFilteredTextMessage(JSONUtil.toJsonStr(shiroMsg.getMessage()));
 
-                ObjectNode messageForAI = objectMapper.createObjectNode();
-
-                boolean isBotMessage = "message_sent".equals(shiroMsg.getDirection());
-                String senderRole = isBotMessage ? "bot" : "user";
-
-                messageForAI.put("sender", senderRole);
-                messageForAI.put("uid", shiroMsg.getUserId());
-                messageForAI.put("nickname", isBotMessage ? "酒狐" : (shiroMsg.getCard() != null ? shiroMsg.getCard() : shiroMsg.getNickname()));
-                boolean isMaster = wineFoxBotConfig.getSuperusers().contains(shiroMsg.getUserId());
-                messageForAI.put("isMaster", isMaster);
-                messageForAI.put("time", formatter.format(shiroMsg.getTime()));
-                messageForAI.put("message", filteredText);
-
-
+                // 使用 Helper 创建 ObjectNode
+                ObjectNode messageForAI = aiInteractionHelper.createHistoryMessageNode(shiroMsg, filteredText);
                 String finalJsonForAI = objectMapper.writeValueAsString(messageForAI);
 
-                System.out.println(finalJsonForAI);
-
+                boolean isBotMessage = "message_sent".equals(shiroMsg.getDirection());
                 if (isBotMessage) {
                     messages.add(new AssistantMessage(finalJsonForAI));
                 } else {
@@ -89,68 +67,17 @@ public class DeepSeekiServiceImpl implements DeepSeekService {
             }
         }
 
+        // 处理当前用户消息（这部分逻辑不变）
         if (userMsg != null) {
             try {
                 String currentUserMessageJson = objectMapper.writeValueAsString(userMsg);
                 messages.add(new UserMessage(currentUserMessageJson));
             } catch (JsonProcessingException e) {
-                log.error("Failed to serialize current user message for AI context: {}", userMsg.toString(), e);
+                log.error("Failed to serialize current user message for AI context: {}", userMsg, e);
             }
         }
 
         log.info("Sending {} messages to AI for context.", messages.size());
-
         return chatClient.prompt(new Prompt(messages)).call().content();
     }
-
-
-    @Override
-    public void handlePokeMessage(Bot bot, PokeNoticeEvent e, boolean isGroup) {
-        long botId = bot.getSelfId();
-        if (!e.getTargetId().equals(botId)) { // Must be a poke to the bot
-            return;
-        }
-
-        long userId = e.getUserId();
-        long groupId = isGroup ? e.getGroupId() : 0L;
-        Long sessionId = isGroup ? groupId : userId;
-        String sessionType = isGroup ? "group" : "private";
-
-        String nickname = isGroup ? BotUtils.getGroupMemberNickname(bot, groupId, userId) : BotUtils.getUserNickname(bot, userId);
-        boolean shouldPokeBack = Math.random() < 0.5; // Simplified 50% chance
-
-
-        // Create a JSON object representing the "poke" event for the AI.
-        ObjectNode pokeJson = objectMapper.createObjectNode();
-        pokeJson.put("sender", "user");
-        pokeJson.put("uid", String.valueOf(userId));
-        pokeJson.put("nickname", nickname);
-        pokeJson.put("message", shouldPokeBack ? "(酒狐被戳了，并决定反击！)" : "(戳了一下酒狐)");
-        pokeJson.put("isMaster", wineFoxBotConfig.getSuperusers().contains(userId));
-
-        try {
-            // 回击
-            if (shouldPokeBack) {
-                // 1 到 2 秒的随机延迟
-                TimeUnit.SECONDS.sleep((long) (0.5 + Math.random()));
-                if (isGroup) {
-                    bot.sendGroupPoke(groupId, userId);
-                } else {
-                    bot.sendFriendPoke(userId);
-                }
-            }
-            String aiReply = this.complete(sessionId, sessionType, pokeJson);
-            if (aiReply != null && !aiReply.isEmpty()) {
-                if (isGroup) {
-                    bot.sendGroupMsg(groupId, aiReply, false);
-                } else {
-                    bot.sendPrivateMsg(userId, aiReply, false);
-                }
-            }
-        } catch (Exception ex) {
-            log.error("Error handling poke message AI response", ex);
-        }
-    }
-
-    // groupChat and privateChat methods are no longer needed.
 }

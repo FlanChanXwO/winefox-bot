@@ -1,8 +1,6 @@
 package com.github.winefoxbot.plugins;
 
-import cn.hutool.core.lang.Pair;
 import com.github.winefoxbot.annotation.PluginFunction;
-import com.github.winefoxbot.config.WineFoxBotConfig;
 import com.github.winefoxbot.model.enums.Permission;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
@@ -15,16 +13,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.List;
 import java.util.regex.Matcher;
-import java.util.stream.Stream;
 
-import static com.github.winefoxbot.config.WineFoxBotConfig.COMMAND_PREFIX_REGEX;
-import static com.github.winefoxbot.config.WineFoxBotConfig.COMMAND_SUFFIX_REGEX;
+import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_PREFIX_REGEX;
+import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_SUFFIX_REGEX;
 
 /**
  * @author FlanChan (badapple495@outlook.com)

@@ -1,6 +1,6 @@
 package com.github.winefoxbot.job;
 
-import com.github.winefoxbot.config.WineFoxBotConfig;
+import com.github.winefoxbot.config.app.WineFoxBotConfig;
 import com.github.winefoxbot.service.chat.DeepSeekService;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.BotContainer;

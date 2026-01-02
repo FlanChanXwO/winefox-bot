@@ -143,6 +143,63 @@ public final class LotteryUtils {
     }
 
     /**
+     * 进行抽奖
+     * @param prizeMap 奖品概率映射表。
+     *                 Key: 抽中对应列表的概率 (e.g., 0.1 for 10%)
+     *                 Value: 奖品列表。列表中的每个奖品在此次抽奖中概率均等。
+     * @return 抽中的奖品对象。如果奖品池为空或所有奖品列表都为空，则返回 null。
+     * @throws IllegalArgumentException 如果概率为负数或奖品Map为空。
+     */
+    public static Object draw(Map<Double, List<Object>> prizeMap) {
+        if (prizeMap == null || prizeMap.isEmpty()) {
+            throw new IllegalArgumentException("奖品池不能为空 (Prize map cannot be null or empty)");
+        }
+
+        // 1. 过滤掉空的奖品列表和无效的概率
+        TreeMap<Double, List<Object>> filteredPrizeMap = new TreeMap<>();
+        double totalProbability = 0;
+        for (Map.Entry<Double, List<Object>> entry : prizeMap.entrySet()) {
+            Double probability = entry.getKey();
+            List<Object> prizes = entry.getValue();
+
+            if (probability == null || probability < 0) {
+                throw new IllegalArgumentException("概率不能为负数 (Probability cannot be negative): " + probability);
+            }
+
+            // 如果概率大于0且奖品列表不为空，则加入有效奖品池
+            if (probability > 0 && prizes != null && !prizes.isEmpty()) {
+                totalProbability += probability;
+                filteredPrizeMap.put(totalProbability, prizes); // 使用累加概率作为Key
+            }
+        }
+
+        // 如果没有有效的奖品，直接返回null
+        if (filteredPrizeMap.isEmpty()) {
+            System.err.println("警告: 奖品池中没有有效的奖品或概率。");
+            return null;
+        }
+
+        // 2. 生成随机数并确定抽中的奖品列表
+        // ThreadLocalRandom在多线程环境下性能更好
+        double randomValue = ThreadLocalRandom.current().nextDouble() * totalProbability;
+
+        // 使用TreeMap的ceilingEntry方法可以高效地找到第一个大于等于randomValue的key
+        Map.Entry<Double, List<Object>> chosenEntry = filteredPrizeMap.ceilingEntry(randomValue);
+
+        // 如果因为浮点数精度问题没找到（理论上很少发生），可以默认给第一个
+        if (chosenEntry == null) {
+            chosenEntry = filteredPrizeMap.firstEntry();
+        }
+
+        List<Object> chosenPrizeList = chosenEntry.getValue();
+
+        // 3. 从选中的奖品列表中随机抽取一个奖品
+        // 由于列表内每个物品概率相等，直接随机取一个索引即可
+        int randomIndex = ThreadLocalRandom.current().nextInt(chosenPrizeList.size());
+        return chosenPrizeList.get(randomIndex);
+    }
+
+    /**
      * 内部方法：根据概率抽取一个奖品类别
      */
     private static PrizeCategory drawCategory(Map<Double, PrizeCategory> prizePool) {

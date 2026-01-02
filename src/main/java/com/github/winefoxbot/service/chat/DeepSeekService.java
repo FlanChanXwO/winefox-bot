@@ -13,6 +13,4 @@ public interface DeepSeekService {
 
     String complete(Long sessionId, String sessionType, ObjectNode userMsg);
 
-    void handlePokeMessage(Bot bot, PokeNoticeEvent event, boolean isGroup);
-
 }

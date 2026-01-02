@@ -96,6 +96,7 @@ public class BotReceiveMsgHandler {
         ShiroGroup group = new ShiroGroup();
         Long groupId = event.getGroupId();
         group.setGroupId(groupId);
+        group.setSelfId(event.getSelfId());
         Optional<Bot> bot = botContainer.robots.values().stream().findFirst();
         if (bot.isPresent()) {
             Bot firstBot = bot.get();

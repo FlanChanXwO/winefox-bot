@@ -37,7 +37,7 @@ public class RetryInterceptor implements Interceptor {
                 }
             } catch (IOException e) {
                 exception = e;
-                log.warn("Request failed on attempt {}: {}", attempt, e.getMessage());
+                log.debug("Request failed on attempt {}: {}", attempt, e.getMessage());
             }
 
             // 如果响应不成功或捕获到IO异常，则进行重试
@@ -46,7 +46,7 @@ public class RetryInterceptor implements Interceptor {
                 response.close();
             }
 
-            log.warn("Attempt {} for {} failed. Retrying in {} ms.", attempt, request.url(), retryDelayMs);
+            log.debug("Attempt {} for {} failed. Retrying in {} ms.", attempt, request.url(), retryDelayMs);
 
             if (attempt < maxRetries) {
                 try {

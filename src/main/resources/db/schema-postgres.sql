@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS shiro_groups
     group_id         BIGINT    NOT NULL PRIMARY KEY,
     group_name       VARCHAR(255),
     group_avatar_url TEXT,
+    self_id        BIGINT    NOT NULL,
     last_updated     TIMESTAMP NOT NULL
 );
 CREATE TABLE IF NOT EXISTS shiro_group_members
@@ -24,7 +25,7 @@ CREATE TABLE IF NOT EXISTS shiro_group_members
     last_updated    TIMESTAMP                   NOT NULL,
     PRIMARY KEY (group_id, user_id)
 );
-comment on column public.shiro_group_members.role is '角色，owner 或 admin 或 member';
+comment on column shiro_group_members.role is '角色，owner 或 admin 或 member';
 CREATE TABLE IF NOT EXISTS shiro_messages
 (
     id           SERIAL PRIMARY KEY,   -- Use SERIAL for auto-incrementing integer
@@ -170,4 +171,44 @@ CREATE TABLE IF NOT EXISTS setu_config
     created_at             TIMESTAMP  NOT NULL DEFAULT NOW(),   -- 记录创建时间
     updated_at             TIMESTAMP  NOT NULL DEFAULT NOW()    -- 记录更新时间
 );
+
+-- 创建色图配置表
+CREATE TABLE IF NOT EXISTS pixiv_config
+(
+    id                     SERIAL PRIMARY KEY,                  -- 自增主键
+    session_id             BIGINT     NOT NULL UNIQUE,          -- 群号，设置为唯一，确保每个群只有一条记录
+    max_request_in_session INTEGER    NOT NULL DEFAULT 1,       -- 会话内最大请求数，超过则自动拒绝
+    session_type           VARCHAR(8) NOT NULL DEFAULT 'group', -- 会话类型，如 'daily', 'weekly'
+    r18_enabled            BOOLEAN    NOT NULL DEFAULT FALSE,   -- 是否开启R18
+    r18_auto_revoke            BOOLEAN    NOT NULL DEFAULT TRUE,    -- 是否r18自动撤回
+    created_at             TIMESTAMP  NOT NULL DEFAULT NOW(),   -- 记录创建时间
+    updated_at             TIMESTAMP  NOT NULL DEFAULT NOW()    -- 记录更新时间
+);
+
+
+-- 1. Bot信息表
+-- 存储你的机器人账号自身的信息
+CREATE TABLE IF NOT EXISTS shiro_bots
+(
+    bot_id         BIGINT    NOT NULL PRIMARY KEY, -- Bot自身的QQ号/ID
+    nickname       VARCHAR(255),                  -- Bot的昵称
+    avatar_url     TEXT,                          -- Bot的头像URL
+    last_updated    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP -- 最后同步信息的时间
+);
+COMMENT ON TABLE shiro_bots IS '存储机器人账号自身的信息';
+COMMENT ON COLUMN shiro_bots.bot_id IS 'Bot自身的QQ号或唯一标识符';
+
+
+-- 2. Bot与好友关系表
+-- 存储每个Bot的好友列表
+CREATE TABLE IF NOT EXISTS shiro_friends
+(
+    bot_id       BIGINT    NOT NULL, -- 关联到shiro_bots表
+    friend_id    BIGINT    NOT NULL, -- 好友的用户ID，关联到shiro_users表
+    nickname     VARCHAR(255),       -- Bot对好友的备注名
+    last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+COMMENT ON TABLE shiro_friends IS '存储每个Bot的好友关系';
+COMMENT ON COLUMN shiro_friends.bot_id IS 'Bot自身的ID';
+COMMENT ON COLUMN shiro_friends.friend_id IS '好友的用户ID';
 

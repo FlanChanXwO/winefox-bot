@@ -31,8 +31,7 @@ public final class PdfUtil {
         // 1. 确定输出文件路径
         Path outputFilePath = null;
         try {
-            String userHome = System.getProperty("user.home");
-            Path outputDir = Paths.get(userHome, "pdfs", outputPath);
+            Path outputDir = Paths.get(outputPath);
             Files.createDirectories(outputDir);
             String randomFileName = UUID.randomUUID().toString().replace("-", "").substring(0, 8) + ".pdf";
             outputFilePath = outputDir.resolve(randomFileName);
@@ -105,7 +104,7 @@ public final class PdfUtil {
         }
 
         // 4. 返回最终文件的路径
-        return outputFilePath.toAbsolutePath().toString();
+        return outputFilePath.toAbsolutePath().toString().replace("\\", "/");
     }
 
 

@@ -8,6 +8,9 @@ on:
 
 jobs:
   build_and_release:
+    # 赋予工作流写权限，以便能够创建/修改 Release
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -20,75 +23,76 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      # 步骤 1: 正常打包一次，生成 JAR
       - name: Build with Maven
         run: mvn -B package --file pom.xml
 
-      - name: Get JAR name
-        id: get_jar
-        run: echo "jar_name=$(ls target/*.jar | head -n 1)" >> $GITHUB_OUTPUT
+      - name: Get JAR name and path
+        id: get_jar_info
+        run: |
+          JAR_PATH=$(ls target/*.jar | head -n 1)
+          echo "jar_path=$JAR_PATH" >> $GITHUB_OUTPUT
+          echo "jar_name=$(basename $JAR_PATH)" >> $GITHUB_OUTPUT
 
-      - name: Update Release with new JAR
-        uses: softprops/action-gh-release@v1
+      # 步骤 2: 创建/更新 Release，并上传第一次打包的 JAR
+      # 我们给这个操作一个 ID，方便后续引用其输出
+      - name: Create/Update Release and Upload Initial JAR
+        id: create_release
+        uses: softprops/action-gh-release@v2
         with:
-          files: ${{ steps.get_jar.outputs.jar_name }}
+          files: ${{ steps.get_jar_info.outputs.jar_path }}
           tag_name: latest
           body: "Latest development build, updated at ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # `outputs` 中会包含 release_id 和 assets 信息
 
-      # ==================== 修改/新增步骤：获取最终的资产ID ====================
-      # 这一步必须在上传附件之后执行！
-      - name: Fetch Release and Asset ID and Write to Properties File
+      # 步骤 3: 提取 Release ID 和 Asset ID，并生成属性文件
+      # 这一步不再需要 gh cli，可以直接从上一步的输出中获取
+      - name: Generate release-info.properties
+        id: generate_properties
         run: |
-          # 步骤 1: 使用 gh cli 获取最新 Release 的详细信息，包括其 assets
-          # 我们需要 Release ID 和我们刚刚上传的那个 JAR 的 Asset ID
-          RELEASE_INFO_JSON=$(gh release view latest --json id,assets)
+          # 从上一步的输出中解析 assets JSON 字符串
+          ASSETS_JSON='${{ steps.create_release.outputs.assets }}'
           
-          # 步骤 2: 提取 Release ID
-          RELEASE_ID=$(echo "$RELEASE_INFO_JSON" | jq '.id')
-          
-          # 步骤 3: 从 assets 列表中找到我们的 JAR 文件并提取其 ID
-          # JAR_FILE_NAME 来自于上一步 maven 打包后的文件名
-          JAR_FILE_NAME=$(basename "${{ steps.get_jar.outputs.jar_name }}")
-          ASSET_ID=$(echo "$RELEASE_INFO_JSON" | jq --arg name "$JAR_FILE_NAME" '.assets[] | select(.name == $name) | .id')
-          
-          # 步骤 4: 检查是否成功获取 ID
-          if [ -z "$RELEASE_ID" ] || [ -z "$ASSET_ID" ]; then
-            echo "Error: Could not fetch Release ID or Asset ID."
+          # 使用 jq 提取我们需要的 asset 的 id
+          # 我们上传的 JAR 文件名是已知的
+          JAR_NAME="${{ steps.get_jar_info.outputs.jar_name }}"
+          ASSET_ID=$(echo "$ASSETS_JSON" | jq --arg name "$JAR_NAME" '.[] | select(.name == $name) | .id')
+          RELEASE_ID='${{ steps.create_release.outputs.id }}'
+
+          # 健壮性检查
+          if [ -z "$RELEASE_ID" ] || [ -z "$ASSET_ID" ] || [ "$ASSET_ID" == "null" ]; then
+            echo "Error: Could not determine Release ID or Asset ID."
+            echo "Release ID: $RELEASE_ID"
+            echo "Asset ID: $ASSET_ID"
             exit 1
           fi
-          
+
           echo "Release ID is: $RELEASE_ID"
-          echo "Asset ID for $JAR_FILE_NAME is: $ASSET_ID"
+          echo "Asset ID for $JAR_NAME is: $ASSET_ID"
           
-          # 步骤 5: 将两个ID都写入属性文件
-          PROPERTIES_FILE="src/main/resources/release-info.properties"
-          echo "Writing IDs to $PROPERTIES_FILE"
+          # 创建属性文件
+          PROPERTIES_FILE="release-info.properties"
           echo "github.release.id=$RELEASE_ID" > $PROPERTIES_FILE
           echo "github.asset.id=$ASSET_ID" >> $PROPERTIES_FILE
           
-          echo "Content of $PROPERTIES_FILE:"
+          echo "Generated $PROPERTIES_FILE content:"
           cat $PROPERTIES_FILE
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # ==================== 新步骤结束 ====================
+      # 步骤 4: 修改 JAR 文件，将属性文件注入
+      - name: Inject properties into JAR
+        run: |
+          # 使用 jar 命令更新 JAR 包内容
+          # 'u' 表示更新，'f' 表示指定文件
+          # 我们将 release-info.properties 添加到 JAR 包的 BOOT-INF/classes/ 目录下
+          # 对于 Spring Boot 的可执行 JAR，资源文件位于此路径
+          mkdir -p BOOT-INF/classes/
+          mv release-info.properties BOOT-INF/classes/
+          jar uf ${{ steps.get_jar_info.outputs.jar_path }} -C BOOT-INF/classes/ release-info.properties
+          echo "Injected release-info.properties into ${{ steps.get_jar_info.outputs.jar_path }}"
 
-      # ==================== 关键：重新打包！ ====================
-      # 因为我们在上传附件后才生成了包含正确 Asset ID 的文件，
-      # 所以我们需要用这个新文件重新打包一次，并替换 Release 中的附件。
-      - name: Re-Package JAR with final Asset ID
-        run: mvn -B package --file pom.xml
-
-      - name: Get Re-Packaged JAR name
-        id: get_repackaged_jar
-        run: echo "jar_name=$(ls target/*.jar | head -n 1)" >> $GITHUB_OUTPUT
-
-      - name: Update Release with final JAR
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ${{ steps.get_repackaged_jar.outputs.jar_name }}
-          tag_name: latest
-          body: "Latest development build, updated at ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+      # 步骤 5: 删除旧附件并上传最终的、包含版本信息的 JAR
+      # 使用 `gh release upload` 的 --clobber 选项可以直接覆盖同名文件
+      - name: Upload final JAR to Release
+        run: gh release upload latest ${{ steps.get_jar_info.outputs.jar_path }} --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

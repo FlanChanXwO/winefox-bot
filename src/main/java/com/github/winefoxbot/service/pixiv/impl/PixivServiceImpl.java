@@ -3,8 +3,8 @@ package com.github.winefoxbot.service.pixiv.impl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.config.PixivConfig;
-import com.github.winefoxbot.exception.PixivR18Exception;
 import com.github.winefoxbot.model.dto.pixiv.PixivDetail;
+import com.github.winefoxbot.model.enums.PixivArtworkType;
 import com.github.winefoxbot.service.file.FileStorageService;
 import com.github.winefoxbot.service.pixiv.PixivService;
 import jakarta.annotation.PreDestroy;
@@ -15,7 +15,6 @@ import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 import org.jsoup.Jsoup;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +28,8 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -41,15 +42,21 @@ import static com.github.winefoxbot.utils.CommandUtil.*;
 @Slf4j
 public class PixivServiceImpl implements PixivService {
 
-    private static final String PIXIV_BASE = "https://www.pixiv.net";
-    private static final Duration CACHE_EXPIRATION = Duration.ofHours(6); // 缓存过期时间
 
     private final OkHttpClient httpClient;
     private final PixivConfig pixivConfig;
     private final ObjectMapper objectMapper;
     private final FileStorageService fileStorageService;
-    private static final String PIXIV_IMAGE_SUBFOLDER = "pixiv/images";
     private final ExecutorService downloadExecutor = Executors.newVirtualThreadPerTaskExecutor();
+
+    // 常量
+    private static final String PIXIV_BASE = "https://www.pixiv.net";
+    private static final Duration CACHE_EXPIRATION = Duration.ofHours(6); // 缓存过期时间
+    private static final String PIXIV_IMAGE_SUBFOLDER = "pixiv/images";
+
+    private static final boolean ENABLE_COMPRESSION = false;
+
+    private final Lock lock = new ReentrantLock();
 
     /**
      * 异步获取作品图片，优先使用本地缓存。
@@ -59,57 +66,66 @@ public class PixivServiceImpl implements PixivService {
     @Override
     public CompletableFuture<List<File>> fetchImages(String pid) {
         return CompletableFuture.supplyAsync(() -> {
-            String pidRelativePath = PIXIV_IMAGE_SUBFOLDER + "/" + pid;
+
             try {
-                List<Path> cachedPaths = fileStorageService.listFiles(pidRelativePath);
-                if (cachedPaths != null && !cachedPaths.isEmpty()) {
-                    List<File> cachedFiles = cachedPaths.stream()
-                            .map(Path::toFile)
-                            .filter(file -> file.length() > 0)
-                            .collect(Collectors.toList());
-                    if (!cachedFiles.isEmpty()) {
-                        log.info("PID: {} 命中缓存，找到 {} 个文件，直接返回。", pid, cachedFiles.size());
-                        cachedFiles.forEach(file -> fileStorageService.registerFile(file.toPath(), CACHE_EXPIRATION, null));
-                        return cachedFiles;
-                    }
+                if (lock.tryLock(2, TimeUnit.MINUTES)) {
+                    log.info("Acquired lock for PID: {}", pid);
+                } else {
+                    log.warn("Could not acquire lock for PID: {} within timeout, proceeding without lock.", pid);
+                    return List.of();
                 }
-            } catch (IOException e) {
-                log.info("检查 PID: {} 的缓存时未找到文件或出错，将继续下载。({})", pid, e.getClass().getSimpleName());
-            }
-
-            log.info("PID: {} 缓存未命中或为空，开始从网络获取。", pid);
-            try {
-                // [!!!! 关键修正 !!!!] 移除了 fileStorageService.deleteDirectory(pidRelativePath);
-                // 这个调用是导致 records.json 被清空的罪魁祸首。
-                // FileStorageService.writeFile 本身有 REPLACE_EXISTING 选项，可以覆盖不完整的文件，不需要手动删除目录。
-
-                String ugoiraZipUrl = checkUgoiraZip(pid);
-                if (ugoiraZipUrl != null) {
-                    File gif = downloadUgoiraToGif(pid, ugoiraZipUrl);
-                    if (gif.length() >= 15 * 1024 * 1024) {
-                        gif = compressImage(gif, 15, pid);
+                String pidRelativePath = PIXIV_IMAGE_SUBFOLDER + "/" + pid;
+                try {
+                    List<Path> cachedPaths = fileStorageService.listFiles(pidRelativePath);
+                    if (cachedPaths != null && !cachedPaths.isEmpty()) {
+                        List<File> cachedFiles = cachedPaths.stream()
+                                .map(Path::toFile)
+                                .filter(file -> file.length() > 0)
+                                .collect(Collectors.toList());
+                        if (!cachedFiles.isEmpty()) {
+                            log.info("PID: {} 命中缓存，找到 {} 个文件，直接返回。", pid, cachedFiles.size());
+                            cachedFiles.forEach(file -> fileStorageService.registerFile(file.toPath(), CACHE_EXPIRATION, null));
+                            return cachedFiles;
+                        }
                     }
-                    return List.of(gif);
+                } catch (IOException e) {
+                    log.info("检查 PID: {} 的缓存时未找到文件或出错，将继续下载。({})", pid, e.getClass().getSimpleName());
                 }
 
-                List<String> imageUrls = getStaticImageUrls(pid);
-                if (imageUrls.isEmpty()) return List.of();
+                log.info("PID: {} 缓存未命中或为空，开始从网络获取。", pid);
+                try {
+                    String ugoiraZipUrl = checkUgoiraZip(pid);
+                    if (ugoiraZipUrl != null) {
+                        log.info("PID: {} 识别为动图，开始下载并转换为GIF...", pid);
+                        File gif = downloadUgoiraToGif(pid, ugoiraZipUrl);
+                        if (ENABLE_COMPRESSION && gif.length() >= 15 * 1024 * 1024) {
+                            gif = compressImage(gif, 15, pid);
+                        }
+                        return List.of(gif);
+                    }
 
-                log.info("PID: {}，发现 {} 张静态图片，提交并行下载任务...", pid, imageUrls.size());
-                List<CompletableFuture<File>> imageFutures = imageUrls.stream()
-                        .map(url -> CompletableFuture.supplyAsync(() -> downloadAndProcessSingleImage(url, pid), downloadExecutor))
-                        .toList();
+                    List<String> imageUrls = getStaticImageUrls(pid);
+                    if (imageUrls.isEmpty()) return List.of();
 
-                List<File> downloadedFiles = CompletableFuture.allOf(imageFutures.toArray(new CompletableFuture[0]))
-                        .thenApply(v -> imageFutures.stream().map(CompletableFuture::join).collect(Collectors.toList()))
-                        .join();
+                    log.info("PID: {}，发现 {} 张静态图片，提交并行下载任务...", pid, imageUrls.size());
+                    List<CompletableFuture<File>> imageFutures = imageUrls.stream()
+                            .map(url -> CompletableFuture.supplyAsync(() -> downloadAndProcessSingleImage(url, pid), downloadExecutor))
+                            .toList();
 
-                // ... (压缩逻辑保持不变) ...
-                return downloadedFiles; // 简化返回，压缩逻辑可以在 downloadAndProcessSingleImage 内部处理或像之前一样并行处理
+                    List<File> downloadedFiles = CompletableFuture.allOf(imageFutures.toArray(new CompletableFuture[0]))
+                            .thenApply(v -> imageFutures.stream().map(CompletableFuture::join).collect(Collectors.toList()))
+                            .join();
 
-            } catch (Exception e) {
-                log.error("异步 fetchImages 任务中发生严重错误, PID: {}", pid, e);
-                throw new CompletionException(e);
+                    return downloadedFiles; // 简化返回，压缩逻辑可以在 downloadAndProcessSingleImage 内部处理或像之前一样并行处理
+
+                } catch (Exception e) {
+                    log.error("异步 fetchImages 任务中发生严重错误, PID: {}", pid, e);
+                    throw new CompletionException(e);
+                }
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            } finally {
+                lock.unlock();
             }
         }, downloadExecutor);
     }
@@ -218,11 +234,17 @@ public class PixivServiceImpl implements PixivService {
         String url = String.format("%s/ajax/illust/%s/ugoira_meta", PIXIV_BASE, pid);
         Request request = new Request.Builder().url(url).headers(pixivConfig.getHeaders()).build();
         try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) return null;
+            if (!response.isSuccessful()) {
+                return null;
+            }
             ResponseBody body = response.body();
-            if (body == null) return null;
+            if (body == null) {
+                return null;
+            }
             JsonNode content = objectMapper.readTree(body.string());
-            if (content.get("error").asBoolean()) return null;
+            if (content.get("error").asBoolean()) {
+                return null;
+            }
             return content.get("body").get("originalSrc").asText();
         } catch (IOException e) {
             log.error("checkUgoiraZip 失败 pid={}", pid, e);
@@ -342,25 +364,6 @@ public class PixivServiceImpl implements PixivService {
     }
 
     @Override
-    public boolean isR18Artwork(String pid, Long groupId) throws IOException {
-        String apiUrl = String.format("%s/ajax/illust/%s?lang=zh", PIXIV_BASE, pid);
-        Request request = new Request.Builder()
-                .url(apiUrl)
-                .headers(pixivConfig.getHeaders())
-                .removeHeader(HttpHeaders.COOKIE)
-                .build();
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful() &&
-                    groupId != null &&
-                    pixivConfig.getBanR18Groups() != null &&
-                    pixivConfig.getBanR18Groups().contains(groupId)) {
-                throw new PixivR18Exception();
-            }
-        }
-        return false;
-    }
-
-    @Override
     public PixivDetail getPixivArtworkDetail(String pid) throws IOException {
         String apiUrl = String.format("%s/ajax/illust/%s?lang=zh", PIXIV_BASE, pid);
         Request request = new Request.Builder()
@@ -378,12 +381,14 @@ public class PixivServiceImpl implements PixivService {
             String illustTitle = nodeBody.path("illustTitle").asText();
             String userName = nodeBody.path("userName").asText();
             JsonNode tagsBody = nodeBody.get("tags");
+            Boolean isR18 = nodeBody.get("xRestrict").asInt(0) == 1;
+            PixivArtworkType artworkType = PixivArtworkType.fromValue(nodeBody.path("illustType").asInt(0));
             String description = Jsoup.parse(nodeBody.path("description").asText()).text();
             String uid = tagsBody.path("authorId").asText();
             JsonNode tagsList = tagsBody.get("tags");
             List<String> tags = new ArrayList<>();
             tagsList.forEach(t -> tags.add(t.path("tag").asText()));
-            return new PixivDetail(id, illustTitle, uid, userName, description, tags);
+            return new PixivDetail(id, illustTitle, uid, userName, description,isR18,artworkType, tags);
         }
     }
 

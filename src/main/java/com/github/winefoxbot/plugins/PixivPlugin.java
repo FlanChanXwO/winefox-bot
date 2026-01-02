@@ -1,25 +1,34 @@
 package com.github.winefoxbot.plugins;
 
+import cn.hutool.core.lang.UUID;
 import com.github.winefoxbot.annotation.PluginFunction;
-import com.github.winefoxbot.exception.PixivR18Exception;
 import com.github.winefoxbot.model.dto.pixiv.PixivDetail;
 import com.github.winefoxbot.model.entity.PixivRankPushSchedule;
 import com.github.winefoxbot.model.enums.Permission;
+import com.github.winefoxbot.model.enums.PixivArtworkType;
 import com.github.winefoxbot.model.enums.PixivRankPushMode;
 import com.github.winefoxbot.service.pixiv.PixivRankPushScheduleService;
 import com.github.winefoxbot.service.pixiv.PixivRankService;
 import com.github.winefoxbot.service.pixiv.PixivService;
+import com.github.winefoxbot.utils.DocxUtil;
 import com.github.winefoxbot.utils.FileUtil;
+import com.github.winefoxbot.utils.PdfUtil;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Shiro;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
+import com.mikuac.shiro.dto.action.common.ActionData;
+import com.mikuac.shiro.dto.action.common.ActionRaw;
+import com.mikuac.shiro.dto.action.common.MsgId;
+import com.mikuac.shiro.dto.action.response.GroupFilesResp;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import com.mikuac.shiro.enums.MsgTypeEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
 import org.apache.commons.io.FileUtils;
 import org.apache.tomcat.util.buf.StringUtils;
 import org.jobrunr.scheduling.cron.Cron;
@@ -28,11 +37,17 @@ import org.springframework.stereotype.Component;
 
 import javax.net.ssl.SSLHandshakeException;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 
 @Component
@@ -44,6 +59,7 @@ public class PixivPlugin {
     private final PixivService pixivService;
     private final PixivRankService pixivRankService;
     private final PixivRankPushScheduleService pixivRankPushScheduleService;
+    private static final String FILE_OUTPUT_DIR = "data/files/pixiv/wrappers";
 
     @PluginFunction(group = "Pixiv", name = "查看P站排行订阅状态", description = "查看当前群聊的P站排行订阅状态。", commands = {"/查看P站排行订阅", "/p站订阅状态"})
     @AnyMessageHandler
@@ -167,6 +183,7 @@ public class PixivPlugin {
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/(p|P|pixiv)(?:\\s+(\\S+))?$")
     public void getPixivPic(Bot bot, AnyMessageEvent event, Matcher matcher) {
         String arg = matcher.group(2);
+        boolean isInGroup = event.getGroupId() != null;
         Integer messageId = event.getMessageId();
         // 校验 URL/PID
         if (!pixivService.isPixivURL(arg) && !arg.matches("\\d+")) {
@@ -174,7 +191,6 @@ public class PixivPlugin {
         }
 
         String pid = pixivService.extractPID(arg);
-        Long groupId = event.getGroupId();
 
         try {
             if (pid == null || !pixivService.isValidPixivPID(pid)) {
@@ -207,27 +223,16 @@ public class PixivPlugin {
 
         PixivDetail pixivDetail = null;
         try {
-            boolean isR18Artwork = pixivService.isR18Artwork(pid, groupId);
-            if (!isR18Artwork) {
-                pixivDetail = pixivService.getPixivArtworkDetail(pid);
-            }
-        } catch (PixivR18Exception e) {
-            bot.sendMsg(event, MsgUtils.builder()
-                    .reply(messageId)
-                    .text(e.getMessage())
-                    .build(), false);
-            return;
+            pixivDetail = pixivService.getPixivArtworkDetail(pid);
         } catch (IOException e) {
-            log.error("获取 Pixiv 作品信息失败 pid={}", pid, e);
-            bot.sendMsg(event, MsgUtils.builder()
-                    .reply(messageId)
-                    .text("获取 Pixiv 作品信息失败：" + e.getMessage())
-                    .build(), false);
-            return;
+            throw new RuntimeException(e);
         }
 
+        String fileName = null;
+        String filePath= null;
         // 下载并发送
         try {
+
             List<File> files = pixivService.fetchImages(pid).join();
             if (files == null || files.isEmpty()) {
                 bot.sendMsg(event, MsgUtils.builder()
@@ -248,17 +253,165 @@ public class PixivPlugin {
                     pixivDetail.getDescription(),
                     pixivDetail.getPid(),
                     StringUtils.join(pixivDetail.getTags(), ',')));
-            for (File file : files) {
-                String filePath = FileUtil.getFileUrlPrefix() + file.getAbsolutePath();
-                builder.img(filePath);
+            if (pixivDetail.getIsR18()) {
+                bot.sendMsg(event, builder.build(), false); // 先发送作品信息
+
+                // --- 这是新的核心逻辑 ---
+                long totalSize = 0;
+                for (File file : files) {
+                    if (file.exists()) {
+                        totalSize += file.length();
+                    }
+                }
+
+                final long twentyMB = 20 * 1024 * 1024;
+
+                try {
+                    if (totalSize >= twentyMB) {
+                        // --- 分支1: 总大小超过20MB，打包成ZIP ---
+                        log.info("图片总大小 {}MB 超过20MB阈值，将打包成ZIP文件。", String.format("%.2f", totalSize / (1024.0 * 1024.0)));
+                        filePath = createZipArchive(files, FILE_OUTPUT_DIR, "pixiv_" + pid);
+                        if (filePath == null) {
+                            log.error("创建R18 ZIP压缩包失败（文件列表为空）, pid={}", pid);
+                            bot.sendMsg(event, "生成R18压缩包失败，请稍后重试。", false);
+                            return;
+                        }
+                    } else {
+                        // --- 分支2: 总大小未超过20MB，按原方式生成DOCX/PDF ---
+                        log.info("图片总大小 {}MB 未超过20MB阈值，按原方式处理。", String.format("%.2f", totalSize / (1024.0 * 1024.0)));
+                        List<byte[]> imageBytes = new ArrayList<>();
+                        for (File file : files) {
+                            imageBytes.add(FileUtils.readFileToByteArray(file));
+                        }
+
+                        filePath = pixivDetail.getType() == PixivArtworkType.GIF
+                                ? DocxUtil.wrapImagesIntoDocx(imageBytes, FILE_OUTPUT_DIR)
+                                : PdfUtil.wrapByteImagesIntoPdf(imageBytes, FILE_OUTPUT_DIR);
+
+                        if (filePath == null) {
+                            log.error("生成R18 DOCX/PDF文件失败, pid={}", pid);
+                            bot.sendMsg(event, "生成R18文件包失败，请稍后重试。", false);
+                            return;
+                        }
+                    }
+                } catch (IOException e) {
+                    log.error("处理R18文件时发生IO异常, pid={}", pid, e);
+                    bot.sendMsg(event, "处理文件时发生内部错误，请稍后重试。", false);
+                    return;
+                }
+
+                // --- 公共的上传逻辑 ---
+                Path finalPath = Paths.get(filePath);
+                fileName = finalPath.getFileName().toString();
+                ActionRaw actionRaw = isInGroup
+                        ? bot.uploadGroupFile(event.getGroupId(), finalPath.toAbsolutePath().toString(), fileName)
+                        : bot.uploadPrivateFile(event.getUserId(), finalPath.toAbsolutePath().toString(), fileName);
+                if (actionRaw.getRetCode() != 0) {
+                    log.error("上传 Pixiv R18 文件失败，pid={}, file={}, retcode={}, message={}", pid, filePath, actionRaw.getRetCode(), actionRaw.getStatus());
+                } else {
+                    log.info("已成功发起 Pixiv R18 文件上传, pid={}, file={}", pid, filePath);
+                }
+            } else {
+                for (File file : files) {
+                    String imgFilePath = FileUtil.getFileUrlPrefix() + file.getAbsolutePath();
+                    builder.img(imgFilePath);
+                }
+                ActionData<MsgId> sendResp = bot.sendMsg(event, builder.build(), false);
+                int retryTimes = 3;
+                while (sendResp.getRetCode() != 0 && retryTimes-- > 0) {
+                    log.warn("发送 Pixiv 图片失败，正在重试，剩余次数={}，pid={}", retryTimes, pid);
+                    sendResp = bot.sendMsg(event, builder.build(), false);
+                }
+                if (sendResp.getRetCode() != 0) {
+                    log.error("发送 Pixiv 图片最终失败，pid={}", pid);
+                }
             }
-            bot.sendMsg(event, builder.build(), false);
+
         } catch (Exception e) {
             log.error("处理 Pixiv 图片失败 pid={}", pid, e);
             bot.sendMsg(event, MsgUtils.builder()
                     .reply(messageId)
                     .text("处理 Pixiv 图片失败：" + e.getMessage())
                     .build(), false);
+        } finally {
+            clearFile(filePath);
+            if (isInGroup) {
+                deleteGroupFile(bot, event, fileName);
+            }
+        }
+    }
+
+    /**
+     * 将一组文件打包成一个ZIP压缩文件。(这个辅助方法保持不变)
+     *
+     * @param filesToZip 要压缩的文件列表
+     * @param outputDir  ZIP文件的输出目录
+     * @param baseName   ZIP文件的基础名称 (不含.zip后缀)
+     * @return 创建的ZIP文件的绝对路径, 如果文件列表为空则返回null
+     * @throws IOException 如果发生IO错误
+     */
+    private String createZipArchive(List<File> filesToZip, String outputDir, String baseName) throws IOException {
+        if (filesToZip == null || filesToZip.isEmpty()) {
+            return null;
+        }
+
+        String zipFileName = baseName + "_" + UUID.randomUUID().toString().substring(0, 8) + ".zip";
+        String zipFilePath = Paths.get(outputDir, zipFileName).toString();
+
+        log.info("开始创建ZIP文件: {}", zipFilePath);
+
+        try (FileOutputStream fos = new FileOutputStream(zipFilePath);
+             ZipArchiveOutputStream zaos = new ZipArchiveOutputStream(fos)) {
+
+            for (File file : filesToZip) {
+                if (file.exists() && file.isFile()) {
+                    ZipArchiveEntry entry = new ZipArchiveEntry(file.getName());
+                    zaos.putArchiveEntry(entry);
+                    try (FileInputStream fis = new FileInputStream(file)) {
+                        byte[] buffer = new byte[8192];
+                        int len;
+                        while ((len = fis.read(buffer)) > 0) {
+                            zaos.write(buffer, 0, len);
+                        }
+                    }
+                    zaos.closeArchiveEntry();
+                }
+            }
+        }
+
+        log.info("ZIP文件创建成功: {}", zipFilePath);
+        return zipFilePath;
+    }
+
+
+
+
+    private void clearFile(String filePath) {
+        if (filePath != null) {
+            try {
+                Files.deleteIfExists(Paths.get(filePath));
+                log.info("已删除临时文件: {}", filePath);
+            } catch (IOException e) {
+                log.warn("删除临时文件失败: {}", filePath, e);
+            }
+        }
+    }
+
+    @Async
+    protected void deleteGroupFile(Bot bot, AnyMessageEvent anyMessageEvent, String fileName) {
+        try {
+            TimeUnit.SECONDS.sleep(30);
+            Long groupId = anyMessageEvent.getGroupId();
+            ActionData<GroupFilesResp> groupRootFiles = bot.getGroupRootFiles(groupId);
+            GroupFilesResp data = groupRootFiles.getData();
+            for (GroupFilesResp.Files file : data.getFiles()) {
+                if (file.getFileName().equals(fileName)) {
+                    bot.deleteGroupFile(groupId, file.getFileId(), file.getBusId());
+                    break;
+                }
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 

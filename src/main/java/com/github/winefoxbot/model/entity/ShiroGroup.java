@@ -28,6 +28,12 @@ public class ShiroGroup {
      */
     private String groupAvatarUrl;
 
+
+    /**
+     * BOT ID
+     */
+    private Long selfId;
+
     /**
      * 最後更新時間
      */

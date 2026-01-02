@@ -11,7 +11,7 @@ spring:
         maximumSize=500,
         expireAfterWrite=10m
   main:
-    lazy-initialization: true
+    lazy-initialization: false
 shiro:
   task-pool:
     enable-task-pool: false
@@ -33,4 +33,4 @@ jobrunr:
     enabled: true
     port: 8000
   jobs:
-    default-number-of-retries: 3
+    default-number-of-retries: 5

@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.annotation.PluginFunction;
 import com.github.winefoxbot.config.SetuApiConfig;
-import com.github.winefoxbot.config.WineFoxBotConfig;
 import com.github.winefoxbot.manager.SemaphoreManager;
 import com.github.winefoxbot.model.entity.SetuConfig;
 import com.github.winefoxbot.model.enums.Permission;
@@ -38,6 +37,9 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 
+import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_PREFIX_REGEX;
+import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_SUFFIX_REGEX;
+
 /**
  * @author FlanChan (badapple495@outlook.com)
  * @since 2025-12-09-1:44
@@ -55,9 +57,9 @@ public class SetuPlugin {
 
     @PluginFunction(group = "瑟瑟功能", name = "解除限制开关", description = "解除限制", permission = Permission.ADMIN, commands = {"/解除瑟瑟限制", "/开启瑟瑟限制"})
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^" + WineFoxBotConfig.COMMAND_PREFIX_REGEX + "(解除瑟瑟限制|开启瑟瑟限制)" + "$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd =  COMMAND_PREFIX_REGEX + "(解除瑟瑟限制|开启瑟瑟限制)" + COMMAND_SUFFIX_REGEX)
     public void toggleR18(Bot bot, AnyMessageEvent event) {
-        String msg = event.getMessage().replace(WineFoxBotConfig.COMMAND_PREFIX_REGEX, "");
+        String msg = event.getMessage().replace(COMMAND_PREFIX_REGEX, "");
         Long sessionId = BotUtils.getSessionId(event);
         SetuConfig config = setuConfigService.getOrCreateSetuConfig(sessionId, SessionType.fromValue(event.getMessageType()));
         Boolean r18Enabled = config.getR18Enabled();
@@ -73,11 +75,11 @@ public class SetuPlugin {
         bot.sendMsg(event, updated ? "设置已更新，当前R18状态：" + (config.getR18Enabled() ? "开启" : "关闭") : "设置更新失败，请重试", false);
     }
 
-    @PluginFunction(group = "瑟瑟功能", name = "自动撤回开关", description = "开启或者关闭自动撤回在奇怪分级", permission = Permission.ADMIN, commands = {"/开启自动撤回", "/关闭自动撤回"})
+    @PluginFunction(group = "瑟瑟功能", name = "自动撤回奇怪图片开关", description = "开启或者关闭自动撤回在奇怪分级", permission = Permission.ADMIN, commands = {"/开启瑟瑟自动撤回", "/关闭瑟瑟自动撤回"})
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^" + WineFoxBotConfig.COMMAND_PREFIX_REGEX + "(开启自动撤回|关闭自动撤回)" + "$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd =  COMMAND_PREFIX_REGEX + "(开启|关闭)瑟瑟自动撤回" + COMMAND_SUFFIX_REGEX)
     public void toggleAutoRevoke(Bot bot, AnyMessageEvent event) {
-        String msg = event.getMessage().replace(WineFoxBotConfig.COMMAND_PREFIX_REGEX, "");
+        String msg = event.getMessage().replace(COMMAND_PREFIX_REGEX, "");
         Long sessionId = BotUtils.getSessionId(event);
         SetuConfig config = setuConfigService.getOrCreateSetuConfig(sessionId, SessionType.fromValue(event.getMessageType()));
         Boolean autoRevoke = config.getAutoRevoke();
@@ -101,7 +103,7 @@ public class SetuPlugin {
             commands = {"/设置瑟瑟并发数 [数量]", "/设置色色并发数 [数量]"}
     )
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^" + WineFoxBotConfig.COMMAND_PREFIX_REGEX + "设置(瑟瑟|色色)并发数\\s+(\\d+)$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "设置(瑟瑟|色色)并发数\\s+(\\d+)$")
     public void setMaxRequests(Bot bot, AnyMessageEvent event, Matcher matcher) {
         String numStr = matcher.group(2);
         int newMaxRequests;
@@ -141,7 +143,7 @@ public class SetuPlugin {
             commands = {"来份色图", "来个色图", "来份涩图", "来个涩图", "来份瑟图", "来个瑟图", "来份塞图", "来个塞图", "来份[标签]色图"}
     )
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/?(来(份|个))(\\S*?)(色|瑟|涩|塞|)图$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "?(来(份|个))(\\S*?)(色|瑟|涩|塞|)图"+ COMMAND_SUFFIX_REGEX)
     public void getRandomPicture(Bot bot, AnyMessageEvent event, Matcher matcher) {
         Long sessionId = BotUtils.getSessionId(event);
         SessionType sessionType = SessionType.fromValue(event.getMessageType());
@@ -180,7 +182,6 @@ public class SetuPlugin {
             attempt++; // 增加尝试次数
             log.info("开始第 {}/{} 次尝试获取图片...", attempt, MAX_RETRIES);
 
-            String filePath = null;
             String fileName = null;
 
             try {
@@ -229,8 +230,8 @@ public class SetuPlugin {
 
                 // --- 图片处理和发送逻辑 ---
                 if (enableR18) {
-                    String s = PdfUtil.wrapByteImagesIntoPdf(List.of(image), "setu");
-                    if (s == null) {
+                    String filePath = PdfUtil.wrapByteImagesIntoPdf(List.of(image), "setu");
+                    if (filePath == null) {
                         // PDF转换失败通常是内部错误，可能不适合重试，但这里也将其纳入重试逻辑
                         log.error("第 {} 次尝试失败：整理图片为PDF时出错。", attempt);
                         if (attempt >= MAX_RETRIES) {
@@ -238,8 +239,7 @@ public class SetuPlugin {
                         }
                         continue; // 触发重试
                     }
-                    filePath = s.replace("\\", "/");
-                    fileName = Path.of(s).getFileName().toString();
+                    fileName = Path.of(filePath).getFileName().toString();
                     log.info("准备上传文件: path='{}', name='{}'", filePath, fileName);
 
                     ActionRaw actionRaw = isInGroup ? bot.uploadGroupFile(event.getGroupId(), filePath, fileName) : bot.uploadPrivateFile(event.getUserId(), filePath, fileName);
@@ -294,7 +294,6 @@ public class SetuPlugin {
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
-
     }
 
     @Async

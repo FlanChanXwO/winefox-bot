@@ -3,6 +3,7 @@ package com.github.winefoxbot.config.http;
 import com.github.winefoxbot.config.http.interceptor.RetryInterceptor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -66,9 +67,13 @@ public class OkHttpClientConfig {
             // 3. 从 SSLContext 创建 SSLSocketFactory
             final SSLSocketFactory sslSocketFactory = sslContext.getSocketFactory();
 
+            // 创建一个连接池，允许更多空闲连接，减少新建连接的开销
+            ConnectionPool connectionPool = new ConnectionPool(20, 5, TimeUnit.MINUTES);
+
             OkHttpClient.Builder builder = new OkHttpClient.Builder()
                     .connectTimeout(5, TimeUnit.SECONDS)
                     .retryOnConnectionFailure(true)
+                    .connectionPool(connectionPool)
                     .followRedirects(true)
                     .followSslRedirects(true)
                     .addInterceptor(new RetryInterceptor(3, 1000)) // 添加重试拦截器，重试3次，间隔1秒

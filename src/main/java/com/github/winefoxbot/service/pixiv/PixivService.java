@@ -19,11 +19,6 @@ public interface PixivService {
     boolean isValidPixivPID(String pid) throws IOException;
 
     /**
-     * 是否允许访问（含 R18 校验与群限制校验）；允许返回 true，不允许返回 false
-     */
-    boolean isR18Artwork(String pid, Long groupId) throws IOException;
-
-    /**
      * 获取 Pixiv 作品详情信息
      */
     PixivDetail getPixivArtworkDetail(String pid) throws IOException;

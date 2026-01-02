@@ -11,7 +11,7 @@
 
     <groupId>com.github</groupId>
     <artifactId>winefox-bot</artifactId>
-    <version>1.0.0</version>
+    <version>1.3.0</version>
 
     <name>winefox-bot</name>
 
@@ -35,7 +35,9 @@
         <cron.utils.version>9.2.1</cron.utils.version>
         <jobrunr.version>8.3.1</jobrunr.version>
         <itextpdf.version>5.5.13.4</itextpdf.version>
+        <docx4j.version>11.5.9</docx4j.version>
         <playwright.version>1.43.0</playwright.version>
+        <commons-compress.version>1.28.0</commons-compress.version>
     </properties>
     <dependencies>
         <!-- spring web 依赖 -->
@@ -171,6 +173,23 @@
             <artifactId>cron-utils</artifactId>
             <version>${cron.utils.version}</version>
         </dependency>
+        <!-- word -->
+        <dependency>
+            <groupId>org.docx4j</groupId>
+            <artifactId>docx4j-JAXB-ReferenceImpl</artifactId>
+            <version>${docx4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.docx4j</groupId>
+            <artifactId>docx4j-JAXB-MOXy</artifactId>
+            <version>${docx4j.version}</version>
+        </dependency>
+        <!-- 压缩 -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+            <version>${commons-compress.version}</version>
+        </dependency>
         <!-- pdf -->
         <dependency>
             <groupId>com.itextpdf</groupId>
@@ -183,7 +202,7 @@
             <artifactId>playwright</artifactId>
             <version>${playwright.version}</version> <!-- 建议使用最新版本 -->
         </dependency>
-       <!-- test -->
+        <!-- test -->
         <dependency>
             <groupId>org.junit.platform</groupId>
             <artifactId>junit-platform-launcher</artifactId>
@@ -218,6 +237,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
+                    <finalName>winefox-bot</finalName>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>
@@ -235,6 +255,7 @@
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
+                <filtering>true</filtering>
                 <includes>
                     <include>**/*</include> <!-- 包含所有文件 -->
                 </includes>

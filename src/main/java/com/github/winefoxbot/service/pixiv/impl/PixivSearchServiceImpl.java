@@ -1,42 +1,38 @@
 package com.github.winefoxbot.service.pixiv.impl;
 
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.config.PixivConfig;
-import com.github.winefoxbot.model.dto.pixiv.PixivApiResult;
 import com.github.winefoxbot.model.dto.pixiv.PixivSearchParams;
 import com.github.winefoxbot.model.dto.pixiv.PixivSearchResult;
 import com.github.winefoxbot.service.pixiv.PixivSearchService;
-import com.microsoft.playwright.Browser;
-import com.microsoft.playwright.BrowserContext;
-import com.microsoft.playwright.Locator;
-import com.microsoft.playwright.Page;
+import com.microsoft.playwright.*;
+import com.microsoft.playwright.options.Cookie;
+import com.microsoft.playwright.options.LoadState;
 import com.microsoft.playwright.options.ScreenshotType;
+import com.microsoft.playwright.options.WaitForSelectorState;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import lombok.Builder;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
-import javax.imageio.ImageIO;
-import java.awt.*;
-import java.awt.font.FontRenderContext;
-import java.awt.geom.Rectangle2D;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -45,89 +41,138 @@ import java.util.stream.Collectors;
 public class PixivSearchServiceImpl implements PixivSearchService {
 
     private final PixivConfig pixivConfig;
-    private final OkHttpClient httpClient;
-    private final ObjectMapper objectMapper;
     private final Browser browser;
     private final TemplateEngine templateEngine;
     private final ResourcePatternResolver resourceResolver;
-    // --- 渲染常量 ---
-    private static final int GRID_COLS = 6;
-    private static final int GRID_ROWS = 10;
-    private static final int CELL_WIDTH = 250;
-    private static final int CELL_HEIGHT = 320;
-    private static final int GAP = 12;
-    private static final int IMG_HEIGHT = 250;
 
-    private static final String API_URL = "https://www.pixiv.net/ajax/search/artworks/%s?word=%s&order=date_d&mode=%s&p=%d&s_mode=s_tag&type=all&lang=zh";
+    // 【新增】用于并行下载图片的线程池
+    private ExecutorService imageDownloadExecutor;
+
+    // --- CSS 选择器常量 (保持不变) ---
+    private static final String ARTWORK_CONTAINER_SELECTOR = "section:last-of-type:has(div > div > div > div)";
+    private static final String ARTWORK_LIST_CSS_SELECTOR = ARTWORK_CONTAINER_SELECTOR + " ul";
+    private static final String ARTWORK_LIST_ITEM_CSS_SELECTOR = ARTWORK_LIST_CSS_SELECTOR + " li";
+    private static final String STAR_ICON_CSS_SELECTOR = ARTWORK_LIST_ITEM_CSS_SELECTOR + " button[type='button']";
+    private static final String TOTAL_SPAN_CSS_SELECTOR = ARTWORK_CONTAINER_SELECTOR + " h3 + div span";
+    private static final String ARTWORK_IMAGE_CSS_SELECTOR = ARTWORK_LIST_ITEM_CSS_SELECTOR + " a > div > div > img";
+
+    // --- 正则表达式 (保持不变) ---
+    private static final Pattern PID_PATTERN = Pattern.compile("/artworks/(\\d+)");
+    private static final Pattern UID_PATTERN = Pattern.compile("/users/(\\d+)");
+
+
+    private static final String BLUR_STRENTH = "5px";
+
+
     private static final String HTML_TEMPLATE = "pixiv_search_result/main";
     private static final String RESOURCE_BASE_PATH = "templates/pixiv_search_result/res";
-    // Fonts
-    private static final Font TITLE_FONT = new Font("SansSerif", Font.BOLD, 14);
-    private static final Font USER_FONT = new Font("SansSerif", Font.PLAIN, 12);
-    private static final Font NUMBER_FONT = new Font("SansSerif", Font.BOLD, 28);
+
+
+    @Data
+    @Builder
+    public static class ArtworkViewData {
+        private String pid;
+        private String uid;
+        private String title;
+        private String userName;
+        private String imageBase64; // 图片的 Base64 Data URI
+        private int itemIndex;     // 列表中的索引，用于显示序号 (从 0 开始)
+    }
+
+    @PostConstruct
+    public void init() {
+        int concurrencyLevel = 16; // 浏览器环境 IO 密集，可以适当增加并发数
+        imageDownloadExecutor = Executors.newFixedThreadPool(concurrencyLevel);
+        log.info("PixivSearchService image download executor initialized with {} threads.", concurrencyLevel);
+    }
+
+    @PreDestroy
+    public void destroy() {
+        if (imageDownloadExecutor != null && !imageDownloadExecutor.isShutdown()) {
+            log.info("Shutting down PixivSearchService image download executor...");
+            imageDownloadExecutor.shutdown();
+        }
+        // browser 的关闭由 Spring Boot 的 @PreDestroy hook 自动处理，无需在此处手动关闭
+    }
+
 
     @Override
     public PixivSearchResult search(PixivSearchParams params) {
-        try {
-            // 1. 获取 API 数据 (逻辑不变)
-            PixivApiResult apiResult = fetchApiData(params);
-            List<PixivApiResult.Artwork> artworks = apiResult.getBody().getIllustManga().getData();
-            long totalArtworks = apiResult.getBody().getIllustManga().getTotal();
+        try (BrowserContext context = createBrowserContext()) {
+            Page page = context.newPage();
+
+            // 步骤 1: 导航并加载原始页面
+            String searchUrl = buildSearchUrl(params);
+            log.info("Navigating to Pixiv search URL: {}", searchUrl);
+            page.navigate(searchUrl, new Page.NavigateOptions().setTimeout(60000));
+            page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(30000));
+            log.info("Page loaded. URL: {}", page.url());
+
+            smoothAutoScroll(page);
+            log.info("Page scrolling complete.");
+
+            // 步骤 2: 提取元数据
+            long totalArtworks = extractTotalArtworks(page);
             int totalPages = totalArtworks > 0 ? (int) Math.ceil((double) totalArtworks / 60) : 0;
+            List<PixivSearchResult.ArtworkData> artworksData = extractArtworksPidsAndUids(page);
 
-            if (artworks.isEmpty()) {
-                // ... [处理无结果的情况，逻辑不变] ...
-                return PixivSearchResult.builder()
-                        .screenshot(createBlankImage("No artworks found for tags: " + String.join(" ", params.getTags())))
-                        .artworks(List.of())
-                        .currentPage(params.getPageNo())
-                        .totalPages(0)
-                        .totalArtworks(0)
-                        .r18(params.isR18())
-                        .build();
+            if (artworksData.isEmpty()) {
+                log.warn("No artworks found on the page for tags: {}", params.getTags());
+                return PixivSearchResult.builder().artworks(List.of()).totalPages(0).totalArtworks(0).screenshot(new byte[0]).build();
             }
 
-            // 2. 使用 Java AWT 渲染核心的网格图
-            byte[] gridImageBytes = renderGridImage(artworks);
-            log.info("Successfully rendered artwork grid using Java AWT.");
+            // 步骤 3: 在浏览器中直接操作DOM，准备截图区域
+            // 移除收藏按钮
+            removeStarIcons(page);
+            // 如果是R18，进行模糊处理
+            if (params.isR18()) {
+                blurArtworks(page);
+            }
+            // 给每个作品添加序号
+            addNumberingToArtworks(page);
 
-            // 3. 准备模板变量
-            Context context = new Context();
-            context.setVariable("tags", String.join(" ", params.getTags()));
-            context.setVariable("currentPage", params.getPageNo());
-            context.setVariable("totalPages", totalPages);
-            context.setVariable("totalArtworks", totalArtworks);
-            // 将网格图转换为Base64 Data URI
+            // 步骤 4: 截取核心作品列表区域
+            Locator artworkContainer = page.locator(ARTWORK_LIST_CSS_SELECTOR);
+            byte[] gridImageBytes = artworkContainer.screenshot(new Locator.ScreenshotOptions().setType(ScreenshotType.PNG));
             String gridImageBase64 = "data:image/png;base64," + Base64.getEncoder().encodeToString(gridImageBytes);
-            context.setVariable("gridImage", gridImageBase64);
-            // 加载所有本地资源 ----
+            log.info("Artwork grid screenshot captured successfully, size: {} bytes.", gridImageBytes.length);
+
+            // 步骤 5: 准备最终模板所需的所有数据
             Map<String, String> res = loadResourcesAsDataUri(RESOURCE_BASE_PATH);
-            context.setVariable("res", res);
-            context.setVariable("hint_text","请不要在其它群聊分享或宣传此功能，本功能为酒狐独有");
+            Context thymeleafContext = new Context();
+            thymeleafContext.setVariable("tags", String.join(" ", params.getTags()));
+            thymeleafContext.setVariable("currentPage", params.getPageNo());
+            thymeleafContext.setVariable("totalPages", totalPages);
+            thymeleafContext.setVariable("totalArtworks", totalArtworks);
+            thymeleafContext.setVariable("res", res);
+            thymeleafContext.setVariable("hint_text", "请不要在其它群聊分享或宣传此功能，本功能为酒狐独有");
+            // 【关键】将截取到的作品列表图片传递给模板
+            thymeleafContext.setVariable("gridImage", gridImageBase64);
 
-            // 4. 使用 Thymeleaf 生成最终的 HTML
-            // 注意模板路径，根据你的文件结构，可能是 "pixiv_search_result/main"
-            String finalHtml = templateEngine.process(HTML_TEMPLATE, context);
+            String finalHtml = templateEngine.process(HTML_TEMPLATE, thymeleafContext);
 
-            // 5. 使用 Playwright 将 HTML 渲染为最终图片
             byte[] finalScreenshot;
-            try (BrowserContext browserContext = browser.newContext(
-                    new Browser.NewContextOptions().setDeviceScaleFactor(2))) {
-                Page page = browserContext.newPage();
-                page.setContent(finalHtml);
-                Locator container = page.locator(".container");
-                finalScreenshot =  container.screenshot(new Locator.ScreenshotOptions().setType(ScreenshotType.PNG));
-                log.info("Successfully captured final report screenshot using Playwright.");
-            }
+            try (BrowserContext screenshotContext = browser.newContext(new Browser.NewContextOptions().setDeviceScaleFactor(2))) {
+                Page screenshotPage = screenshotContext.newPage();
+                // 视口宽度最好与模板中的 .container 宽度匹配或更大
+                screenshotPage.setContent(finalHtml);
+                // 【关键修复】 定位到那张Base64图片，并等待它加载完成。
+                // 这会确保在截图时，图片已经解码并渲染在页面上。
+                // 我们选择等待的图片是 <div class="pixiv-card"> 里的那张。
+                Locator gridImageLocator = screenshotPage.locator(".pixiv-card img");
+                gridImageLocator.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(10000)); // 等待图片可见，设置10秒超时
 
-            // 6. 整理并返回结果
-            List<PixivSearchResult.ArtworkData> artworkDataList = artworks.stream()
-                    .map(a -> PixivSearchResult.ArtworkData.builder().pid(a.getId()).authorId(a.getUserId()).build())
-                    .collect(Collectors.toList());
+                log.info("Embedded grid image is now visible in the final template.");
+
+                // 现在截图，目标容器是.container，而不是.pixiv-card，以便截取完整的卡片
+                Locator container = screenshotPage.locator(".container");
+                finalScreenshot = container.screenshot(new Locator.ScreenshotOptions().setType(ScreenshotType.PNG));
+                log.info("Final composite image captured successfully.");
+            }
 
             return PixivSearchResult.builder()
-                    .screenshot(finalScreenshot) // 返回最终的模板截图
-                    .artworks(artworkDataList)
+                    .screenshot(finalScreenshot)
+                    .artworks(artworksData)
                     .currentPage(params.getPageNo())
                     .totalPages(totalPages)
                     .totalArtworks(totalArtworks)
@@ -135,204 +180,150 @@ public class PixivSearchServiceImpl implements PixivSearchService {
                     .build();
 
         } catch (Exception e) {
-            log.error("An error occurred during hybrid Pixiv search and rendering", e);
-            e.printStackTrace();
-            throw new RuntimeException("Failed to perform hybrid Pixiv search", e);
+            log.error("An error occurred during Pixiv search with composite image generation", e);
+            throw new RuntimeException("Failed to perform Pixiv search", e);
         }
     }
 
 
-    // 将API获取逻辑封装成一个私有方法
-    private PixivApiResult fetchApiData(PixivSearchParams params) throws IOException {
+    // 模糊处理
+    private void blurArtworks(Page page) {
+        log.info("Applying blur filter for R18 content...");
+        page.evaluate("selector => document.querySelectorAll(selector).forEach(img => img.style.filter = 'blur(%s)')".formatted(BLUR_STRENTH), ARTWORK_IMAGE_CSS_SELECTOR);
+    }
+
+    // 移除收藏按钮
+    private void removeStarIcons(Page page) {
+        log.info("Removing star icons...");
+        page.evaluate("selector => document.querySelectorAll(selector).forEach(btn => btn.remove())", STAR_ICON_CSS_SELECTOR);
+    }
+
+    // 提取PID和UID，用于返回给调用者
+    private List<PixivSearchResult.ArtworkData> extractArtworksPidsAndUids(Page page) {
+        String jsScript = """
+            selector => {
+                const artworks = document.querySelectorAll(selector);
+                const data = [];
+                artworks.forEach(item => {
+                    const artworkLink = item.querySelector('a[href*="/artworks/"]');
+                    const authorLink = item.querySelector('a[href*="/users/"]');
+                    if (artworkLink && authorLink) {
+                        data.push({
+                            artworkUrl: artworkLink.href,
+                            authorUrl: authorLink.href
+                        });
+                    }
+                });
+                return data;
+            }
+        """;
+        @SuppressWarnings("unchecked")
+        List<Map<String, String>> rawData = (List<Map<String, String>>) page.evaluate(jsScript, ARTWORK_LIST_ITEM_CSS_SELECTOR);
+
+        return rawData.stream().map(raw -> {
+            Matcher pidMatcher = PID_PATTERN.matcher(raw.getOrDefault("artworkUrl", ""));
+            Matcher uidMatcher = UID_PATTERN.matcher(raw.getOrDefault("authorUrl", ""));
+            String pid = pidMatcher.find() ? pidMatcher.group(1) : null;
+            String uid = uidMatcher.find() ? uidMatcher.group(1) : null;
+            return PixivSearchResult.ArtworkData.builder().pid(pid).authorId(uid).build();
+        }).collect(Collectors.toList());
+    }
+
+    private BrowserContext createBrowserContext() {
+        BrowserContext context = browser.newContext(new Browser.NewContextOptions().setLocale("zh-CN"));
+        List<Cookie> cookies = List.of(
+                new Cookie("p_ab_id", pixivConfig.getPAbId()).setDomain(".pixiv.net").setPath("/"),
+                new Cookie("PHPSESSID", pixivConfig.getPhpSessId()).setDomain(".pixiv.net").setPath("/")
+        );
+        context.addCookies(cookies);
+        return context;
+    }
+
+    private String buildSearchUrl(PixivSearchParams params) {
         String tags = params.getTags().stream().map(URLUtil::encode).collect(Collectors.joining(" "));
         String mode = params.isR18() ? "r18" : "safe";
-        String apiUrl = API_URL.formatted(tags, tags, mode, params.getPageNo());
-
-        Request request = new Request.Builder()
-                .url(apiUrl)
-                .headers(pixivConfig.getHeaders())
-                .build();
-        log.info("Requesting Pixiv API: {}", apiUrl);
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                log.error("API request failed with code {}: {}", response.code(), response.body() != null ? response.body().string() : "No body");
-                throw new IOException("API request failed: " + response.code());
-            }
-            String jsonBody = response.body().string();
-            PixivApiResult apiResult = objectMapper.readValue(jsonBody, PixivApiResult.class);
-            if (apiResult.isError() || apiResult.getBody() == null || apiResult.getBody().getIllustManga() == null) {
-                throw new IllegalStateException("Pixiv API returned an error or unexpected structure.");
-            }
-            return apiResult;
-        }
+        return "https://www.pixiv.net/tags/%s/artworks?s_mode=s_tag&mode=%s&p=%d".formatted(tags, mode, params.getPageNo());
     }
 
-    private byte[] renderGridImage(List<PixivApiResult.Artwork> artworks) throws IOException {
-        int canvasWidth = GRID_COLS * CELL_WIDTH + (GRID_COLS - 1) * GAP;
-        int canvasHeight = GRID_ROWS * CELL_HEIGHT + (GRID_ROWS - 1) * GAP;
-
-        BufferedImage canvas = new BufferedImage(canvasWidth, canvasHeight, BufferedImage.TYPE_INT_RGB);
-        Graphics2D g2d = canvas.createGraphics();
-
-        // --- 高质量渲染设置 ---
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-
-        // Fill background
-        g2d.setColor(Color.WHITE);
-        g2d.fillRect(0, 0, canvasWidth, canvasHeight);
-
-        // 并行下载图片
-        List<CompletableFuture<BufferedImage>> imageFutures = artworks.stream()
-                .map(artwork -> CompletableFuture.supplyAsync(() -> loadImage(artwork.getUrl())))
-                .collect(Collectors.toList());
-
-        for (int i = 0; i < artworks.size(); i++) {
-            int row = i / GRID_COLS;
-            int col = i % GRID_COLS;
-            int x = col * (CELL_WIDTH + GAP);
-            int y = row * (CELL_HEIGHT + GAP);
-
-            PixivApiResult.Artwork artwork = artworks.get(i);
-
-            // 获取下载好的图片
-            BufferedImage image = imageFutures.get(i).join();
-
-            // 绘制卡片背景
-            g2d.setColor(Color.WHITE);
-            g2d.fillRoundRect(x, y, CELL_WIDTH, CELL_HEIGHT, 16, 16);
-
-            // 绘制图片
-            if (image != null) {
-                g2d.setClip(x, y, CELL_WIDTH, IMG_HEIGHT);
-                g2d.drawImage(image, x, y, CELL_WIDTH, IMG_HEIGHT, null);
-                g2d.setClip(null); // Clear clip
-            }
-
-            // 绘制数字角标
-            drawNumberBadge(g2d, x, y, i + 1);
-
-            // 绘制标题
-            g2d.setColor(Color.BLACK);
-            g2d.setFont(TITLE_FONT);
-            drawTextWithEllipsis(g2d, artwork.getTitle(), x + 10, y + IMG_HEIGHT + 20, CELL_WIDTH - 20);
-
-            // 绘制作者
-            g2d.setColor(Color.GRAY);
-            g2d.setFont(USER_FONT);
-            drawTextWithEllipsis(g2d, artwork.getUserName(), x + 10, y + IMG_HEIGHT + 40, CELL_WIDTH - 20);
-        }
-
-        g2d.dispose();
-
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ImageIO.write(canvas, "png", baos);
-        return baos.toByteArray();
-    }
-
-    private void drawNumberBadge(Graphics2D g2d, int cellX, int cellY, int number) {
-        String numStr = String.valueOf(number);
-        int badgeSize = 50;
-        int badgeX = cellX + CELL_WIDTH / 2 - badgeSize / 2;
-        int badgeY = cellY + IMG_HEIGHT / 2 - badgeSize / 2;
-
-        // Shadow
-        g2d.setColor(new Color(0, 0, 0, 100));
-        g2d.fillOval(badgeX + 2, badgeY + 2, badgeSize, badgeSize);
-
-        // Background
-        g2d.setColor(new Color(40, 40, 40, 220));
-        g2d.fillOval(badgeX, badgeY, badgeSize, badgeSize);
-
-        // Text
-        g2d.setColor(Color.WHITE);
-        g2d.setFont(NUMBER_FONT);
-        FontRenderContext frc = g2d.getFontRenderContext();
-        Rectangle2D bounds = NUMBER_FONT.getStringBounds(numStr, frc);
-        int textX = badgeX + (badgeSize - (int) bounds.getWidth()) / 2;
-        int textY = badgeY + (badgeSize - (int) bounds.getHeight()) / 2 + (int) bounds.getHeight() - 4; // Adjust baseline
-        g2d.drawString(numStr, textX, textY);
-    }
-
-    private void drawTextWithEllipsis(Graphics2D g2d, String text, int x, int y, int maxWidth) {
-        FontMetrics fm = g2d.getFontMetrics();
-        if (fm.stringWidth(text) <= maxWidth) {
-            g2d.drawString(text, x, y);
-        } else {
-            String ellipsis = "...";
-            int ellipsisWidth = fm.stringWidth(ellipsis);
-            String truncatedText = text;
-            while (fm.stringWidth(truncatedText) + ellipsisWidth > maxWidth && truncatedText.length() > 0) {
-                truncatedText = truncatedText.substring(0, truncatedText.length() - 1);
-            }
-            g2d.drawString(truncatedText + ellipsis, x, y);
-        }
-    }
-
-    private BufferedImage loadImage(String url) {
+    private long extractTotalArtworks(Page page) {
         try {
-            // Pixiv's thumbnail proxy is slow, let's replace it with the faster i.pximg.net
-            String imageUrl = url.replace("i.pximg.net/c/250x250_80_a2", "i.pximg.net");
-            Request request = new Request.Builder()
-                    .url(imageUrl)
-                    .addHeader("Referer", "https://www.pixiv.net/")
-                    .build();
-            try (Response response = httpClient.newCall(request).execute(); InputStream in = response.body().byteStream()) {
-                return ImageIO.read(in);
+            ElementHandle totalSpan = page.querySelector(TOTAL_SPAN_CSS_SELECTOR);
+            if (totalSpan != null) {
+                String textContent = totalSpan.textContent();
+                if (StrUtil.isNotBlank(textContent)) {
+                    // 移除所有非数字字符，例如逗号
+                    return Long.parseLong(textContent.replaceAll("[^0-9]", ""));
+                }
             }
+            log.warn("Could not find total artworks span with selector: {}", TOTAL_SPAN_CSS_SELECTOR);
         } catch (Exception e) {
-            log.warn("Failed to load image from {}: {}", url, e.getMessage());
-            // 返回一个占位图
-            BufferedImage placeholder = new BufferedImage(CELL_WIDTH, IMG_HEIGHT, BufferedImage.TYPE_INT_RGB);
-            Graphics2D g = placeholder.createGraphics();
-            g.setColor(Color.LIGHT_GRAY);
-            g.fillRect(0, 0, CELL_WIDTH, IMG_HEIGHT);
-            g.setColor(Color.DARK_GRAY);
-            g.drawString("Load Failed", 20, 20);
-            g.dispose();
-            return placeholder;
+            log.warn("Could not extract total artworks count, defaulting to 0.", e);
+        }
+        return 0;
+    }
+
+    private void smoothAutoScroll(Page page) {
+        page.evaluate("() => { window.scrollTo(0, 0); }");
+        for (int i = 0; i < 15; i++) { // 增加滚动次数以确保加载完全
+            page.evaluate("window.scrollBy(0, window.innerHeight)");
+            try {
+                page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(1000));
+            } catch (TimeoutError e) {
+                log.trace("Network idle timeout during scroll, which is expected. Continuing...");
+            }
+        }
+        log.info("Initial scrolling finished. Waiting for images to load...");
+        try {
+            // 等待图片加载，这是一个很好的实践
+            page.waitForFunction(
+                    "selector => Array.from(document.querySelectorAll(selector)).every(img => img.complete && img.naturalWidth > 0)",
+                    ARTWORK_IMAGE_CSS_SELECTOR,
+                    new Page.WaitForFunctionOptions().setTimeout(20000)
+            );
+            log.info("All images are confirmed to be loaded on the source page.");
+        } catch (TimeoutError e) {
+            log.warn("Timeout waiting for all images to load on source page. Some data might be incomplete.");
         }
     }
 
-    private byte[] createBlankImage(String message) throws IOException {
-        BufferedImage image = new BufferedImage(500, 200, BufferedImage.TYPE_INT_RGB);
-        Graphics2D g = image.createGraphics();
-        g.setColor(Color.WHITE);
-        g.fillRect(0, 0, 500, 200);
-        g.setColor(Color.BLACK);
-        g.setFont(new Font("SansSerif", Font.BOLD, 20));
-        g.drawString(message, 50, 100);
-        g.dispose();
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ImageIO.write(image, "png", baos);
-        return baos.toByteArray();
+    private void addNumberingToArtworks(Page page) {
+        log.info("Adding numbering to artworks...");
+        String jsScript = """
+            (selector) => {
+                const artworks = document.querySelectorAll(selector);
+                artworks.forEach((artwork, index) => {
+                    if (artwork.querySelector('.number-label')) return; // 防止重复添加
+                    artwork.style.position = 'relative';
+                    const numberLabel = document.createElement('div');
+                    numberLabel.className = 'number-label'; // 添加一个class便于识别
+                    numberLabel.innerText = index + 1;
+                    Object.assign(numberLabel.style, {
+                        position: 'absolute', top: '50%', left: '50%',
+                        transform: 'translate(-50%, -50%)', zIndex: '100',
+                        backgroundColor: 'rgba(40, 40, 40, 0.8)', color: 'white',
+                        borderRadius: '50%', width: '60px', height: '60px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '28px', fontWeight: 'bold',
+                        boxShadow: '0 0 5px rgba(0,0,0,0.7)'
+                    });
+                    artwork.appendChild(numberLabel);
+                });
+            }
+        """;
+        page.evaluate(jsScript, ARTWORK_LIST_ITEM_CSS_SELECTOR);
     }
 
-    /**
-     * 扫描指定基础路径下的所有资源文件，并将它们转换为 Data URI 格式的 Map。
-     *
-     * @param basePath a classpath-relative path, e.g., "templates/pixiv_search_result"
-     * @return A map where key is filename (e.g., "bot_icon.png") and value is the Data URI string.
-     */
     private Map<String, String> loadResourcesAsDataUri(String basePath) {
-        // 注入 ResourcePatternResolver 来实现这个功能
-        // (需要在构造函数中添加 ResourcePatternResolver resourceResolver)
         Map<String, String> resourceMap = new HashMap<>();
         String locationPattern = ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX + basePath + "/**/*.*";
-
-        log.info("Scanning for resources with pattern: {}", locationPattern);
         try {
             Resource[] resources = resourceResolver.getResources(locationPattern);
             for (Resource resource : resources) {
                 if (resource.isReadable()) {
                     String filename = resource.getFilename();
                     if (filename != null) {
-                        // 相对路径作为Key，例如 "image/bot_icon.png"
                         String relativePath = new URI(basePath).relativize(new URI(resource.getURI().toString().split(basePath)[1])).getPath();
-                        resourceMap.put(relativePath.substring(1), loadResourceAsDataUri(resource)); // 去掉开头的'/'
-                        log.debug("Loaded resource: {} as key: {}", resource.getDescription(), relativePath.substring(1));
+                        resourceMap.put(relativePath.substring(1), loadResourceAsDataUri(resource));
                     }
                 }
             }
@@ -342,6 +333,7 @@ public class PixivSearchServiceImpl implements PixivSearchService {
         return resourceMap;
     }
 
+    // 【新增】将单个资源文件转换为 Data URI
     private String loadResourceAsDataUri(Resource resource) throws IOException {
         byte[] fileBytes = resource.getInputStream().readAllBytes();
         String mimeType = "application/octet-stream";
@@ -349,8 +341,9 @@ public class PixivSearchServiceImpl implements PixivSearchService {
         if (filename != null) {
             if (filename.endsWith(".png")) mimeType = "image/png";
             else if (filename.endsWith(".jpg") || filename.endsWith(".jpeg")) mimeType = "image/jpeg";
-            else if (filename.endsWith(".svg")) mimeType = "image/svg+xml"; // 支持SVG
+            else if (filename.endsWith(".svg")) mimeType = "image/svg+xml";
             else if (filename.endsWith(".gif")) mimeType = "image/gif";
+            else if (filename.endsWith(".css")) mimeType = "text/css";
         }
         return "data:" + mimeType + ";base64," + Base64.getEncoder().encodeToString(fileBytes);
     }

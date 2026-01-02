@@ -1,5 +1,6 @@
 package com.github.winefoxbot.model.dto.pixiv;
 
+import com.github.winefoxbot.model.enums.PixivArtworkType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -20,5 +21,7 @@ public class PixivDetail {
     private String uid;
     private String userName;
     private String description;
+    private Boolean isR18;
+    private PixivArtworkType type;
     private List<String> tags = new ArrayList<>();
 }

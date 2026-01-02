@@ -1,18 +1,6 @@
 package com.github.winefoxbot.plugins;
 
-import com.github.winefoxbot.annotation.PluginFunction;
-import com.github.winefoxbot.model.enums.Permission;
-import com.mikuac.shiro.annotation.GroupMessageHandler;
-import com.mikuac.shiro.annotation.MessageHandlerFilter;
-import com.mikuac.shiro.annotation.common.Shiro;
-import com.mikuac.shiro.core.Bot;
-import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
-import com.mikuac.shiro.enums.MsgTypeEnum;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
-import static com.github.winefoxbot.config.WineFoxBotConfig.COMMAND_PREFIX_REGEX;
-import static com.mikuac.shiro.core.BotPlugin.MESSAGE_BLOCK;
 
 /**
  * 管理员插件

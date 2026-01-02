@@ -1,6 +1,7 @@
 package com.github.winefoxbot.config.ai;
 
-import com.github.winefoxbot.config.WineFoxBotConfig;
+import com.github.winefoxbot.config.app.WineFoxBotConfig;
+import com.github.winefoxbot.config.app.WineFoxBotProperties;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -25,13 +26,13 @@ public class WineFoxBotChatConfig {
     @Getter
     private String systemPrompt;
 
-    private final WineFoxBotConfig wineFoxBotConfig;
+    private final WineFoxBotProperties wineFoxBotProperties;
 
     @PostConstruct
     public void loadSystemPrompt() throws IOException {
         String systemPromptTemplate = new String(Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("system_prompt")).readAllBytes());
         // bot ids
-        String result = wineFoxBotConfig.getBot().stream()
+        String result = wineFoxBotProperties.getBot().stream()
                 .map(id -> "\"" + id + "\"")
                 .collect(Collectors.joining(","));
         systemPromptTemplate = systemPromptTemplate.replace("{bot_uids}", result);
