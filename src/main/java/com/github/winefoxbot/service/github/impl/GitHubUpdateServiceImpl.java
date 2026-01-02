@@ -11,6 +11,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.event.EventListener;
@@ -125,6 +126,8 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
                 .replace("{repo}", updateProperties.getGithubRepo())
                 .replace("{tag}", updateProperties.getReleaseTag());
 
+        log.info("请求 GitHub API URL: {}", apiUrl);
+
         Request.Builder requestBuilder = new Request.Builder()
                 .url(apiUrl)
                 .header("Accept", "application/vnd.github.v3+json")
@@ -139,42 +142,46 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
         }
 
         try (Response response = okHttpClient.newCall(requestBuilder.build()).execute()) {
-            if (!response.isSuccessful()) {
-                String errorBody = response.body() != null ? response.body().string() : "No response body";
-                log.error("请求 GitHub API 失败: Code={}, Message={}, Body={}", response.code(), response.message(), errorBody);
-                throw new IOException("请求 GitHub API 失败: " + response.code() + " " + response.message());
-            }
             ResponseBody body = response.body();
             if (body == null) {
-                throw new IOException("GitHub API 响应体为空");
+                // 即使请求失败，body也可能为null，先处理这种情况
+                throw new IOException("GitHub API 响应体为空。响应码: " + response.code());
             }
-            return objectMapper.readValue(body.string(), GitHubRelease.class);
+
+            // 只读取一次响应体，并存入字符串变量
+            final String responseBodyString = body.string();
+
+            if (!response.isSuccessful()) {
+                log.error("请求 GitHub API 失败: Code={}, Message={}, Body={}", response.code(), response.message(), responseBodyString);
+                throw new IOException("请求 GitHub API 失败: " + response.code() + " " + response.message());
+            }
+
+            // 请求成功，使用已读取的字符串进行反序列化
+            return objectMapper.readValue(responseBodyString, GitHubRelease.class);
         }
     }
 
-    /**
-     * 【核心修复】修改下载逻辑以支持私有仓库
-     */
+
     private void downloadAndReplace(GitHubRelease.Asset jarAsset) throws IOException {
-        // 对于私有仓库，不能使用 browser_download_url，必须使用 API URL (asset.getUrl())
+        // 【核心修改】目标不再是替换当前 JAR，而是将新文件下载为 update-temp.jar
         String downloadUrl = jarAsset.getUrl();
-        Path currentJarPath = Paths.get(updateProperties.getCurrentJarName()).toAbsolutePath();
-        Path tempJarPath = currentJarPath.getParent().resolve("update-temp.jar");
+        // 获取当前 JAR 所在的目录
+        Path currentJarDir = Paths.get(updateProperties.getCurrentJarName()).toAbsolutePath().getParent();
+        // 最终的临时文件路径
+        Path tempJarPath = currentJarDir.resolve("update-temp");
+
 
         log.info("从 API URL {} 下载新版本到 {}", downloadUrl, tempJarPath);
 
         Request.Builder requestBuilder = new Request.Builder()
                 .url(downloadUrl)
-                // 关键！GitHub 要求下载 Asset 时 Accept 头必须是这个
                 .header("Accept", "application/octet-stream")
                 .header("User-Agent", "WineFox-Bot-Updater");
 
-        // 关键！从配置中获取 Token 并添加到请求头
         String token = updateProperties.getGithubToken();
         if (StringUtils.hasText(token)) {
             requestBuilder.header("Authorization", "token " + token);
         } else {
-            // 如果到了这一步还没有 token，私有仓库的下载必然失败，直接报错
             throw new IOException("无法下载私有仓库文件：未配置 GitHub Token。");
         }
 
@@ -183,12 +190,11 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
                 throw new IOException("下载文件失败: " + response);
             }
             try (InputStream in = response.body().byteStream()) {
+                // 将下载的文件直接保存为 update-temp.jar，并覆盖已有的
                 Files.copy(in, tempJarPath, StandardCopyOption.REPLACE_EXISTING);
             }
         }
-        log.info("下载完成，准备替换文件...");
-        Files.move(tempJarPath, currentJarPath, StandardCopyOption.REPLACE_EXISTING);
-        log.info("文件替换成功！");
+        log.info("新版本已成功下载到 {}", tempJarPath);
     }
 
     @Override
@@ -206,14 +212,22 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
     public void restartApplication() {
         Thread restartThread = new Thread(() -> {
             try {
+                // 等待1秒，让当前请求（比如发送"正在重启"消息）有机会完成
                 Thread.sleep(1000);
-                log.info("应用即将以退出码 {} 强行退出，以触发外部脚本重启...", RESTART_EXIT_CODE);
-                System.exit(RESTART_EXIT_CODE);
+                // ==================【【【 最重要的诊断日志 】】】==================
+                log.info(">>>>>>>>> [DIAGNOSTIC] 使用 SpringApplication.exit() 重启模式 <<<<<<<<<");
+                // ====================================================================
+                log.info("应用即将以退出码 {} 关闭，以触发外部脚本重启...", RESTART_EXIT_CODE);
+                // 这会优雅地关闭 Spring 上下文，并返回退出码，而不会终止父 bat 脚本。
+                int exitCode = SpringApplication.exit(context, () -> RESTART_EXIT_CODE);
+                System.exit(exitCode);
+
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.error("重启线程被中断", e);
             }
         });
+        // 确保这个线程不会因为主线程退出而中止
         restartThread.setDaemon(false);
         restartThread.start();
     }

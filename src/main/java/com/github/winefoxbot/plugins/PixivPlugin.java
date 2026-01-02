@@ -425,18 +425,39 @@ public class PixivPlugin {
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/((p|P)站(本|今)(日|周|月)排行榜|pr(d|w|m))(?:\\s+(\\S+))?$")
     public void getPixivRankByType(Bot bot, AnyMessageEvent event, Matcher matcher) {
         bot.sendMsg(event, "正在获取 Pixiv 排行榜，请稍候...", false);
+
         String rankType = matcher.group(4); // 日, 周, 月
+        if (rankType == null) {
+            String shortType = matcher.group(5); // d, w, m
+            if (shortType != null) {
+                switch (shortType) {
+                    case "d" -> rankType = "日";
+                    case "w" -> rankType = "周";
+                    case "m" -> rankType = "月";
+                }
+            }
+        }
+
         String params = matcher.group(6);
         PixivRankPushMode mode;
+
+        // rankType 仍然可能为 null，但 switch 可以安全处理
+        if (rankType == null) {
+            bot.sendMsg(event, "无法识别的命令格式！", true);
+            return;
+        }
+
         switch (rankType) {
             case "日" -> mode = PixivRankPushMode.DALLY;
             case "周" -> mode = PixivRankPushMode.WEEKLY;
             case "月" -> mode = PixivRankPushMode.MONTHLY;
             default -> {
+                // 这个 default 理论上不会被触发了，但作为保障保留
                 bot.sendMsg(event, "无效的排行榜类型！请使用 日、周 或 月。", true);
                 return;
             }
         }
+
         PixivRankService.Content content = params != null ? PixivRankService.Content.valueOf(params.toUpperCase()) : PixivRankService.Content.ILLUST;
         getPixivRank(bot, event, matcher, mode, content);
     }

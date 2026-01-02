@@ -89,7 +89,7 @@ public class PixivSearchPlugin {
             group = "Pixiv", name = "Pixiv搜索",
             permission = Permission.USER,
             description = "在Pixiv上搜索插画作品。命令格式：/pixiv搜索 <标签1> <标签2> ... [-p<页码>] [-r]。其中 -p 用于指定页码，-r 用于开启R18搜索。",
-            commands = {"/pixiv搜索"}, hidden = false)
+            commands = {"/Pixiv搜索","/pixiv搜索","/P站搜索","/p站搜索"}, hidden = false)
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(?:p|P)(?:ixiv|站)搜索\\s+(.+?)(?=\\s+-|$)\\s*(.*)" + COMMAND_SUFFIX_REGEX)
     public void handlePixivSearch(Bot bot, AnyMessageEvent event, Matcher matcher) {

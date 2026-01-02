@@ -1,80 +1,77 @@
 #!/bin/bash
 
-# --- 配置 ---
-JAR_FILE="winefox-bot.jar"
-RESTART_CODE=5
-LOGS_DIR="logs"
+# ================== 配置区 ==================
+# 请根据你的实际情况修改这些变量
 
-# 获取脚本所在的绝对路径
-# 这确保了无论你在哪个目录下执行 ./start.sh，它都能找到正确的 JAR 文件和 logs 目录
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+# Java 启动参数
+JAVA_OPTS="-Xms512m -Xmx1024m"
 
-# --- 创建日志目录 (如果不存在) ---
-if [ ! -d "$SCRIPT_DIR/$LOGS_DIR" ]; then
-  echo "Creating log directory: $LOGS_DIR"
-  mkdir -p "$SCRIPT_DIR/$LOGS_DIR"
-fi
+# 目标 JAR 文件的相对路径 (相对于项目根目录)
+JAR_PATH="target/winefox-bot.jar"
 
-# 启动无限循环，脚本本身只有在退出码不是重启码时才会真正退出
+# 更新时下载的临时 JAR 文件的相对路径
+TEMP_JAR_PATH="target/update-temp"
+
+# 触发更新的特定退出码
+UPDATE_EXIT_CODE=5
+
+# ==========================================
+
+# 获取脚本所在的目录, 并切换到其上一级目录 (项目根目录)
+# 这是确保所有相对路径 (JAR, config, update file) 正确的关键
+cd "$(dirname "$0")/.."
+echo "[SETUP] Script is now running in directory: $(pwd)"
+
+# 无限循环
 while true; do
-  # --- 生成带时间戳的日志文件名 ---
-  LOG_FILE="$SCRIPT_DIR/$LOGS_DIR/$(date +'%Y-%m-%d_%H-%M-%S').log"
-
-  # --- 将所有输出重定向到日志文件 ---
-  # exec > >(tee -a "$LOG_FILE") 2>&1
-  # 上面这行 tee 的方法很好，但为了简单和最大兼容性，我们直接重定向
-
-  {
     echo ""
-    echo "======================================================"
-    echo "          SCRIPT EXECUTION STARTED AT $(date)"
-    echo "======================================================"
-    echo ""
-    echo "Starting $JAR_FILE..."
-    echo "Log file for this session is: $LOG_FILE"
+    echo "======================================================="
+    echo "Starting Application..."
+    echo "JAR Path: \"$JAR_PATH\""
+    echo "Timestamp: $(date)"
+    echo "======================================================="
     echo ""
 
-    # 执行 java 命令
-    java -jar "$SCRIPT_DIR/$JAR_FILE"
-
-    # 捕获退出码。$? 是 shell 中的一个特殊变量，保存了上一个命令的退出码
+    # 运行 Java 程序
+    # Spring Boot 会自动加载与 JAR 同目录的 application.yml
+    java $JAVA_OPTS -jar "$JAR_PATH"
     EXIT_CODE=$?
 
     echo ""
-    echo "==================== DEBUG INFO ===================="
-    echo ""
-    echo "  JAVA process exited at: $(date)"
-    echo "  The captured EXIT_CODE is: [$EXIT_CODE]"
-    echo "  The expected RESTART_CODE is: [$RESTART_CODE]"
-    echo ""
-    echo "===================================================="
+    echo "======================================================="
+    echo "Application exited with code: $EXIT_CODE"
+    echo "======================================================="
     echo ""
 
-    # 检查退出码是否为重启码
-    if [ "$EXIT_CODE" -eq "$RESTART_CODE" ]; then
-      echo "[SUCCESS] Exit code matches. Restarting in 3 seconds..."
-      sleep 3
-      echo "Restarting now..."
-      # 循环将自动继续，所以这里不需要 'continue' 或 'goto'
+    # 检查退出码是否为我们约定的“重启更新”码
+    if [ $EXIT_CODE -eq $UPDATE_EXIT_CODE ]; then
+        # ---- 更新流程开始 ----
+        echo "[UPDATE] Update exit code detected. Starting update process..."
+
+        # 等待一小会儿，确保文件句柄被操作系统完全释放
+        sleep 2
+
+        if [ -f "$TEMP_JAR_PATH" ]; then
+            echo "[UPDATE] Found update file: '$TEMP_JAR_PATH'."
+            echo "[UPDATE] Attempting to replace '$JAR_PATH'..."
+
+            # 使用 mv -f 命令来强制覆盖旧文件
+            mv -f "$TEMP_JAR_PATH" "$JAR_PATH"
+
+            if [ $? -eq 0 ]; then
+                echo "[SUCCESS] Update complete! '$JAR_PATH' has been successfully updated."
+            else
+                echo "[ERROR] Update failed: Could not replace the JAR file. Check file permissions."
+                echo "[INFO] Restarting with the old version."
+            fi
+        else
+            echo "[ERROR] Update failed: Temporary file '$TEMP_JAR_PATH' not found!"
+            echo "[INFO] Aborting update and restarting with the old version."
+        fi
     else
-      echo "[FAILURE] Exit code does not match. Will not restart."
-      echo "Script will now exit."
-      break # 退出 while 循环
+        echo "[INFO] Normal exit or crash detected (Code: $EXIT_CODE). Restarting application..."
     fi
-  } >> "$LOG_FILE" 2>&1 # 将代码块的所有标准输出和标准错误输出都重定向到日志文件
 
-  # 如果脚本因为非重启原因退出，在控制台也显示一下最终信息
-  if [ "$EXIT_CODE" -ne "$RESTART_CODE" ]; then
-    echo ""
-    echo "================================================================="
-    echo ""
-    echo "  The bot process has finished."
-    echo "  - Final exit code was: $EXIT_CODE"
-    echo "  - Detailed log has been saved to:"
-    echo "    $LOG_FILE"
-    echo ""
-    echo "================================================================="
-    # 退出循环后，脚本自然结束
-  fi
-
+    echo "[INFO] Looping back to restart the application in 3 seconds..."
+    sleep 3
 done

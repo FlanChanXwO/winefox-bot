@@ -22,14 +22,6 @@ public class PixivConfig {
      * Pixiv Cookie
      */
     private String cookie = "";
-    /**
-     * 是否启用Pixiv R18内容
-     */
-    private boolean enableR18 = true;
-    /**
-     * 禁用R18的群ID列表
-     */
-    private List<Long> banR18Groups;
 
     private String pAbId = "";
 
