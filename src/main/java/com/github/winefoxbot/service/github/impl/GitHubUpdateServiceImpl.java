@@ -108,18 +108,32 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
 
         Request.Builder requestBuilder = new Request.Builder()
                 .url(apiUrl)
-                .header("User-Agent", "Java-App-Updater");
+                .header("Accept", "application/vnd.github.v3+json") // 推荐加上，明确 API 版本
+                .header("User-Agent", "WineFox-Bot-Updater");
 
-        if (StringUtils.hasText(updateProperties.getGithubToken())) {
-            requestBuilder.header("Authorization", "token " + updateProperties.getGithubToken());
+        // 从配置中获取 token
+        String token = updateProperties.getGithubToken();
+
+        // 检查 token 是否存在且不为空
+        if (StringUtils.hasText(token)) {
+            log.info("检测到 GitHub Token，将用于认证请求。");
+            // 将 token 添加到 Authorization 请求头
+            requestBuilder.header("Authorization", "token " + token);
+        } else {
+            log.warn("未配置 GitHub Token。如果仓库是私有的，请求将会失败。");
         }
 
         try (Response response = okHttpClient.newCall(requestBuilder.build()).execute()) {
             if (!response.isSuccessful()) {
+                // 打印更详细的错误信息
+                String errorBody = response.body() != null ? response.body().string() : "No response body";
+                log.error("请求 GitHub API 失败: Code={}, Message={}, Body={}", response.code(), response.message(), errorBody);
                 throw new IOException("请求 GitHub API 失败: " + response.code() + " " + response.message());
             }
             ResponseBody body = response.body();
-            if (body == null) throw new IOException("GitHub API 响应体为空");
+            if (body == null) {
+                throw new IOException("GitHub API 响应体为空");
+            }
             return objectMapper.readValue(body.string(), GitHubRelease.class);
         }
     }
