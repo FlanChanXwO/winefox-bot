@@ -7,11 +7,14 @@ on:
 jobs:
   build_and_release:
     permissions:
-      contents: write
+      contents: write # 必须有写的权限来操作 release 和 tag
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # 获取所有历史记录，以便能找到正确的父提交
+          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -24,9 +27,7 @@ jobs:
         id: get_project_info
         run: |
           PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-          # 这是由 pom.xml <finalName> 决定的打包产物名
-          FAT_JAR_NAME="winefox-bot.jar" 
-          # 这是我们希望最终在 Release 页面显示的文件名
+          FAT_JAR_NAME="winefox-bot.jar"
           RELEASE_ASSET_NAME="winefox-bot-${PROJECT_VERSION}.jar"
           echo "project_version=${PROJECT_VERSION}" >> $GITHUB_OUTPUT
           echo "fat_jar_name=${FAT_JAR_NAME}" >> $GITHUB_OUTPUT
@@ -35,43 +36,43 @@ jobs:
       - name: Build 'fat' JAR with Maven
         run: mvn -B package spring-boot:repackage --file pom.xml
 
-      - name: List target directory contents (Pre-Upload)
-        run: ls -lh target
-
-      - name: Rename fat JAR for initial upload
+      - name: Rename fat JAR for processing
         run: mv "target/${{ steps.get_project_info.outputs.fat_jar_name }}" "target/${{ steps.get_project_info.outputs.release_asset_name }}"
 
-      - name: Delete old JAR assets from Release
+      # 【核心修改】强制删除旧的 'latest' Release 和 Tag
+      - name: Force delete and recreate 'latest' tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Searching for old .jar assets in 'latest' release to delete them..."
-          OLD_JARS=$(gh release view latest --json assets --jq '.assets[] | select(.name | endswith(".jar")) | .name' 2>/dev/null || echo "")
-          if [ -n "$OLD_JARS" ]; then
-            echo "Found old JARs to delete:"
-            echo "$OLD_JARS"
-            echo "$OLD_JARS" | xargs -I {} gh release delete-asset latest "{}" --yes
-            echo "Successfully deleted old JAR assets."
-          else
-            echo "No old .jar assets found to delete."
-          fi
+          # 1. 删除远程的 'latest' release (如果存在)
+          # '|| true' 确保在 release 不存在时脚本不会失败
+          gh release delete latest --yes || true
+          
+          # 2. 删除远程的 'latest' tag
+          git push origin --delete latest || true
+          
+          # 3. 在本地重新创建指向当前 HEAD 的 'latest' tag
+          git tag -f latest
+          
+          # 4. 将新的 'latest' tag 推送到远程
+          git push origin latest
 
-      # 【关键步骤】上传JAR并创建Release，以获取到 asset_id
-      - name: Create Release and Upload Asset
+      # 【核心修改】使用新的 'latest' tag 创建一个全新的 Release
+      - name: Create Release and Upload Initial Asset
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          body: "Latest development build, updated at ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          tag_name: latest # 使用我们刚刚创建的新的 'latest' tag
+          # `make_latest: true` 确保这个新的 release 被标记为 "Latest"
+          make_latest: true
+          body: "🚀 Latest development build, updated at ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
           files: "target/${{ steps.get_project_info.outputs.release_asset_name }}"
 
-      # 【关键步骤】生成包含正确ID的properties文件
       - name: Generate final release-info.properties
         id: generate_properties
         run: |
           ASSETS_JSON='${{ steps.create_release.outputs.assets }}'
           JAR_NAME="${{ steps.get_project_info.outputs.release_asset_name }}"
-          # 从返回的assets json中找到我们上传的jar，并提取其id
           ASSET_ID=$(echo "$ASSETS_JSON" | jq --arg name "$JAR_NAME" '.[] | select(.name == $name) | .id')
           RELEASE_ID='${{ steps.create_release.outputs.id }}'
 
@@ -90,15 +91,13 @@ jobs:
           echo "Generated final $PROPERTIES_FILE content:"
           cat $PROPERTIES_FILE
 
-      # 【关键步骤】将properties文件注入到已有的JAR中
       - name: Inject properties into JAR
         run: |
           JAR_PATH="target/${{ steps.get_project_info.outputs.release_asset_name }}"
-          # 使用 'jar uf' 命令更新JAR包内容
           jar uf "$JAR_PATH" -C . "release-info.properties"
           echo "Injected final release-info.properties into $JAR_PATH"
 
-      # 【关键步骤】用注入了正确ID的JAR，覆盖上传Release中的文件
+      # 使用注入了正确ID的JAR，覆盖上传Release中的文件
       - name: Overwrite Release Asset with final JAR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
