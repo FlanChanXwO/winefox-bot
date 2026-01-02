@@ -23,6 +23,7 @@ public class GitHubRelease {
 
         private Long id; // 新增的字段，用于存储 Asset ID
         private String name;
+        private String url;
         @JsonProperty("browser_download_url")
         private String browserDownloadUrl;
     }

@@ -12,6 +12,7 @@ import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
@@ -36,6 +37,7 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
     private final WineFoxBotAppUpdateProperties updateProperties;
     private final OkHttpClient okHttpClient;
     private final ObjectMapper objectMapper;
+    private final ApplicationContext context;
 
     private VersionInfo currentVersionInfo;
     private static final AtomicBoolean updateInProgress = new AtomicBoolean(false);
@@ -43,10 +45,6 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
     private static final String RESTART_INFO_FILE = "restart-info.json";
     private static final int RESTART_EXIT_CODE = 5;
 
-    /**
-     * 【修改】应用启动时，从 JAR 包内部的 release-info.properties 读取版本信息。
-     * 这比联网获取更可靠，因为这是构建时注入的“身份证明”。
-     */
     @EventListener(ApplicationReadyEvent.class)
     public void initializeVersionInfoOnStartup() {
         log.info("Application is ready. Initializing version info from embedded properties...");
@@ -85,26 +83,23 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
                 throw new IllegalStateException("在 Release '" + latestRelease.getTagName() + "' 中未找到 .jar 文件。");
             }
 
-            // 从远程 API 获取最新版本信息
             VersionInfo latestVersion = new VersionInfo();
             latestVersion.releaseId = latestRelease.getId();
             latestVersion.assetId = jarAsset.getId();
             log.info("检测到最新版本 - Release ID: {}, Asset ID: {}", latestVersion.releaseId, latestVersion.assetId);
 
-            // 获取当前运行版本信息（已在启动时从 JAR 读取）
             VersionInfo currentVersion = getCurrentVersionInfo();
             log.info("当前运行版本 - Release ID: {}, Asset ID: {}", currentVersion.releaseId, currentVersion.assetId);
 
-            // 【核心修改】同时比较 Release ID 和 Asset ID
             if (latestVersion.releaseId == currentVersion.releaseId && latestVersion.assetId == currentVersion.assetId) {
                 throw new IllegalStateException("当前已是最新版本，无需更新。");
             }
-            // (可选) 增加一个对老版本的判断，防止意外降级
             if (latestVersion.releaseId < currentVersion.releaseId) {
                 throw new IllegalStateException("检测到的线上版本比当前版本更旧，跳过更新。");
             }
 
             log.info("发现新版本，开始下载并替换...");
+            // 调用已修复的下载方法
             downloadAndReplace(jarAsset);
 
             log.info("文件更新完成，即将重启应用...");
@@ -157,6 +152,45 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
         }
     }
 
+    /**
+     * 【核心修复】修改下载逻辑以支持私有仓库
+     */
+    private void downloadAndReplace(GitHubRelease.Asset jarAsset) throws IOException {
+        // 对于私有仓库，不能使用 browser_download_url，必须使用 API URL (asset.getUrl())
+        String downloadUrl = jarAsset.getUrl();
+        Path currentJarPath = Paths.get(updateProperties.getCurrentJarName()).toAbsolutePath();
+        Path tempJarPath = currentJarPath.getParent().resolve("update-temp.jar");
+
+        log.info("从 API URL {} 下载新版本到 {}", downloadUrl, tempJarPath);
+
+        Request.Builder requestBuilder = new Request.Builder()
+                .url(downloadUrl)
+                // 关键！GitHub 要求下载 Asset 时 Accept 头必须是这个
+                .header("Accept", "application/octet-stream")
+                .header("User-Agent", "WineFox-Bot-Updater");
+
+        // 关键！从配置中获取 Token 并添加到请求头
+        String token = updateProperties.getGithubToken();
+        if (StringUtils.hasText(token)) {
+            requestBuilder.header("Authorization", "token " + token);
+        } else {
+            // 如果到了这一步还没有 token，私有仓库的下载必然失败，直接报错
+            throw new IOException("无法下载私有仓库文件：未配置 GitHub Token。");
+        }
+
+        try (Response response = okHttpClient.newCall(requestBuilder.build()).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("下载文件失败: " + response);
+            }
+            try (InputStream in = response.body().byteStream()) {
+                Files.copy(in, tempJarPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+        }
+        log.info("下载完成，准备替换文件...");
+        Files.move(tempJarPath, currentJarPath, StandardCopyOption.REPLACE_EXISTING);
+        log.info("文件替换成功！");
+    }
+
     @Override
     public GitHubRelease.Asset findJarAsset(GitHubRelease.Asset[] assets) {
         if (assets == null) return null;
@@ -166,24 +200,6 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
             }
         }
         return null;
-    }
-
-    private void downloadAndReplace(GitHubRelease.Asset jarAsset) throws IOException {
-        String downloadUrl = jarAsset.getBrowserDownloadUrl();
-        Path currentJarPath = Paths.get(updateProperties.getCurrentJarName()).toAbsolutePath();
-        Path tempJarPath = currentJarPath.getParent().resolve("update-temp.jar");
-
-        log.info("从 {} 下载新版本到 {}", downloadUrl, tempJarPath);
-        Request request = new Request.Builder().url(downloadUrl).build();
-        try (Response response = okHttpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("下载文件失败: " + response);
-            try (InputStream in = response.body().byteStream()) {
-                Files.copy(in, tempJarPath, StandardCopyOption.REPLACE_EXISTING);
-            }
-        }
-        log.info("下载完成，准备替换文件...");
-        Files.move(tempJarPath, currentJarPath, StandardCopyOption.REPLACE_EXISTING);
-        log.info("文件替换成功！");
     }
 
     @Override
