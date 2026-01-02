@@ -4,7 +4,7 @@ winefox:
   app:
     version: @project.version@
     update:
-      github-token: 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
+      github-token: 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
       # 你的GitHub仓库，格式: "owner/repo" (!!重要：请修改为你自己的仓库!!)
       github-repo: "FlanChanXwO/winefox-bot"
       # 当前运行的JAR文件名，用于更新替换 (!!重要：名称必须与打包后的jar文件名一致!!)

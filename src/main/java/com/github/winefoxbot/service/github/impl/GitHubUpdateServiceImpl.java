@@ -136,6 +136,8 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
         String token = updateProperties.getGithubToken();
         if (StringUtils.hasText(token)) {
             log.info("检测到 GitHub Token，将用于认证请求。");
+            log.info("DIAGNOSTIC - Using GitHub Token: [{}]", token);
+            log.info("检测到 GitHub Token，将用于认证请求。");
             requestBuilder.header("Authorization", "token " + token);
         } else {
             log.warn("未配置 GitHub Token。如果仓库是私有的，请求将会失败。");
@@ -194,6 +196,7 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
                 Files.copy(in, tempJarPath, StandardCopyOption.REPLACE_EXISTING);
             }
         }
+        // curl -v -H "Authorization: token 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" https://api.github.com/repos/FlanChanXwO/winefox-bot/releases/tags/latest
         log.info("新版本已成功下载到 {}", tempJarPath);
     }
 
