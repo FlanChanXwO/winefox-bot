@@ -20,100 +20,69 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build 'thin' JAR with Maven
-        run: mvn -B clean package --file pom.xml
-
-      - name: Get JAR name and path
-        id: get_jar_info
+      - name: Get Project Version and JAR Name
+        id: get_project_info
         run: |
-          JAR_PATH=$(ls target/*.jar | grep -v 'original' | head -n 1)
-          echo "jar_path=$JAR_PATH" >> $GITHUB_OUTPUT
-          echo "jar_name=$(basename $JAR_PATH)" >> $GITHUB_OUTPUT
+          # 从 pom.xml 中提取版本号
+          PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          # 拼接出最终的 JAR 文件名
+          JAR_NAME="winefox-bot-${PROJECT_VERSION}.jar"
+          echo "project_version=${PROJECT_VERSION}" >> $GITHUB_OUTPUT
+          echo "jar_name=${JAR_NAME}" >> $GITHUB_OUTPUT
+          echo "Project Version: ${PROJECT_VERSION}"
+          echo "Expected JAR Name: ${JAR_NAME}"
 
       - name: Delete old JAR assets from Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Searching for old .jar assets in 'latest' release to delete them..."
-          # 获取所有 .jar 结尾的 asset 的名字
-          OLD_JARS=$(gh release view latest --json assets --jq '.assets[].name' | grep '\.jar$' || true)
+          OLD_JARS=$(gh release view latest --json assets --jq '.assets[] | select(.name | endswith(".jar")) | .name' 2>/dev/null || echo "")
           if [ -n "$OLD_JARS" ]; then
             echo "Found old JARs to delete:"
             echo "$OLD_JARS"
-            # gh release delete-asset latest <asset-name>
             echo "$OLD_JARS" | xargs -I {} gh release delete-asset latest "{}" --yes
             echo "Successfully deleted old JAR assets."
           else
             echo "No old .jar assets found to delete."
           fi
+
       - name: Create/Update Release to get ID
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          # 注意：这里 files 是空的，我们后面再上传
           body: "Latest development build, updated at ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+
       - name: Generate and place release-info.properties
         run: |
           RELEASE_ID='${{ steps.create_release.outputs.id }}'
-          
-          # 因为我们还没有上传JAR，所以 asset.id 暂时无法获取，这很关键！
-          # 我们先用一个临时值，比如 -1。
-          # 你的Java代码在启动时会联网获取最新的信息，所以这个值不影响最终的“版本”命令显示。
-          # 它只在“更新”命令中用于比较，而 release_id 不同就足以触发更新了。
-          ASSET_ID='-1' 
-
           if [ -z "$RELEASE_ID" ]; then
             echo "Error: Could not determine Release ID."
             exit 1
           fi
 
           echo "Release ID is: $RELEASE_ID"
-          echo "Using temporary Asset ID: $ASSET_ID"
+          echo "Using temporary Asset ID: -1"
           
           # 直接在 target/classes 目录创建文件，这是Maven打包的标准资源路径
           mkdir -p target/classes
           PROPERTIES_FILE="target/classes/release-info.properties"
           echo "github.release.id=$RELEASE_ID" > $PROPERTIES_FILE
-          echo "github.asset.id=$ASSET_ID" >> $PROPERTIES_FILE
+          echo "github.asset.id=-1" >> $PROPERTIES_FILE
           
           echo "Generated $PROPERTIES_FILE content:"
           cat $PROPERTIES_FILE
-      - name: Repackage to 'fat' JAR
-        run: mvn -B spring-boot:repackage --file pom.xml
 
-      - name: Generate release-info.properties
-        id: generate_properties
-        run: |
-          ASSETS_JSON='${{ steps.create_release.outputs.assets }}'
-          JAR_NAME="${{ steps.get_jar_info.outputs.jar_name }}"
-          ASSET_ID=$(echo "$ASSETS_JSON" | jq --arg name "$JAR_NAME" '.[] | select(.name == $name) | .id')
-          RELEASE_ID='${{ steps.create_release.outputs.id }}'
+      # 【关键修改】将 package 和 repackage 合并到一步执行
+      - name: Build 'fat' JAR with Maven
+        run: mvn -B package spring-boot:repackage --file pom.xml
 
-          if [ -z "$RELEASE_ID" ] || [ -z "$ASSET_ID" ] || [ "$ASSET_ID" == "null" ]; then
-            echo "Error: Could not determine Release ID or Asset ID."
-            exit 1
-          fi
-
-          echo "Release ID is: $RELEASE_ID"
-          echo "Asset ID for $JAR_NAME is: $ASSET_ID"
-
-          PROPERTIES_FILE="release-info.properties"
-          echo "github.release.id=$RELEASE_ID" > $PROPERTIES_FILE
-          echo "github.asset.id=$ASSET_ID" >> $PROPERTIES_FILE
-
-          echo "Generated $PROPERTIES_FILE content:"
-          cat $PROPERTIES_FILE
-
-      - name: Inject properties into JAR
-        run: |
-          mkdir -p BOOT-INF/classes/
-          mv release-info.properties BOOT-INF/classes/
-          jar uf ${{ steps.get_jar_info.outputs.jar_path }} -C BOOT-INF/classes/ release-info.properties
-          echo "Injected release-info.properties into ${{ steps.get_jar_info.outputs.jar_path }}"
-
-      - name: Upload final JAR to Release (overwrite)
+      # 【关键修改】最后一步：上传打包好的胖 JAR
+      - name: Upload final 'fat' JAR to Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # 【修改】使用 --clobber 是对的，以防万一有同名文件
-        run: gh release upload latest ${{ steps.get_jar_info.outputs.jar_path }} --clobber
+        run: |
+          JAR_PATH="target/${{ steps.get_project_info.outputs.jar_name }}"
+          echo "Uploading final JAR from path: $JAR_PATH"
+          gh release upload latest "$JAR_PATH" --clobber
