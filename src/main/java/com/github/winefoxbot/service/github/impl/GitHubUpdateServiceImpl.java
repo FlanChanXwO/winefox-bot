@@ -12,7 +12,6 @@ import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
@@ -37,6 +36,7 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
     private final WineFoxBotAppUpdateProperties updateProperties;
     private final OkHttpClient okHttpClient;
     private final ObjectMapper objectMapper;
+
     private VersionInfo currentVersionInfo;
     private static final AtomicBoolean updateInProgress = new AtomicBoolean(false);
 
