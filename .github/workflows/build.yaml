@@ -20,17 +20,26 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Get Project Version and JAR Name
+      - name: Get Project Info
         id: get_project_info
         run: |
-          # 从 pom.xml 中提取版本号
           PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-          # 拼接出最终的 JAR 文件名
-          JAR_NAME="winefox-bot-${PROJECT_VERSION}.jar"
+          # 这是由 pom.xml <finalName> 决定的打包产物名
+          FAT_JAR_NAME="winefox-bot.jar" 
+          # 这是我们希望最终在 Release 页面显示的文件名
+          RELEASE_ASSET_NAME="winefox-bot-${PROJECT_VERSION}.jar"
           echo "project_version=${PROJECT_VERSION}" >> $GITHUB_OUTPUT
-          echo "jar_name=${JAR_NAME}" >> $GITHUB_OUTPUT
-          echo "Project Version: ${PROJECT_VERSION}"
-          echo "Expected JAR Name: ${JAR_NAME}"
+          echo "fat_jar_name=${FAT_JAR_NAME}" >> $GITHUB_OUTPUT
+          echo "release_asset_name=${RELEASE_ASSET_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Build 'fat' JAR with Maven
+        run: mvn -B package spring-boot:repackage --file pom.xml
+
+      - name: List target directory contents (Pre-Upload)
+        run: ls -lh target
+
+      - name: Rename fat JAR for initial upload
+        run: mv "target/${{ steps.get_project_info.outputs.fat_jar_name }}" "target/${{ steps.get_project_info.outputs.release_asset_name }}"
 
       - name: Delete old JAR assets from Release
         env:
@@ -47,53 +56,50 @@ jobs:
             echo "No old .jar assets found to delete."
           fi
 
-      - name: Create/Update Release to get ID
+      # 【关键步骤】上传JAR并创建Release，以获取到 asset_id
+      - name: Create Release and Upload Asset
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           body: "Latest development build, updated at ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          files: "target/${{ steps.get_project_info.outputs.release_asset_name }}"
 
-      - name: Generate and place release-info.properties
+      # 【关键步骤】生成包含正确ID的properties文件
+      - name: Generate final release-info.properties
+        id: generate_properties
         run: |
+          ASSETS_JSON='${{ steps.create_release.outputs.assets }}'
+          JAR_NAME="${{ steps.get_project_info.outputs.release_asset_name }}"
+          # 从返回的assets json中找到我们上传的jar，并提取其id
+          ASSET_ID=$(echo "$ASSETS_JSON" | jq --arg name "$JAR_NAME" '.[] | select(.name == $name) | .id')
           RELEASE_ID='${{ steps.create_release.outputs.id }}'
-          if [ -z "$RELEASE_ID" ]; then
-            echo "Error: Could not determine Release ID."
+
+          if [ -z "$RELEASE_ID" ] || [ -z "$ASSET_ID" ] || [ "$ASSET_ID" == "null" ]; then
+            echo "Error: Could not determine Release ID or Asset ID."
             exit 1
           fi
 
-          echo "Release ID is: $RELEASE_ID"
-          echo "Using temporary Asset ID: -1"
-          
-          # 直接在 target/classes 目录创建文件，这是Maven打包的标准资源路径
-          mkdir -p target/classes
-          PROPERTIES_FILE="target/classes/release-info.properties"
+          echo "Final Release ID is: $RELEASE_ID"
+          echo "Final Asset ID for $JAR_NAME is: $ASSET_ID"
+
+          PROPERTIES_FILE="release-info.properties"
           echo "github.release.id=$RELEASE_ID" > $PROPERTIES_FILE
-          echo "github.asset.id=-1" >> $PROPERTIES_FILE
+          echo "github.asset.id=$ASSET_ID" >> $PROPERTIES_FILE
           
-          echo "Generated $PROPERTIES_FILE content:"
+          echo "Generated final $PROPERTIES_FILE content:"
           cat $PROPERTIES_FILE
 
-      - name: Build 'fat' JAR with Maven
-        run: mvn -B package spring-boot:repackage --file pom.xml
-
-      - name: List target directory contents
+      # 【关键步骤】将properties文件注入到已有的JAR中
+      - name: Inject properties into JAR
         run: |
-          echo "--- Contents of target directory ---"
-          ls -lh target
+          JAR_PATH="target/${{ steps.get_project_info.outputs.release_asset_name }}"
+          # 使用 'jar uf' 命令更新JAR包内容
+          jar uf "$JAR_PATH" -C . "release-info.properties"
+          echo "Injected final release-info.properties into $JAR_PATH"
 
-      - name: Upload final 'fat' JAR to Release
+      # 【关键步骤】用注入了正确ID的JAR，覆盖上传Release中的文件
+      - name: Overwrite Release Asset with final JAR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # 1. 定义我们期望的最终文件名（胖JAR）
-          FAT_JAR_NAME="winefox-bot.jar"
-          FAT_JAR_PATH="target/${FAT_JAR_NAME}"
-
-          # 2. 将胖JAR重命名为带版本号的文件，这更规范
-          mv "$FAT_JAR_PATH" "target/${{ steps.get_project_info.outputs.jar_name }}"
-          
-          # 3. 定义新的路径，并上传
-          FINAL_JAR_PATH="target/${{ steps.get_project_info.outputs.jar_name }}"
-          echo "Uploading final JAR from path: $FINAL_JAR_PATH"
-          gh release upload latest "$FINAL_JAR_PATH" --clobber
+        run: gh release upload latest "target/${{ steps.get_project_info.outputs.release_asset_name }}" --clobber
