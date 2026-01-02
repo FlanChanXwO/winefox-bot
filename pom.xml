@@ -15,7 +15,6 @@
 
     <name>winefox-bot</name>
 
-
     <properties>
         <skipTests>true</skipTests>
         <java.version>21</java.version>
@@ -39,6 +38,7 @@
         <playwright.version>1.43.0</playwright.version>
         <commons-compress.version>1.28.0</commons-compress.version>
     </properties>
+
     <dependencies>
         <!-- spring web 依赖 -->
         <dependency>
