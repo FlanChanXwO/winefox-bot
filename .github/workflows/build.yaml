@@ -68,7 +68,25 @@ jobs:
           jar uf ${{ steps.get_jar_info.outputs.jar_path }} -C BOOT-INF/classes/ release-info.properties
           echo "Injected release-info.properties into ${{ steps.get_jar_info.outputs.jar_path }}"
 
+      - name: Delete old JAR assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Searching for old .jar assets in 'latest' release to delete them..."
+          gh release download latest --pattern "*.jar" --skip-existing || echo "No old JARs to download/delete, continuing."
+          
+          OLD_JARS=$(ls *.jar 2>/dev/null)
+          if [ -n "$OLD_JARS" ]; then
+            echo "Found old JARs to delete:"
+            echo "$OLD_JARS"
+            gh release delete-asset latest $OLD_JARS --yes
+            echo "Successfully deleted old JAR assets."
+          else
+            echo "No old .jar assets found to delete."
+          fi
+
       - name: Upload final JAR to Release (overwrite)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # 【修改】使用 --clobber 是对的，以防万一有同名文件
         run: gh release upload latest ${{ steps.get_jar_info.outputs.jar_path }} --clobber
