@@ -86,6 +86,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          JAR_PATH="target/${{ steps.get_project_info.outputs.jar_name }}"
-          echo "Uploading final JAR from path: $JAR_PATH"
-          gh release upload latest "$JAR_PATH" --clobber
+          # 1. 定义我们期望的最终文件名（胖JAR）
+          FAT_JAR_NAME="winefox-bot.jar"
+          FAT_JAR_PATH="target/${FAT_JAR_NAME}"
+
+          # 2. 将胖JAR重命名为带版本号的文件，这更规范
+          mv "$FAT_JAR_PATH" "target/${{ steps.get_project_info.outputs.jar_name }}"
+          
+          # 3. 定义新的路径，并上传
+          FINAL_JAR_PATH="target/${{ steps.get_project_info.outputs.jar_name }}"
+          echo "Uploading final JAR from path: $FINAL_JAR_PATH"
+          gh release upload latest "$FINAL_JAR_PATH" --clobber
