@@ -1,10 +1,10 @@
 package com.github.winefoxbot.utils;
 
-import cn.hutool.extra.spring.SpringUtil;
 import com.github.winefoxbot.model.dto.MessageSegment;
 import com.github.winefoxbot.model.dto.shiro.GroupMemberInfo;
 import com.github.winefoxbot.model.enums.GroupMemberRole;
 import com.github.winefoxbot.model.enums.MessageType;
+import com.github.winefoxbot.model.enums.SessionType;
 import com.google.gson.*;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.action.common.ActionData;
@@ -423,5 +423,30 @@ public final class BotUtils {
 
     public static Long getSessionId(PrivateMessageEvent event) {
         return event.getUserId();
+    }
+
+
+    public static String getSessionIdWithPrefix(AnyMessageEvent event) {
+        return switch (MessageType.fromValue(event.getMessageType())) {
+            case PRIVATE -> "p_" + event.getUserId();
+            case GROUP -> "g_" + event.getGroupId();
+        };
+    }
+
+    public static SessionType checkStrictSessionIdType(String sessionIdWithPrefix) {
+        if (sessionIdWithPrefix == null || sessionIdWithPrefix.isEmpty()) {
+            throw new IllegalArgumentException("Session ID cannot be null or empty");
+        }
+        if (sessionIdWithPrefix.startsWith("g_")) {
+            return SessionType.GROUP;
+        } else if (sessionIdWithPrefix.startsWith("p_")) {
+            return SessionType.PRIVATE;
+        } else {
+            throw new IllegalArgumentException("Invalid Session ID format: " + sessionIdWithPrefix);
+        }
+    }
+
+    public static Long removeSessionIdPrefix(String sessionIdWithPrefix) {
+        return Long.parseLong(sessionIdWithPrefix.substring(2));
     }
 }

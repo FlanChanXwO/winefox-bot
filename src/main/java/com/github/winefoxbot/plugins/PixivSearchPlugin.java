@@ -6,8 +6,10 @@ import com.github.winefoxbot.model.dto.pixiv.PixivSearchParams;
 import com.github.winefoxbot.model.dto.pixiv.PixivSearchResult;
 import com.github.winefoxbot.model.enums.Permission;
 import com.github.winefoxbot.model.enums.PixivArtworkType;
+import com.github.winefoxbot.model.enums.SessionType;
 import com.github.winefoxbot.service.pixiv.PixivSearchService;
 import com.github.winefoxbot.service.pixiv.PixivService;
+import com.github.winefoxbot.utils.BotUtils;
 import com.github.winefoxbot.utils.DocxUtil;
 import com.github.winefoxbot.utils.FileUtil;
 import com.github.winefoxbot.utils.PdfUtil;
@@ -43,6 +45,7 @@ import java.util.stream.Collectors;
 
 import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_PREFIX_REGEX;
 import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_SUFFIX_REGEX;
+import static com.github.winefoxbot.utils.BotUtils.*;
 import static com.mikuac.shiro.core.BotPlugin.MESSAGE_BLOCK;
 import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
 
@@ -79,13 +82,6 @@ public class PixivSearchPlugin {
             this.event = event;
             this.initiatorUserId = event.getUserId(); // 在构造时记录发起者
         }
-    }
-
-    private String getSessionId(AnyMessageEvent event) {
-        if (event.getGroupId() != null) {
-            return "group_" + event.getGroupId();
-        }
-        return "private_" + event.getUserId();
     }
 
     @Async
@@ -132,7 +128,7 @@ public class PixivSearchPlugin {
     @Order(1)
     @MessageHandlerFilter(types = MsgTypeEnum.text)
     public Future<Integer> handleSearchResultInteraction(Bot bot, AnyMessageEvent event) {
-        String sessionId = getSessionId(event);
+        String sessionId = getSessionIdWithPrefix(event);
         LastSearchResult lastSearch = lastSearchResultMap.get(sessionId);
 
         // 条件1: 如果没有活跃会话，忽略消息
@@ -164,7 +160,13 @@ public class PixivSearchPlugin {
 
         if (isExit) {
             clearSession(sessionId);
-            bot.sendMsg(event, "已退出当前搜索会话。", false);
+            String tipMessage = "已退出当前搜索会话";
+            SessionType sessionType = checkStrictSessionIdType(sessionId);
+            String quitMessage = switch (sessionType) {
+                case GROUP -> MsgUtils.builder().at(removeSessionIdPrefix(sessionId)).text(" " + tipMessage).build();
+                case PRIVATE -> MsgUtils.builder().text(tipMessage).build();
+            };
+            bot.sendMsg(event, quitMessage, false);
             return CompletableFuture.completedFuture(MESSAGE_BLOCK);// 退出后，阻塞消息，防止其他插件响应
         }
 
@@ -359,7 +361,7 @@ public class PixivSearchPlugin {
         bot.sendMsg(event, "正在搜索，请稍候...", false);
         try {
             PixivSearchResult result = pixivSearchService.search(params);
-            String sessionId = getSessionId(event);
+            String sessionId = getSessionIdWithPrefix(event);
             if (result != null && result.getScreenshot() != null && result.getTotalArtworks() > 0) {
                 lastSearchResultMap.put(sessionId, new LastSearchResult(params, result, event));
                 resetSessionTimeout(bot, sessionId); // 设置/重置超时
@@ -408,9 +410,15 @@ public class PixivSearchPlugin {
             LastSearchResult removedSearch = lastSearchResultMap.remove(sessionId);
             if (removedSearch != null) {
                 // 只有成功移除了会话（意味着在此期间没有其他操作清除它），才发送超时消息。
+                SessionType sessionType = checkStrictSessionIdType(sessionId);
                 sessionTimeoutTasks.remove(sessionId); // 确保超时任务映射也被清理
+                String tipMessage = "Pixiv搜索会话已超时，请重新发起搜索。";
                 log.info("Pixiv搜索会话 [{}] 因超时已自动结束。", sessionId);
-                bot.sendMsg(removedSearch.event, "Pixiv搜索会话已超时，请重新发起搜索。", true);
+                String message = switch (sessionType) {
+                    case GROUP -> MsgUtils.builder().at(removeSessionIdPrefix(sessionId)).text(" " + tipMessage).build();
+                    case PRIVATE -> MsgUtils.builder().text(tipMessage).build();
+                };
+                bot.sendMsg(removedSearch.event, message, false);
             }
             // 如果 removedSearch 是 null，说明会话已经被其他操作（如 '退出' 或新的交互）清除了，此时就不该发送超时消息。
         }, SESSION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
