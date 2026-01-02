@@ -21,7 +21,7 @@ jobs:
           cache: maven
 
       - name: Build with Maven
-        run: mvn -B package --file pom.xml
+        run: mvn -B clean package spring-boot:repackage --file pom.xml
 
       - name: Get JAR name and path
         id: get_jar_info
