@@ -1,7 +1,7 @@
 package com.github.winefoxbot.service.qqgroup;
 
-import com.github.winefoxbot.model.entity.QQGroupAddRequestBlockedUsers;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.github.winefoxbot.model.entity.QQGroupAddRequestBlockedUsers;
 
 /**
 * @author FlanChan

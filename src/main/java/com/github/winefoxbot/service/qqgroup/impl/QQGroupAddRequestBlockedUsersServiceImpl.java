@@ -1,9 +1,9 @@
 package com.github.winefoxbot.service.qqgroup.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.github.winefoxbot.mapper.QQGroupAddRequestBlockedUsersMapper;
 import com.github.winefoxbot.model.entity.QQGroupAddRequestBlockedUsers;
 import com.github.winefoxbot.service.qqgroup.QQGroupAddRequestBlockedUsersService;
-import com.github.winefoxbot.mapper.QQGroupAddRequestBlockedUsersMapper;
 import org.springframework.stereotype.Service;
 
 /**

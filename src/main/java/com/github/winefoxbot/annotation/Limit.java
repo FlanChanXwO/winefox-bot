@@ -1,6 +1,6 @@
 package com.github.winefoxbot.annotation;
 
-import com.github.winefoxbot.exception.RateLimitException;
+import com.github.winefoxbot.exception.bot.RateLimitException;
 
 import java.lang.annotation.*;
 

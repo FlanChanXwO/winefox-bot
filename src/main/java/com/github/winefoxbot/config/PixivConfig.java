@@ -7,9 +7,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 
-import java.io.File;
-import java.util.List;
-
 /**
  * @author FlanChan (badapple495@outlook.com)
  * @since 2025-12-09-15:33

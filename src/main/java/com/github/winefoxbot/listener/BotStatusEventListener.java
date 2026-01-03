@@ -1,9 +1,9 @@
 package com.github.winefoxbot.listener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.winefoxbot.config.app.WineFoxBotConfig;
 import com.github.winefoxbot.config.app.WineFoxBotProperties;
 import com.github.winefoxbot.model.dto.core.RestartInfo;
+import com.github.winefoxbot.model.enums.MessageType;
 import com.github.winefoxbot.service.github.GitHubUpdateService;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.CoreEvent;
@@ -26,15 +26,12 @@ public class BotStatusEventListener extends CoreEvent {
 
 
     private final WineFoxBotProperties wineFoxBotProperties;
-    // --- 新增依赖注入 ---
     private final ObjectMapper objectMapper;
     private final GitHubUpdateService updateService;
 
     private static final String RESTART_INFO_FILE = "restart-info.json";
     // 添加一个标志位，确保重启通知只被发送一次
     private final AtomicBoolean restartNoticeSent = new AtomicBoolean(false);
-
-
     @Override
     public void online(Bot bot) {
         // 1. 首先，执行原来的上线通知逻辑
@@ -78,10 +75,10 @@ public class BotStatusEventListener extends CoreEvent {
             // 格式化最终消息
             String finalMessage = restartInfo.getSuccessMessage()
                     .replace("{duration}", String.format("%.2f秒", durationSeconds))
-                    .replace("{version}", currentVersion);
+                    .replace("{version}",wineFoxBotProperties.getVersion() + " " + currentVersion);
 
             // 发送消息
-            if ("group".equals(restartInfo.getMessageType())) {
+            if (MessageType.GROUP.equals(restartInfo.getMessageType())) {
                 bot.sendGroupMsg(restartInfo.getTargetId(), finalMessage, false);
                 log.info("已向群 {} 发送重启成功通知", restartInfo.getTargetId());
             } else {

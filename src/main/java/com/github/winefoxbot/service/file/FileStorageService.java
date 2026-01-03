@@ -2,19 +2,35 @@ package com.github.winefoxbot.service.file;
 
 import com.github.winefoxbot.model.dto.file.FileRecord;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
  * 统一文件存储服务接口，用于解耦具体的文件存储实现（如本地文件系统、对象存储等）。
  */
 public interface FileStorageService {
+    /**
+     * 根据缓存键获取文件的本地路径。
+     * @param cacheKey 缓存键
+     * @return 文件的 Path 对象，如果文件不存在或已过期，则返回 null
+     */
+    Path getFilePathByCacheKey(String cacheKey);
+
+    /**
+     * 将输入流保存到由缓存键决定的路径，并设置过期时间。
+     * @param cacheKey 缓存键
+     * @param inputStream 要保存的输入流
+     * @param expireAfter 过期时长
+     * @return 存储文件的绝对路径
+     * @throws IOException 写入失败
+     */
+    Path saveFileByCacheKey(String cacheKey, InputStream inputStream, Duration expireAfter) throws IOException;
+
+
     /**
         * 根据缓存键获取文件内容。
         *

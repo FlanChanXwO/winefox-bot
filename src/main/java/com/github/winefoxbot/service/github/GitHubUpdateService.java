@@ -2,8 +2,9 @@ package com.github.winefoxbot.service.github;
 
 import com.github.winefoxbot.model.dto.core.RestartInfo;
 import com.github.winefoxbot.model.dto.github.GitHubRelease;
+import com.mikuac.shiro.core.Bot;
+import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import lombok.Data;
-import lombok.ToString;
 
 /**
  * @author FlanChan (badapple495@outlook.com)
@@ -16,18 +17,20 @@ public interface GitHubUpdateService {
 
     GitHubRelease.Asset findJarAsset(GitHubRelease.Asset[] assets);
 
-    void performUpdate() throws Exception;
+    void performUpdate(Bot bot, AnyMessageEvent event) throws Exception;
 
     void restartApplication();
 
     void saveRestartInfo(RestartInfo restartInfo);
 
     @Data
-    @ToString
     class VersionInfo {
-        public String name;
-        public String tagName;
         public long releaseId = -1;
         public long assetId = -1;
+
+        @Override
+        public String toString() {
+            return "(Release ID: %d | Asset Id：%d)".formatted(releaseId,assetId);
+        }
     }
 }

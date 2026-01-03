@@ -4,7 +4,7 @@ import com.github.winefoxbot.annotation.PluginFunction;
 import com.github.winefoxbot.config.HelpDocConfiguration;
 import com.github.winefoxbot.model.dto.helpdoc.HelpData;
 import com.github.winefoxbot.model.dto.helpdoc.HelpDoc;
-import com.github.winefoxbot.model.dto.helpdoc.HelpGroup; // [新增] 导入HelpGroup
+import com.github.winefoxbot.model.dto.helpdoc.HelpGroup;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.aop.support.AopUtils;
@@ -53,7 +53,7 @@ public class HelpDocLoader {
         log.info("Help documents loading finished. Total {} group(s) after merging.", groupedDocs.size());
     }
 
-    // [修改] addDoc 方法现在需要分组名作为参数
+
     private void addDoc(String groupName, HelpDoc doc) {
         groupedDocs.computeIfAbsent(groupName, k -> new ArrayList<>()).add(doc);
     }

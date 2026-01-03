@@ -1,41 +1,97 @@
+# ===============================================================
+#               内部配置文件 (application.yml)
+#    此文件包含应用核心配置，可以安全地提交到版本控制系统 (Git)
+# ===============================================================
+
 spring:
-  config:
-    import: classpath:config/common.yaml,classpath:config/ai.yaml,classpath:config/database.yaml,classpath:config/app.yaml
+  # 激活外部/敏感配置文件，命名为 application-secret.yml
+  profiles:
+    include: secret
+  application:
+    name: wine-fox-bot-app
+  threads:
+    virtual:
+      enabled: true
+  cache:
+    type: caffeine # 指定缓存类型为 caffeine
+    caffeine:
+      spec: > # 使用 spec 字符串进行详细配置
+        maximumSize=500,
+        expireAfterWrite=10m
+  main:
+    lazy-initialization: false
+  sql:
+    init:
+      # 开启/关闭数据库初始化 (always, embedded, never)
+      mode: always
+      # 如果初始化过程中发生错误，是否继续。建议设置为 false，以便及时发现问题。
+      continue-on-error: false
+      schema-locations: classpath:db/schema-postgres.sql
+  datasource:
+    # 数据库驱动和连接池配置
+    type: com.zaxxer.hikari.HikariDataSource
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      auto-commit: true
+      connection-timeout: 30000
+      maximum-pool-size: 10
   ai:
-    deepseek:
-      api-key: sk-deepseek
-      base-url: http://111.228.60.179:5001
+    openai:
       chat:
         options:
+          # AI模型名称可以在这里定义，如果API Key和URL是外部的
           model: deepseek-chat-search
         completions-path: /v1/chat/completions
 
-    openai:
-      api-key: sk-4nU9k3QyVpX7wJgRz2t5sD1mA8oF6iE
-      base-url: http://111.228.60.179:5002
-      chat:
-        options:
-          model: grok-4.1
-        completions-path: /v1/chat/completions
+
+setu:
+  api:
+    # 1. 基础信息
+    url: "https://api.lolicon.app/setu/v2"
+    # 响应类型：有json和image两种可选
+    response-type: json
+    # jsonPath 表达式，用于从 API 响应中提取图片 URL
+    json-path: "$.data[0].urls.original"
+
+    # 2. API 查询参数配置
+    params:
+      # 获取图片数量的参数
+      # 对应的 URL 参数: num=1
+      num:
+        key: "num"
+        value: "1"
+
+      # 排除 AI 作品的参数
+      # 对应的 URL 参数: excludeAI=true
+      excludeAI:
+        key: "excludeAI"
+        value: "true"
+
+      # 按标签搜索的参数
+      # 对应的 URL 参数: tag=... (值是动态的，这里只定义 key)
+      tag:
+        key: "tag"
+        # value: "" # 值是动态传入的，可以不配置或留空
+      # R18 (成人内容) 开关参数
+      # 开启时 URL 参数: r18=1
+      # 关闭时 URL 参数: r18=0
+      r18:
+        key: "r18"
+        true-value: "1"
+        false-value: "0"
+
+# B站解析功能配置
 analysis-bilibili:
   analysisDisplayImage: true
-  cookie: "DedeUserID=184855403; DedeUserID__ckMd5=3a6d20f08e15f77f; buvid3=8FA8E6C6-0F96-D50C-19DB-743CCAEA6EE460613infoc; b_nut=1740681360; _uuid=E2CFD8C4-E71B-41CA-B62A-FA9A4881064B606830infoc; enable_feed_channel=ENABLE; rpdid=|(um)~)mYlu)0J'u~RY|)mYkk; header_theme_version=OPEN; theme-tip-show=SHOWED; theme-avatar-tip-show=SHOWED; enable_web_push=DISABLE; LIVE_BUVID=AUTO4017545563797109; hit-dyn-v2=1; buvid4=B90D76E2-9AE5-DE06-8076-B2380FC3760747741-024022818-fb7bJd7o675CZU9juZfO+w%3D%3D; CURRENT_QUALITY=80; buvid_fp=30e81eb6c95de83de5d9804edd74665d; bili_ticket=eyJhbGciOiJIUzI1NiIsImtpZCI6InMwMyIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NjUwMTk2NTcsImlhdCI6MTc2NDc2MDM5NywicGx0IjotMX0.2UaoyFzIEgX1mk27injL1xfaj5co5cT7JvKB-1iE6fs; bili_ticket_expires=1765019597; home_feed_column=5; SESSDATA=891cbf26%2C1780401516%2Ce9782%2Ac1CjAbJ5H3PX0UR_itDEccECnOkIkSSZzNW5Kd-ndPJ7SIJKf4vwppsovAw3-0S4VnHz4SVmwzV1FLUzFiUGFOMUtvWThwN0F0aDBlX2NPQ1BOdWwzWWVlR0MxdkNYYkhwSjk3ald0V0FIbFBNZ3VuNzM0cUV3ZGhHTi1xRVJJbFdnVUUtZ3lJUGhRIIEC; bili_jct=9ca778a8b98b7694d739771ebd2fd999; browser_resolution=2280-1148; sid=8mszusrl; bp_t_offset_184855403=1143205764597284864; ogv_device_support_hdr=0; PVID=2; CURRENT_FNVAL=4048; b_lsid=1A64D97C_19AF328C264"
   enable: true
   reanalysisTimeSeconds: 10
   skipVideoAnalysis: false
+
+# 服务器端口
 server:
   port: 5000
-winefox:
-  bot:
-    - 1357811947
-    - 2508804038
-  superusers:
-    - 3085974224
 
-webdriver:
-  edgeDriverPath: S:\Program Files\WebDriver\edgedriver_win64\msedgedriver.exe
-  edgeBinaryPath: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
-
+# 网络代理配置
 okhttp:
   proxy:
     type: socks5
@@ -47,15 +103,60 @@ okhttp:
       - api.lolicon.app
       - i.pixiv.re
       - q2.qlogo.cn
-shiro:
-  ws:
-    access-token: suCiTU_{o.JSGeq<
-    timeout: 30
-  pluginScanPath: "plugins"
+
+# 日志级别
 logging:
   level:
     root: info
-pixiv:
-  cookie: privacy_policy_notification=0; a_type=0; b_type=0; privacy_policy_agreement=7; _im_vid=01JH8HFZPRQR4R4TF5V784V4JZ; jp1_ad_freq={}; jp1_et_freq={"2330":[0,1740157565578],"2504":[0,1740164758866]}; first_visit_datetime_pc=2025-05-02%2021%3A09%3A57; p_ab_id=5; p_ab_id_2=0; p_ab_d_id=70193067; yuid_b=YBhldiA; c_type=22; _ga_MZ1NL4PHH0=GS1.1.1746189286.3.0.1746189292.0.0.0; _ga=GA1.1.1229700614.1736527128; street_tutorial_desktop=1; login_ever=yes; PHPSESSID=25649510_hrDTVtO8QcSJYRlFVtwi0AVFS8bQsF1s; device_token=45e6b194be6fb5b1a689c5d7253037e7; _ga_75BBYNYN9J=GS2.1.s1765800079$o43$g1$t1765800084$j55$l0$h0; __cf_bm=ZeuvL3.V0q0NfMFC_2A8wyom2pyRxT7r8cf45haBspI-1765888276-1.0.1.1-p2dWvpkzPf9_uksWKAOqtfrprnsxELXblUOyrA_fjOTsB7cwJxDjfxiDVdQRVeU.MQEW4DNYZiVHoaNCNVoMHs7RZnnsVWKFYTQcxp8AC9Fq0HL6JofXRiejW3w8Dq5l; _cfuvid=e17B0JX_HwjJbx015Pz1r.Tln4PqJ_ZyeIZPSrcA.a0-1765888276451-0.0.1.1-604800000; cf_clearance=p3g_.Vc8YFwmSygZHM56lhlu2lEQnSJ34r50Gex9KNQ-1765888281-1.2.1.1-MxG0KK3yUkbzuwCGZsR9sYjOzDaclff0zaxlxtRsFqCet.cjn5c8Av5wSBnQ6OioXdt_fJv.mLslqL5utgLbDycqAPrQpz5ImFBLK2Z3lEXLaKqzd7uhf5dyPGd4VqQJw6DOhi5xXIDZL0hpEnWQToz81vINX6tSEZEKOZYqQB6n.xS_1H4yziHysRbUvDt_1D4jmBbSgzI0_X8qwuNtlb7nS2nkL.9I06dPHr_d.Aw
-  PAb-id: 5
-  php-sess-id: 25649510_hrDTVtO8QcSJYRlFVtwi0AVFS8bQsF1s
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  mapper-locations: classpath:/mapper/**/*.xml
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+    map-underscore-to-camel-case: true
+  type-aliases-package: com.github.winefoxbot.model.entity
+  type-aliases-super-type: java.lang.Object
+  global-config:
+    db-config:
+      update-strategy: always
+      insert-strategy: always
+
+# 应用自身配置
+winefox:
+  app:
+    version: @project.version@
+    update:
+      # GitHub仓库地址和JAR包名通常是固定的
+      github-repo: "FlanChanXwO/winefox-bot"
+      current-jar-name: "winefox-bot.jar"
+      github-api-url: "https://api.github.com/repos/{repo}/releases/tags/{tag}"
+      release-tag: "latest"
+
+# Shiro 框架配置
+shiro:
+  pluginScanPath: "plugins"
+  task-pool:
+    enable-task-pool: false
+  ws:
+    timeout: 30
+    server:
+      url: /ws/shiro
+      enable: true
+    client:
+      reconnect-interval: 5
+  interceptor: com.github.winefoxbot.aop.interceptor.BotReceiveMsgInterceptor
+
+# JobRunr 任务调度配置
+jobrunr:
+  background-job-server:
+    enabled: true
+    thread-type: virtualthreads
+    poll-interval-in-seconds: 5
+  job-scheduler:
+    enabled: true
+  dashboard:
+    enabled: true
+    port: 8000
+  jobs:
+    default-number-of-retries: 5

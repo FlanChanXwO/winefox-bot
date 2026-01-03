@@ -18,8 +18,7 @@ import java.net.URI;
 import java.nio.file.*;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
@@ -53,6 +52,36 @@ public class LocalStorageService implements FileStorageService {
     @PreDestroy
     public void shutdown() {
         saveRecords(); // 应用关闭时保存记录~
+    }
+
+
+    @Override
+    public Path getFilePathByCacheKey(String cacheKey) {
+        Path filePath = resolveSecurely(cacheKey);
+
+        // 首先检查文件是否存在于文件系统
+        if (Files.notExists(filePath)) {
+            return null;
+        }
+
+        // 然后检查文件记录是否存在且未过期
+        FileRecord record = fileRecords.get(filePath.toAbsolutePath().toUri().toString());
+        if (record != null) {
+            Instant now = Instant.now();
+            if (record.getExpireTime() != null && record.getExpireTime().isBefore(now)) {
+                log.info("Cache for key '{}' expired at {}. Returning null path.", cacheKey, record.getExpireTime());
+                // 依赖定时任务清理，这里只返回null
+                return null;
+            }
+        }
+        // 如果记录不存在但文件存在（可能重启后），暂时认为有效
+        return filePath;
+    }
+
+    @Override
+    public Path saveFileByCacheKey(String cacheKey, InputStream inputStream, Duration expireAfter) throws IOException {
+        // 直接复用 writeFile 方法
+        return writeFile(cacheKey, inputStream, expireAfter, null);
     }
 
     @Override
@@ -306,36 +335,45 @@ public class LocalStorageService implements FileStorageService {
                 if (json.isBlank()) {
                     return;
                 }
-                // 使用您已经定义的 FileRecord 类型
-                List<FileRecord> loadedRecords = objectMapper.readValue(json, new TypeReference<List<FileRecord>>() {});
+                List<FileRecord> loadedRecords = objectMapper.readValue(json, new TypeReference<>() {});
                 Instant now = Instant.now();
                 boolean recordsChanged = false;
+
+                // 用于收集被删除文件所在的父目录，以便后续检查是否为空
+                Set<Path> parentDirectoriesToCheck = new HashSet<>();
 
                 for (FileRecord record : loadedRecords) {
                     try {
                         Path path = Paths.get(record.getAbsolutePath());
+                        Path parentDir = path.getParent(); // 获取父目录
+
                         boolean fileExists = Files.exists(path);
                         boolean isExpired = record.getExpireTime() != null && record.getExpireTime().isBefore(now);
 
                         // 条件1: 文件不存在了
                         if (!fileExists) {
                             log.info("File not found. Removing stale record on startup: {}", record.getAbsolutePath());
-                            recordsChanged = true; // 标记记录需要更新
+                            recordsChanged = true;
+                            if (parentDir != null) {
+                                parentDirectoriesToCheck.add(parentDir);
+                            }
                         }
                         // 条件2: 文件存在但已过期
                         else if (isExpired) {
                             try {
                                 Files.delete(path);
                                 log.info("Deleted expired file on startup: {}", path);
+                                if (parentDir != null) {
+                                    parentDirectoriesToCheck.add(parentDir);
+                                }
                             } catch (IOException e) {
                                 log.error("Failed to delete expired file on startup: {}", path, e);
                             }
                             log.info("File expired. Removing record on startup: {}", record.getAbsolutePath());
-                            recordsChanged = true; // 标记记录需要更新
+                            recordsChanged = true;
                         }
                         // 条件3: 文件存在且未过期 -> 是有效文件
                         else {
-                            // 重新填充到内存 map
                             record.setOnDeleteCallback(p -> log.warn("Callback for {} was lost on restart.", p));
                             fileRecords.put(record.getAbsolutePath().toString(), record);
                         }
@@ -346,8 +384,17 @@ public class LocalStorageService implements FileStorageService {
 
                 log.info("Loaded {} valid file records from {}. Stale/expired records cleaned up.", fileRecords.size(), recordFilePath);
 
+                // 在保存记录之前，检查并删除空的父目录
+                if (!parentDirectoriesToCheck.isEmpty()) {
+                    log.info("Checking {} directories for potential cleanup on startup.", parentDirectoriesToCheck.size());
+                    for (Path dir : parentDirectoriesToCheck) {
+                        cleanupEmptyParentDirectories(dir);
+                    }
+                }
+
                 if (recordsChanged) {
-                    saveRecords(); // 如果有记录被清理，立即重写记录文件
+                    // 我们只保存有效的记录，所以这里保存的是 fileRecords 的内容
+                    saveRecords();
                 }
 
             } catch (IOException e) {
@@ -355,6 +402,123 @@ public class LocalStorageService implements FileStorageService {
             }
         }
     }
+
+    /**
+     * 定时任务，周期性地清理无效的文件记录和对应的物理文件。
+     * 这确保了即使应用程序长时间运行，过期的和已被外部删除的文件记录也能被正确处理。
+     */
+    @Scheduled(fixedRate = 3600000) // 每小时检查一次 (3600 * 1000 ms)
+    public void clearInvalidFiles() {
+        log.info("Starting scheduled cleanup of file records...");
+        Instant now = Instant.now();
+        boolean recordsChanged = false;
+
+        // 用于收集被删除文件所在的父目录，以便后续检查是否为空
+        Set<Path> parentDirectoriesToCheck = new HashSet<>();
+
+        // 使用迭代器遍历 ConcurrentHashMap 是线程安全的做法
+        Iterator<Map.Entry<String, FileRecord>> iterator = fileRecords.entrySet().iterator();
+
+        while (iterator.hasNext()) {
+            Map.Entry<String, FileRecord> entry = iterator.next();
+            FileRecord record = entry.getValue();
+            Path path = Paths.get(record.getAbsolutePath());
+
+            // 获取文件的父目录
+            Path parentDir = path.getParent();
+
+            boolean fileExists = Files.exists(path);
+            boolean isExpired = record.getExpireTime() != null && record.getExpireTime().isBefore(now);
+
+            // 条件1: 文件在外部被删除了，但记录还存在
+            if (!fileExists) {
+                log.info("File not found during scheduled check. Removing stale record: {}", record.getAbsolutePath());
+                iterator.remove(); // 从 map 中安全地移除当前记录
+                recordsChanged = true;
+                if (parentDir != null) {
+                    parentDirectoriesToCheck.add(parentDir);
+                }
+            }
+            // 条件2: 文件存在但已过期
+            else if (isExpired) {
+                log.info("File expired during scheduled check. Removing record: {}", record.getAbsolutePath());
+                try {
+                    Files.delete(path);
+                    log.info("Deleted expired file: {}", path);
+                    if (parentDir != null) {
+                        parentDirectoriesToCheck.add(parentDir);
+                    }
+                } catch (IOException e) {
+                    log.error("Failed to delete expired file during scheduled check: {}", path, e);
+                }
+                iterator.remove(); // 无论删除成功与否，都移除记录
+                recordsChanged = true;
+            }
+            // 文件有效，无需处理
+        }
+
+        // 清理完成后，检查并删除空的父目录
+        if (!parentDirectoriesToCheck.isEmpty()) {
+            log.info("Checking {} directories for potential cleanup.", parentDirectoriesToCheck.size());
+            for (Path dir : parentDirectoriesToCheck) {
+                cleanupEmptyParentDirectories(dir);
+            }
+        }
+
+        if (recordsChanged) {
+            log.info("File records were changed during scheduled cleanup. Saving updated records to disk.");
+            saveRecords(); // 如果有记录被清理，则将变更持久化到文件
+        } else {
+            log.info("Scheduled cleanup finished. No invalid file records found.");
+        }
+    }
+
+    /**
+     * 递归地清理空目录。
+     * 它会检查给定目录是否为空，如果是，则删除它，并继续检查其父目录。
+     *
+     * @param directory 要检查的目录路径
+     */
+    private void cleanupEmptyParentDirectories(Path directory) {
+        // 确保我们不会意外地删除根存储目录或其之上的任何目录
+        if (directory == null || !directory.startsWith(storageBasePath) || directory.equals(storageBasePath)) {
+            return;
+        }
+
+        try {
+            // 只有当目录存在且为空时才删除
+            if (Files.isDirectory(directory) && isDirEmpty(directory)) {
+                try {
+                    Files.delete(directory);
+                    log.info("Cleaned up empty directory: {}", directory);
+                    // 递归检查父目录
+                    cleanupEmptyParentDirectories(directory.getParent());
+                } catch (DirectoryNotEmptyException e) {
+                    // 并发情况：在检查和删除之间有新文件被创建，这没问题，记录一下即可
+                    log.warn("Directory {} was not empty upon deletion attempt, likely due to concurrent operations.", directory);
+                } catch (IOException e) {
+                    log.error("Failed to delete empty directory: {}", directory, e);
+                }
+            }
+        } catch (IOException e) {
+            log.error("Error while checking if directory is empty: {}", directory, e);
+        }
+    }
+
+    /**
+     * 检查目录是否为空。
+     * @param directory 目录路径
+     * @return 如果目录为空或不存在，则返回 true
+     * @throws IOException 如果发生 I/O 错误
+     */
+    private boolean isDirEmpty(final Path directory) throws IOException {
+        try (Stream<Path> stream = Files.list(directory)) {
+            // stream.findAny().isEmpty() 在 Java 11+ 中可用
+            // 对于 Java 8, 使用 stream.findFirst().isPresent() 的反义
+            return stream.findFirst().isEmpty();
+        }
+    }
+
 
     private Path resolveSecurely(String relativePath) {
         Path inputPath = Paths.get(relativePath).normalize();

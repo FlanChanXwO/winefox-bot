@@ -1,6 +1,5 @@
 package com.github.winefoxbot.config.ai;
 
-import com.github.winefoxbot.config.app.WineFoxBotConfig;
 import com.github.winefoxbot.config.app.WineFoxBotProperties;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;

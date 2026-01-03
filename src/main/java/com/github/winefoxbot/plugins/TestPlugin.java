@@ -1,6 +1,7 @@
 package com.github.winefoxbot.plugins;
 
 import com.github.winefoxbot.annotation.PluginFunction;
+import com.github.winefoxbot.exception.bot.CommandParseException;
 import com.github.winefoxbot.model.enums.Permission;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
@@ -32,12 +33,18 @@ public class TestPlugin {
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "echo(?:\\s+(\\S+))?" + COMMAND_SUFFIX_REGEX)
     public void echo(Bot bot, AnyMessageEvent event, Matcher matcher) {
-        String messageContent = matcher.group(1);
-        log.info("echo模块 接收到 {}", messageContent);
-        bot.sendMsg(event, MsgUtils.builder()
-                .at(event.getUserId())
-                .text(" " +messageContent)
-                .build(), false);
+            String messageContent = matcher.group(1);
+            log.info("echo模块 接收到 {}", messageContent);
+            bot.sendMsg(event, MsgUtils.builder()
+                    .at(event.getUserId())
+                    .text(" " +messageContent)
+                    .build(), false);
     }
 
+    @PluginFunction(group = "测试", name = "异常测试", description = "回复收到的消息内容", hidden = true, permission = Permission.SUPERADMIN)
+    @AnyMessageHandler
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "throw" + COMMAND_SUFFIX_REGEX)
+    public void exceptionTest(Bot bot, AnyMessageEvent event) {
+        throw new CommandParseException(bot, event,"这是一个测试用的命令解析异常");
+    }
 }

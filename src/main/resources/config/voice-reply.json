@@ -1,0 +1,74 @@
+{
+  "voiceCategories": [
+    {
+      "key": "enter",
+      "path": "enter",
+      "description": "进入语音"
+    },
+    {
+      "key": "error",
+      "path": "error",
+      "description": "发生错误时的语音"
+    },
+    {
+      "key": "farewell",
+      "path": "farewell",
+      "description": "告别语音"
+    },
+    {
+      "key": "greeting_morning",
+      "path": "greeting_morning",
+      "description": "早安问候"
+    },
+    {
+      "key": "greeting_afternoon",
+      "path": "greeting_afternoon",
+      "description": "午安问候"
+    },
+    {
+      "key": "greeting_night",
+      "path": "greeting_night",
+      "description": "晚安问候"
+    },
+    {
+      "key": "leisure",
+      "path": "leisure",
+      "description": "闲置/休闲语音"
+    },
+    {
+      "key": "poke_passive",
+      "path": "poke_passive",
+      "description": "被动戳一戳回应"
+    },
+    {
+      "key": "poke_proactive",
+      "path": "poke_proactive",
+      "description": "主动戳一戳"
+    },
+    {
+      "key": "reply",
+      "path": "reply",
+      "description": "通用回复"
+    },
+    {
+      "key": "setu_error",
+      "path": "setu_error",
+      "description": "涩图功能错误提示"
+    },
+    {
+      "key": "startup",
+      "path": "startup",
+      "description": "启动语音"
+    },
+    {
+      "key": "success",
+      "path": "success",
+      "description": "操作成功语音"
+    },
+    {
+      "key": "welcome",
+      "path": "welcome",
+      "description": "欢迎新成员"
+    }
+  ]
+}

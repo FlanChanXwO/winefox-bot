@@ -1,9 +1,9 @@
 package com.github.winefoxbot.service.qqgroup.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.github.winefoxbot.mapper.QQGroupAutoHandleAddRequestFeatureConfigMapper;
 import com.github.winefoxbot.model.entity.QQGroupAutoHandleAddRequestFeatureConfig;
 import com.github.winefoxbot.service.qqgroup.QQGroupAutoHandleAddRequestFeatureConfigService;
-import com.github.winefoxbot.mapper.QQGroupAutoHandleAddRequestFeatureConfigMapper;
 import org.springframework.stereotype.Service;
 
 /**

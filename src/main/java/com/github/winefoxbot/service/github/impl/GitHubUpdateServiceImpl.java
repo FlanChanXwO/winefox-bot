@@ -5,6 +5,8 @@ import com.github.winefoxbot.config.app.WineFoxBotAppUpdateProperties;
 import com.github.winefoxbot.model.dto.core.RestartInfo;
 import com.github.winefoxbot.model.dto.github.GitHubRelease;
 import com.github.winefoxbot.service.github.GitHubUpdateService;
+import com.mikuac.shiro.core.Bot;
+import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
@@ -67,17 +69,18 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
 
         } catch (IOException | NumberFormatException e) {
             log.error("Failed to read or parse release-info.properties from JAR. Using default error values.", e);
-            this.currentVersionInfo = createDefaultVersion("读取内置版本信息失败");
+            this.currentVersionInfo = createDefaultVersion();
         }
     }
 
     @Override
-    public void performUpdate() throws Exception {
+    public void performUpdate(Bot bot, AnyMessageEvent event) throws Exception {
         if (!updateInProgress.compareAndSet(false, true)) {
             throw new IllegalStateException("更新已经在进行中，请勿重复操作。");
         }
         try {
             log.info("开始检查应用更新...");
+            bot.sendMsg(event, "正在检查更新，请稍候...", false);
             GitHubRelease latestRelease = fetchLatestRelease();
             GitHubRelease.Asset jarAsset = findJarAsset(latestRelease.getAssets());
             if (jarAsset == null) {
@@ -88,10 +91,8 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
             latestVersion.releaseId = latestRelease.getId();
             latestVersion.assetId = jarAsset.getId();
             log.info("检测到最新版本 - Release ID: {}, Asset ID: {}", latestVersion.releaseId, latestVersion.assetId);
-
             VersionInfo currentVersion = getCurrentVersionInfo();
             log.info("当前运行版本 - Release ID: {}, Asset ID: {}", currentVersion.releaseId, currentVersion.assetId);
-
             // 【修复代码】只比较 Release ID。因为 Release ID 相同意味着是同一个版本构建。
             // 由于 CI 流程中覆盖上传会导致 Asset ID 变更，因此不能比较 Asset ID。
             if (latestVersion.releaseId == currentVersion.releaseId) {
@@ -108,8 +109,9 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
             }
 
             log.info("发现新版本，开始下载并替换...");
+            bot.sendMsg(event, "发现新版本 " + latestRelease.getTagName() + "，正在下载更新包...", false);
             downloadAndReplace(jarAsset);
-
+            bot.sendMsg(event, "更新包下载完成，应用即将重启以完成更新...", false);
             log.info("文件更新完成，即将重启应用...");
             restartApplication();
 
@@ -122,7 +124,7 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
     public VersionInfo getCurrentVersionInfo() {
         if (this.currentVersionInfo == null) {
             log.warn("Current version info has not been initialized yet. Returning a default error version.");
-            return createDefaultVersion("未初始化");
+            return createDefaultVersion();
         }
         return this.currentVersionInfo;
     }
@@ -252,10 +254,8 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
         }
     }
 
-    private VersionInfo createDefaultVersion(String reason) {
+    private VersionInfo createDefaultVersion() {
         VersionInfo errorInfo = new VersionInfo();
-        errorInfo.name = "未知 (" + reason + ")";
-        errorInfo.tagName = "N/A";
         errorInfo.releaseId = -1L;
         errorInfo.assetId = -1L;
         return errorInfo;

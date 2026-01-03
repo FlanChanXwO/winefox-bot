@@ -1,7 +1,7 @@
 package com.github.winefoxbot.service.setu;
 
-import com.github.winefoxbot.model.entity.SetuConfig;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.github.winefoxbot.model.entity.SetuConfig;
 import com.github.winefoxbot.model.enums.SessionType;
 
 /**

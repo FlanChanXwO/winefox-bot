@@ -1,8 +1,6 @@
 package com.github.winefoxbot.service.core;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 

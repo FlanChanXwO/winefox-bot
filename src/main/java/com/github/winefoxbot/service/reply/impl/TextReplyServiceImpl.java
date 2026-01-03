@@ -20,8 +20,7 @@ public class TextReplyServiceImpl implements TextReplyService {
     private JsonNode root;
     private final Random random = new Random();
 
-    // 如果希望通过 application.properties 配置 JSON 路径
-    private final String configPath = "config/reply.json"; // 可改为 @Value("${bot.reply.path}")
+    private final String configPath = "config/text-reply.json";
     private final String defaultReply = "Hello %s";
     private final ObjectMapper objectMapper;
 

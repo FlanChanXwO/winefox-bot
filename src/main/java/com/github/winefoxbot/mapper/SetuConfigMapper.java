@@ -1,7 +1,7 @@
 package com.github.winefoxbot.mapper;
 
-import com.github.winefoxbot.model.entity.SetuConfig;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.github.winefoxbot.model.entity.SetuConfig;
 
 /**
 * @author FlanChan

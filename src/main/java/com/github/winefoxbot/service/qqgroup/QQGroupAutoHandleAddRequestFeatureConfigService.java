@@ -1,7 +1,7 @@
 package com.github.winefoxbot.service.qqgroup;
 
-import com.github.winefoxbot.model.entity.QQGroupAutoHandleAddRequestFeatureConfig;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.github.winefoxbot.model.entity.QQGroupAutoHandleAddRequestFeatureConfig;
 
 /**
 * @author FlanChan

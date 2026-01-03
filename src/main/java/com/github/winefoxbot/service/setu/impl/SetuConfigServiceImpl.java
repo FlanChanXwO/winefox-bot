@@ -2,8 +2,8 @@ package com.github.winefoxbot.service.setu.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.github.winefoxbot.model.entity.SetuConfig;
 import com.github.winefoxbot.mapper.SetuConfigMapper;
+import com.github.winefoxbot.model.entity.SetuConfig;
 import com.github.winefoxbot.model.enums.SessionType;
 import com.github.winefoxbot.service.setu.SetuConfigService;
 import org.springframework.cache.annotation.CacheEvict;

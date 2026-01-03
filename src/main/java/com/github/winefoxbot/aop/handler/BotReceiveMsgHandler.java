@@ -2,11 +2,7 @@ package com.github.winefoxbot.aop.handler;
 
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.json.JSONUtil;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.github.winefoxbot.model.dto.shiro.GroupMemberInfo;
 import com.github.winefoxbot.model.entity.ShiroGroup;
-import com.github.winefoxbot.model.entity.ShiroGroupMember;
 import com.github.winefoxbot.model.entity.ShiroMessage;
 import com.github.winefoxbot.model.entity.ShiroUser;
 import com.github.winefoxbot.service.shiro.ShiroGroupMembersService;
@@ -26,9 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Optional;
 
 @Slf4j

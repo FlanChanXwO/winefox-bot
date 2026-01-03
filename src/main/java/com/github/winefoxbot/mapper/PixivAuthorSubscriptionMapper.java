@@ -1,7 +1,7 @@
 package com.github.winefoxbot.mapper;
 
-import com.github.winefoxbot.model.entity.PixivAuthorSubscription;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.github.winefoxbot.model.entity.PixivAuthorSubscription;
 
 /**
 * @author FlanChan

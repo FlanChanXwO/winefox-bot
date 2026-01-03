@@ -1,23 +1,37 @@
 package com.github.winefoxbot.utils;
 
+import com.github.winefoxbot.exception.common.BusinessException;
 import com.github.winefoxbot.model.dto.MessageSegment;
+import com.github.winefoxbot.model.dto.shiro.BroadcastMessageResult;
 import com.github.winefoxbot.model.dto.shiro.GroupMemberInfo;
+import com.github.winefoxbot.model.dto.shiro.SendMsgResult;
 import com.github.winefoxbot.model.enums.GroupMemberRole;
 import com.github.winefoxbot.model.enums.MessageType;
 import com.github.winefoxbot.model.enums.SessionType;
 import com.google.gson.*;
 import com.mikuac.shiro.core.Bot;
+import com.mikuac.shiro.core.BotContainer;
 import com.mikuac.shiro.dto.action.common.ActionData;
+import com.mikuac.shiro.dto.action.common.ActionRaw;
+import com.mikuac.shiro.dto.action.common.MsgId;
+import com.mikuac.shiro.dto.action.response.GroupFilesResp;
 import com.mikuac.shiro.dto.action.response.GroupInfoResp;
 import com.mikuac.shiro.dto.action.response.GroupMemberInfoResp;
 import com.mikuac.shiro.dto.action.response.StrangerInfoResp;
+import com.mikuac.shiro.dto.event.Event;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
+import com.mikuac.shiro.dto.event.message.MessageEvent;
 import com.mikuac.shiro.dto.event.message.PrivateMessageEvent;
+import com.mikuac.shiro.dto.event.notice.PokeNoticeEvent;
 import lombok.extern.slf4j.Slf4j;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -429,7 +443,7 @@ public final class BotUtils {
     public static String getSessionIdWithPrefix(AnyMessageEvent event) {
         Long groupId = event.getGroupId();
         Long userId = event.getUserId();
-        switch (SessionType.fromValue(event.getSubType())) {
+        switch (SessionType.fromValue(event.getGroupId() != null ? "group" : "private")) {
             case GROUP -> {
                 // 群聊场景的 Key
                 return "group_" + groupId + "_" + userId;
@@ -477,5 +491,223 @@ public final class BotUtils {
             default -> throw new IllegalArgumentException("Unsupported session type: " + type);
         }
 
+    }
+
+
+    public static SendMsgResult sendMsgByBotContainer(BotContainer botContainer, Long targetId, String message, boolean escape, MessageType messageType) {
+        if (botContainer == null || botContainer.robots.isEmpty()) {
+            throw new IllegalArgumentException("BotContainer is null or has no bots available.");
+        }
+        for (Bot bot : botContainer.robots.values()) {
+            ActionData<MsgId> response;
+            if (messageType == MessageType.GROUP) {
+                response = bot.sendGroupMsg(targetId, message, escape);
+            } else if (messageType == MessageType.PRIVATE) {
+                response = bot.sendPrivateMsg(targetId, message, escape);
+            } else {
+                throw new IllegalArgumentException("Unsupported message type: " + messageType);
+            }
+            if (response.getRetCode() == 0) {
+                return new SendMsgResult(true, "Message sent successfully", response.getData().getMessageId());
+            } else {
+                return new SendMsgResult(false, "Failed to send message: " + response.getStatus());
+            }
+        }
+        return new SendMsgResult(false, "No bots available to send the message");
+    }
+
+    public static List<Map<Long, BroadcastMessageResult>> broadcastSendGroupMsgByContainer(BotContainer botContainer, List<Long> groupIds, String message, boolean escape) {
+        if (botContainer == null || botContainer.robots.isEmpty())
+            throw new IllegalArgumentException("BotContainer is null or has no bots available.");
+        List<Map<Long, BroadcastMessageResult>> results = new ArrayList<>();
+        for (Bot bot : botContainer.robots.values()) {
+            BroadcastMessageResult result = broadcastSendGroupMsg(bot, groupIds, message, escape);
+            results.add(Map.of(bot.getSelfId(), result));
+        }
+        return results;
+    }
+
+
+    public static BroadcastMessageResult broadcastSendGroupMsg(Bot bot, List<Long> groupIds, String message, boolean escape) {
+        List<Long> successList = new ArrayList<>(groupIds.size());
+        List<Long> failedList = new ArrayList<>(groupIds.size() / 2);
+
+        for (Long groupId : groupIds) {
+            try {
+                ActionData<MsgId> response = bot.sendGroupMsg(groupId, message, escape);
+                if (response.getRetCode() == 0) {
+                    successList.add(groupId);
+                } else {
+                    failedList.add(groupId);
+                }
+            } catch (Exception e) {
+                log.error("Failed to send message to group: {}", groupId, e);
+                failedList.add(groupId);
+            }
+        }
+
+        boolean allSuccess = failedList.isEmpty();
+        return new BroadcastMessageResult(successList, failedList, allSuccess);
+    }
+
+
+    public static BroadcastMessageResult broadcastSendPrivateMsg(Bot bot, List<Long> userIds, String message, boolean escape) {
+        List<Long> successList = new ArrayList<>(userIds.size());
+        List<Long> failedList = new ArrayList<>(userIds.size() / 2);
+
+        for (Long userId : userIds) {
+            try {
+                ActionData<MsgId> response = bot.sendPrivateMsg(userId, message, escape);
+                if (response.getRetCode() == 0) {
+                    successList.add(userId);
+                } else {
+                    failedList.add(userId);
+                }
+            } catch (Exception e) {
+                log.error("Failed to send message to user: {}", userId, e);
+                failedList.add(userId);
+            }
+        }
+        boolean allSuccess = failedList.isEmpty();
+        return new BroadcastMessageResult(successList, failedList, allSuccess);
+    }
+
+
+    public static List<Map<Long, BroadcastMessageResult>> broadcastSendPrivateMsgByContainer(BotContainer botContainer, List<Long> userIds, String message, boolean escape) {
+        if (botContainer == null || botContainer.robots.isEmpty())
+            throw new IllegalArgumentException("BotContainer is null or has no bots available.");
+        List<Map<Long, BroadcastMessageResult>> results = new ArrayList<>();
+        for (Bot bot : botContainer.robots.values()) {
+            BroadcastMessageResult result = broadcastSendPrivateMsg(bot, userIds, message, escape);
+            results.add(Map.of(bot.getSelfId(), result));
+        }
+        return results;
+    }
+
+    public static SendMsgResult sendMsgByEvent(Bot bot, Event event, String message, boolean escape) {
+        return switch (event) {
+            case AnyMessageEvent e -> handleAnyMsgSending(bot, e, message, escape);
+            case GroupMessageEvent e -> handleGroupMsgSending(bot, e, message, escape);
+            case PrivateMessageEvent e -> handlePrivateMsgSending(bot, e, message, escape);
+            case PokeNoticeEvent e -> {
+                if (e.getGroupId() == null) {
+                    yield handlePrivateMsgSending(bot, new PrivateMessageEvent() {{
+                        setUserId(e.getTargetId());
+                    }}, message, escape);
+                } else {
+                    yield handleGroupMsgSending(bot, new GroupMessageEvent() {{
+                        setGroupId(e.getGroupId());
+                    }}, message, escape);
+                }
+            }
+            default -> new SendMsgResult(false, "消息发送事件类型不支持");
+        };
+    }
+
+    private static SendMsgResult handleAnyMsgSending(Bot bot, AnyMessageEvent event, String message, boolean escape) {
+        ActionData<MsgId> response = bot.sendMsg(event, message, escape);
+        if (response.getRetCode() == 0) {
+            return new SendMsgResult(true, "Message sent successfully", response.getData().getMessageId());
+        } else {
+            return new SendMsgResult(false, "Failed to send message: " + response.getStatus());
+        }
+    }
+
+    private static SendMsgResult handlePrivateMsgSending(Bot bot, PrivateMessageEvent event, String message, boolean escape) {
+        ActionData<MsgId> response = bot.sendPrivateMsg(event.getUserId(), message, escape);
+        if (response.getRetCode() == 0) {
+            return new SendMsgResult(true, "Message sent successfully", response.getData().getMessageId());
+        } else {
+            return new SendMsgResult(false, "Failed to send message: " + response.getStatus());
+        }
+    }
+
+    private static SendMsgResult handleGroupMsgSending(Bot bot, GroupMessageEvent event, String message, boolean escape) {
+        ActionData<MsgId> response = bot.sendGroupMsg(event.getGroupId(), message, escape);
+        if (response.getRetCode() == 0) {
+            return new SendMsgResult(true, "Message sent successfully", response.getData().getMessageId());
+        } else {
+            return new SendMsgResult(false, "Failed to send message: " + response.getStatus());
+        }
+    }
+
+    public static CompletableFuture<SendMsgResult> sendMsgByEventAsync(Bot bot, Event event, String message, boolean escape) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return sendMsgByEvent(bot, event, message, escape);
+            } catch (Exception e) {
+                log.error("Failed to send message by event", e);
+                return new SendMsgResult(false, "Failed to send message: " + e.getMessage());
+            }
+        });
+    }
+
+    public static SendMsgResult uploadFile(Bot bot, MessageEvent event, Path filePath, String fileName) {
+        if (event instanceof PrivateMessageEvent e) {
+            return handlePrivateFileUpload(bot, e, filePath, fileName);
+        } else if (event instanceof AnyMessageEvent e) {
+            if (e.getGroupId() != null) {
+                return handleGroupFileUpload(bot, e, filePath, fileName);
+            } else {
+                return handlePrivateFileUpload(bot, e, filePath, fileName);
+            }
+        } else if (event instanceof GroupMessageEvent e) {
+            return handleGroupFileUpload(bot, e, filePath, fileName);
+        } else {
+            log.warn("Unsupported event type for file upload: {}", event.getClass().getName());
+            throw new IllegalStateException("Unexpected event value: " + event);
+        }
+    }
+
+    private static SendMsgResult handleGroupFileUpload(Bot bot, GroupMessageEvent event, Path filePath, String fileName) {
+        log.info("Uploading file: {} as {}", filePath.toString(), fileName);
+        ActionRaw actionRaw = bot.uploadGroupFile(event.getGroupId(), filePath.toAbsolutePath().toString(), fileName);
+        Integer retCode = actionRaw.getRetCode();
+        if (retCode != 0) {
+            throw new BusinessException("无法上传群文件", null);
+        }
+        log.info("File uploaded: {} with retCode: {}, status: {}", fileName, retCode, actionRaw.getStatus());
+        return new SendMsgResult(true, "File uploaded successfully");
+    }
+
+    private static SendMsgResult handlePrivateFileUpload(Bot bot, PrivateMessageEvent event, Path filePath, String fileName) {
+        log.info("Uploading private file: {} as {}", filePath.toString(), fileName);
+        ActionRaw actionRaw = bot.uploadPrivateFile(event.getUserId(), filePath.toAbsolutePath().toString(), fileName);
+        Integer retCode = actionRaw.getRetCode();
+        if (retCode != 0) {
+            throw new BusinessException("无法上传私聊文件", null);
+        }
+        log.info("File uploaded: {} with retCode: {}, status: {}", fileName, retCode, actionRaw.getStatus());
+        return new SendMsgResult(true, "File uploaded successfully");
+    }
+
+    private static SendMsgResult handlePrivateFileUpload(Bot bot, AnyMessageEvent event, Path filePath, String fileName) {
+        log.info("Uploading private file: {} as {}", filePath.toString(), fileName);
+        ActionRaw actionRaw = bot.uploadPrivateFile(event.getUserId(), filePath.toAbsolutePath().toString(), fileName);
+        Integer retCode = actionRaw.getRetCode();
+        if (retCode != 0) {
+            throw new BusinessException("无法上传私聊文件", null);
+        }
+        log.info("File uploaded: {} with retCode: {}, status: {}", fileName, retCode, actionRaw.getStatus());
+        return new SendMsgResult(true, "File uploaded successfully");
+    }
+
+    public static CompletableFuture<SendMsgResult> uploadFileAsync(Bot bot, MessageEvent event, Path filePath, String fileName) {
+        return CompletableFuture.supplyAsync(() -> uploadFile(bot, event, filePath, fileName));
+    }
+
+    public static void deleteGroupFile(Bot bot, GroupMessageEvent groupMessageEvent, String fileName) {
+        Long groupId = groupMessageEvent.getGroupId();
+        if (groupId == null) {
+            return;
+        }
+        ActionData<GroupFilesResp> groupRootFiles = bot.getGroupRootFiles(groupId);
+        GroupFilesResp data = groupRootFiles.getData();
+        for (GroupFilesResp.Files file : data.getFiles()) {
+            if (file.getFileName().equals(fileName)) {
+                bot.deleteGroupFile(groupId, file.getFileId(), file.getBusId());
+                break;
+            }
+        }
     }
 }

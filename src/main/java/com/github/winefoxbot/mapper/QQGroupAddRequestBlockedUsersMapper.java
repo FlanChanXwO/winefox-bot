@@ -1,7 +1,7 @@
 package com.github.winefoxbot.mapper;
 
-import com.github.winefoxbot.model.entity.QQGroupAddRequestBlockedUsers;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.github.winefoxbot.model.entity.QQGroupAddRequestBlockedUsers;
 
 /**
 * @author FlanChan

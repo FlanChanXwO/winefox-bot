@@ -18,9 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
-import java.net.URISyntaxException;
-
 import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_PREFIX_REGEX;
 import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_SUFFIX_REGEX;
 
@@ -88,7 +85,7 @@ public class CorePlugin {
             GitHubUpdateService.VersionInfo currentVersion = updateService.getCurrentVersionInfo();
             GitHubRelease latestRelease = updateService.fetchLatestRelease();
 
-            String currentVersionStr = String.format("v%s (Release ID: %d)", wineFoxBotProperties.getVersion(), currentVersion.releaseId);
+            String currentVersionStr = String.format("%s (Release ID: %d)", wineFoxBotProperties.getVersion(), currentVersion.releaseId);
             String latestVersionStr = String.format("%s (Release ID: %d)", latestRelease.getTagName(), latestRelease.getId());
 
             msg = "版本信息：\n" +
@@ -96,7 +93,7 @@ public class CorePlugin {
                     "最新版本: " + latestVersionStr;
 
             if (latestRelease.getId() > currentVersion.releaseId) {
-                msg += "\n\n检测到新版本！管理员可发送 '更新版本' 进行升级。";
+                msg += "\n\n检测到新版本！可发送 '更新版本' 命令进行升级。";
             } else {
                 msg += "\n\n当前已是最新版本。";
             }
@@ -120,8 +117,7 @@ public class CorePlugin {
     public void updateVersion(Bot bot, AnyMessageEvent event) {
         try {
             bot.sendMsg(event, "正在检查并执行更新，请稍候...", false);
-            updateService.performUpdate();
-            // performUpdate 成功后会自动重启，这里不需要再发消息
+            updateService.performUpdate(bot,event);
         } catch (Exception e) {
             log.error("更新失败", e);
             bot.sendMsg(event, "更新操作失败: " + e.getMessage(), false);

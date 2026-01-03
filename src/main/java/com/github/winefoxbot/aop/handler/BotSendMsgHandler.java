@@ -14,10 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -131,9 +127,7 @@ public class BotSendMsgHandler {
                 message.setMessage(JSONUtil.parseArray(messageContent));
                 message.setPlainText("");
             }
-
             shiroMessagesService.save(message);
-
         } catch (Exception e) {
             log.error("Error handling sent message", e);
         }

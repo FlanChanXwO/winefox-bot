@@ -18,6 +18,15 @@ import java.util.function.Consumer;
 public class ObjectStorageService implements FileStorageService {
     private static final String NOT_IMPLEMENTED_MSG = "Object storage is not implemented yet.";
 
+    @Override
+    public Path getFilePathByCacheKey(String cacheKey) {
+        throw new UnsupportedOperationException(NOT_IMPLEMENTED_MSG);
+    }
+
+    @Override
+    public Path saveFileByCacheKey(String cacheKey, InputStream inputStream, Duration expireAfter) throws IOException {
+        throw new UnsupportedOperationException(NOT_IMPLEMENTED_MSG);
+    }
 
     @Override
     public byte[] getFileByCacheKey(String cacheKey) {

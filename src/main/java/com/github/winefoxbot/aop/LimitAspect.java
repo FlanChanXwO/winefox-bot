@@ -1,8 +1,8 @@
 package com.github.winefoxbot.aop;
 
 import com.github.winefoxbot.annotation.Limit;
-import com.github.winefoxbot.exception.RateLimitException;
-import com.github.winefoxbot.exception.handler.GlobalBotRateLimitExceptionHandler;
+import com.github.winefoxbot.exception.bot.RateLimitException;
+import com.github.winefoxbot.exception.bot.handler.GlobalBotRateLimitExceptionHandler;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
@@ -104,7 +104,7 @@ public class LimitAspect {
 
             if (shouldNotify) {
                 log.info("满足通知条件，准备抛出 RateLimitException 以发送提示。");
-                throw new RateLimitException(limit.message(), bot, event);
+                throw new RateLimitException(bot, event,limit.message());
             } else {
                 log.debug("限流被触发，但处于通知冷却中，仅中断流程不发送提示。");
                 // 即使不通知，也要中断流程

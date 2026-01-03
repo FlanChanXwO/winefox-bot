@@ -11,9 +11,10 @@ import org.docx4j.wml.*;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,7 +40,7 @@ public final class DocxUtil {
      * @param outputPath 输出目录的路径
      * @return 生成的 DOCX 文件的绝对路径，如果失败则返回 null
      */
-    public static String wrapImagesIntoDocx(List<byte[]> images, String outputPath) {
+    public static Path wrapImagesIntoDocx(List<File> images, String outputPath) {
         // 1. 确定输出文件路径
         Path outputFilePath;
         try {
@@ -61,7 +62,7 @@ public final class DocxUtil {
 
             // 遍历所有图片数据
             boolean isFirstImage = true;
-            for (byte[] imageData : images) {
+            for (File imageData : images) {
 
                 // 非第一个图片前，添加分页符，确保每个图片独占一页
                 if (!isFirstImage) {
@@ -80,12 +81,18 @@ public final class DocxUtil {
                 // 读取图片原始尺寸以计算宽高比
                 long originalWidthPx;
                 long originalHeightPx;
-                try (ByteArrayInputStream bais = new ByteArrayInputStream(imageData)) {
-                    BufferedImage bufferedImage = ImageIO.read(bais);
-                    originalWidthPx = bufferedImage.getWidth();
-                    originalHeightPx = bufferedImage.getHeight();
+                // 使用 try-with-resources 确保 FileInputStream 被正确关闭
+                try (InputStream fis = new FileInputStream(imageData)) {
+                    BufferedImage bufferedImage = ImageIO.read(fis);
+                    if (bufferedImage != null) {
+                        originalWidthPx = bufferedImage.getWidth();
+                        originalHeightPx = bufferedImage.getHeight();
+                    } else {
+                        originalWidthPx = 1;
+                        originalHeightPx = 1;
+                    }
                 } catch (IOException e) {
-                    // 如果无法读取图片尺寸（例如对于某些特殊的GIF），则默认宽高比为1:1
+                    // 如果无法读取图片尺寸（例如对于某些特殊的GIF或文件IO问题），则默认宽高比为1:1
                     originalWidthPx = 1;
                     originalHeightPx = 1;
                 }
@@ -158,7 +165,7 @@ public final class DocxUtil {
         }
 
         // 4. 返回最终文件的路径
-        return outputFilePath.toAbsolutePath().toString().replace("\\", "/");
+        return outputFilePath;
     }
 
     /**

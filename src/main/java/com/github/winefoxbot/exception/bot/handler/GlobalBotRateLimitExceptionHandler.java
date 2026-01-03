@@ -1,6 +1,6 @@
-package com.github.winefoxbot.exception.handler;
+package com.github.winefoxbot.exception.bot.handler;
 
-import com.github.winefoxbot.exception.RateLimitException;
+import com.github.winefoxbot.exception.bot.RateLimitException;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 public class GlobalBotRateLimitExceptionHandler {
 
     public void handleRateLimitException(RateLimitException e) {
-        MessageEvent event = e.getEvent();
+        MessageEvent event = (MessageEvent) e.getEvent();
         Bot bot = e.getBot();
         if (bot != null && event != null) {
             log.warn("触发限流 - 用户[{}], 事件类型[{}], 消息: {}",

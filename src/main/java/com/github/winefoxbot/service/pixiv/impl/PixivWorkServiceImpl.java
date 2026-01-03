@@ -1,8 +1,8 @@
 package com.github.winefoxbot.service.pixiv.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.github.winefoxbot.model.entity.PixivWork;
 import com.github.winefoxbot.mapper.PixivWorkMapper;
+import com.github.winefoxbot.model.entity.PixivWork;
 import com.github.winefoxbot.service.pixiv.PixivWorkService;
 import org.springframework.stereotype.Service;
 

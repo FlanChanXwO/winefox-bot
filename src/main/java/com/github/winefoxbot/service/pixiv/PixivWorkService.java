@@ -1,7 +1,7 @@
 package com.github.winefoxbot.service.pixiv;
 
-import com.github.winefoxbot.model.entity.PixivWork;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.github.winefoxbot.model.entity.PixivWork;
 
 /**
 * @author FlanChan

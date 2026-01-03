@@ -1,11 +1,10 @@
 package com.github.winefoxbot.model.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
-import java.util.Date;
-import lombok.Data;
 
 /**
  * @TableName qq_group_add_request_blocked_users

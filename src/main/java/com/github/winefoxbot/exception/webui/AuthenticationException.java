@@ -1,4 +1,4 @@
-package com.github.winefoxbot.exception;
+package com.github.winefoxbot.exception.webui;
 
 import lombok.Getter;
 
@@ -7,5 +7,5 @@ import lombok.Getter;
  * @since 2026-01-02-19:39
  */
 @Getter
-public class TimeoutException extends RuntimeException {
+public class AuthenticationException extends RuntimeException {
 }

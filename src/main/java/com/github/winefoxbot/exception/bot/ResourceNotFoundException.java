@@ -1,0 +1,18 @@
+package com.github.winefoxbot.exception.bot;
+
+import com.mikuac.shiro.core.Bot;
+import com.mikuac.shiro.dto.event.Event;
+import lombok.Getter;
+
+/**
+ * @author FlanChan (badapple495@outlook.com)
+ * @since 2026-01-02-19:43
+ */
+@Getter
+public class ResourceNotFoundException extends BaseException {
+
+
+    public ResourceNotFoundException(Bot bot, Event event, String message) {
+        super(bot, event, message);
+    }
+}

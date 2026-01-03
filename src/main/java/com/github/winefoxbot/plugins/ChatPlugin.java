@@ -9,6 +9,7 @@ import com.github.winefoxbot.service.chat.AiInteractionHelper;
 import com.github.winefoxbot.service.chat.DeepSeekService;
 import com.github.winefoxbot.service.reply.VoiceReplyService;
 import com.github.winefoxbot.service.shiro.ShiroMessagesService;
+import com.github.winefoxbot.service.shiro.ShiroSessionStateService;
 import com.github.winefoxbot.utils.BotUtils;
 import com.mikuac.shiro.annotation.*;
 import com.mikuac.shiro.annotation.common.Order;
@@ -47,7 +48,7 @@ public class ChatPlugin {
     private final VoiceReplyService voiceReplyService;
     // 辅助类，用于构建AI输入
     private final AiInteractionHelper aiInteractionHelper;
-
+    private final ShiroSessionStateService shiroSessionStateService;
     /**
      * 用户戳一戳保底计数器
      */
@@ -85,6 +86,15 @@ public class ChatPlugin {
     @Order(100)
     @Block
     public void handlePrivateChatMessage(Bot bot, PrivateMessageEvent event) {
+        // 检查用户是否处于命令模式
+        String sessionKey = shiroSessionStateService.getSessionKey(event);
+        if (shiroSessionStateService.isInCommandMode(sessionKey)) {
+            // 用户刚刚执行了一个命令，或者正在执行一个需要后续输入的命令
+            // 此时AI不应该响应，直接返回
+            return;
+        }
+
+
         String plainMessage = BotUtils.getPlainTextMessage(event.getMessage());
         if (plainMessage.isEmpty() || plainMessage.startsWith("/")) {
             return;

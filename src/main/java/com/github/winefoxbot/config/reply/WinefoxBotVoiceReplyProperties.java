@@ -2,7 +2,6 @@ package com.github.winefoxbot.config.reply;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
 
 import java.nio.file.Path;
 
@@ -16,7 +15,6 @@ public class WinefoxBotVoiceReplyProperties {
     private Boolean enabled = true;
 
     private String voiceRootDir = "resources/reply/voices";
-
 
     public Path getVoiceRootPath() {
         return Path.of(voiceRootDir);

@@ -1,13 +1,11 @@
 package com.github.winefoxbot.model.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.github.winefoxbot.model.enums.SessionType;
+import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
-import java.util.Date;
-
-import com.github.winefoxbot.model.enums.SessionType;
-import lombok.Data;
 
 /**
  * @TableName setu_config

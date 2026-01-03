@@ -2,7 +2,6 @@ package com.github.winefoxbot.service.chat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.github.winefoxbot.config.app.WineFoxBotConfig;
 import com.github.winefoxbot.config.app.WineFoxBotProperties;
 import com.github.winefoxbot.model.entity.ShiroUserMessage;
 import com.github.winefoxbot.utils.BotUtils;

@@ -95,7 +95,7 @@ public class PixivServiceImpl implements PixivService {
             } finally {
                 // 确保在任务执行完毕（无论成功或异常）后释放许可
                 fetchPermits.release();
-                log.info("PID: {} 已处理完毕，释放全局下载许可。(剩余许可: {})", pid, fetchPermits.availablePermits() + 1);
+                log.info("PID: {} 已处理完毕，释放全局下载许可。(剩余许可: {})", pid, fetchPermits.availablePermits());
             }
         }, downloadExecutor);
     }
@@ -397,7 +397,6 @@ public class PixivServiceImpl implements PixivService {
         log.info("Pixiv download executor has been shut down.");
     }
 
-    // --- 元数据获取和验证方法 (保持不变) ---
 
     @Override
     public boolean isPixivURL(String msg) {

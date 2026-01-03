@@ -1,7 +1,6 @@
 package com.github.winefoxbot.aop;
 
 import com.github.winefoxbot.annotation.PluginFunction;
-import com.github.winefoxbot.config.app.WineFoxBotConfig;
 import com.github.winefoxbot.config.app.WineFoxBotProperties;
 import com.github.winefoxbot.model.entity.ShiroGroupMember;
 import com.github.winefoxbot.model.enums.GroupMemberRole;
