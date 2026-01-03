@@ -9,6 +9,7 @@ import com.github.winefoxbot.model.enums.PixivArtworkType;
 import com.github.winefoxbot.model.enums.SessionType;
 import com.github.winefoxbot.service.pixiv.PixivSearchService;
 import com.github.winefoxbot.service.pixiv.PixivService;
+import com.github.winefoxbot.service.shiro.ShiroSessionStateService;
 import com.github.winefoxbot.utils.BotUtils;
 import com.github.winefoxbot.utils.DocxUtil;
 import com.github.winefoxbot.utils.FileUtil;
@@ -60,7 +61,7 @@ import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
 public class PixivSearchPlugin {
     private final PixivSearchService pixivSearchService;
     private final PixivService pixivService;
-
+    private final ShiroSessionStateService sessionStateService;
     // 存储会话的搜索结果
     private final Map<String, LastSearchResult> lastSearchResultMap = new ConcurrentHashMap<>();
     // 存储会话的超时任务，以便可以取消和重置
@@ -140,7 +141,7 @@ public class PixivSearchPlugin {
     @Order(1)
     @MessageHandlerFilter(types = MsgTypeEnum.text)
     public Future<Integer> handleSearchResultInteraction(Bot bot, AnyMessageEvent event) {
-        String sessionId = getSessionIdWithPrefix(event);
+        String sessionId = sessionStateService.getSessionKey(event);
         LastSearchResult lastSearch = lastSearchResultMap.get(sessionId);
 
         // 条件1: 如果没有活跃会话，忽略消息
@@ -179,6 +180,7 @@ public class PixivSearchPlugin {
                 case PRIVATE -> MsgUtils.builder().text(tipMessage).build();
             };
             bot.sendMsg(event, quitMessage, false);
+            sessionStateService.exitCommandMode(sessionId);
             return CompletableFuture.completedFuture(MESSAGE_BLOCK);// 退出后，阻塞消息，防止其他插件响应
         }
 
@@ -373,11 +375,10 @@ public class PixivSearchPlugin {
         bot.sendMsg(event, "正在搜索，请稍候...", false);
         try {
             PixivSearchResult result = pixivSearchService.search(params);
-            String sessionId = getSessionIdWithPrefix(event);
+            String sessionId = sessionStateService.getSessionKey(event);
             if (result != null && result.getScreenshot() != null && result.getTotalArtworks() > 0) {
                 lastSearchResultMap.put(sessionId, new LastSearchResult(params, result, event));
                 resetSessionTimeout(bot, sessionId); // 设置/重置超时
-
                 String tagsString = String.join(" ", params.getTags());
                 String r18Flag = params.isR18() ? " -r" : "";
                 String previousCommand = String.format("pixiv搜索 %s%s -p", tagsString, r18Flag);
@@ -389,6 +390,8 @@ public class PixivSearchPlugin {
                         .text(String.format("\n你可以发送【上一页】/【下一页】翻页，或【%s<页码>】跳转。\n", previousCommand))
                         .text(String.format("发送图片上的【序号】可获取原图。发送【退出】结束会话。\n(会话将在%d秒后无操作自动结束)", SESSION_TIMEOUT_SECONDS));
                 bot.sendMsg(event, msg.build(), false);
+                // 进入搜索模式
+                sessionStateService.enterCommandMode(sessionId);
             } else {
                 clearSession(sessionId);
                 String noResultMessage = String.format("抱歉，没有找到关于 [%s] 的结果呢。", String.join(" ", params.getTags()));
@@ -413,6 +416,7 @@ public class PixivSearchPlugin {
         if (currentSearch == null) {
             // 如果会话已经不存在（可能被刚刚到期的旧任务清除了），则不创建新任务。
             log.warn("尝试重置超时任务时，会话 [{}] 已被清除，操作终止。", sessionId);
+            sessionStateService.exitCommandMode(sessionId);
             return;
         }
 
@@ -431,6 +435,7 @@ public class PixivSearchPlugin {
                     case PRIVATE -> MsgUtils.builder().text(tipMessage).build();
                 };
                 bot.sendMsg(removedSearch.event, message, false);
+                sessionStateService.exitCommandMode(sessionId);
             }
             // 如果 removedSearch 是 null，说明会话已经被其他操作（如 '退出' 或新的交互）清除了，此时就不该发送超时消息。
         }, SESSION_TIMEOUT_SECONDS, TimeUnit.SECONDS);

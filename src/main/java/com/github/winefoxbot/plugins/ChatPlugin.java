@@ -86,14 +86,8 @@ public class ChatPlugin {
     @Block
     public void handlePrivateChatMessage(Bot bot, PrivateMessageEvent event) {
         String plainMessage = BotUtils.getPlainTextMessage(event.getMessage());
-        String[] prefixes = {"/", "", "$"};
-        if (plainMessage.isEmpty()) {
+        if (plainMessage.isEmpty() || plainMessage.startsWith("/")) {
             return;
-        }
-        for (String prefix : prefixes) {
-            if (plainMessage.startsWith(prefix)) {
-                return;
-            }
         }
 
         Long userId = event.getUserId();

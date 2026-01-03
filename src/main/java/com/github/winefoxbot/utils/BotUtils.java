@@ -427,19 +427,28 @@ public final class BotUtils {
 
 
     public static String getSessionIdWithPrefix(AnyMessageEvent event) {
-        return switch (MessageType.fromValue(event.getMessageType())) {
-            case PRIVATE -> "p_" + event.getUserId();
-            case GROUP -> "g_" + event.getGroupId();
-        };
+        Long groupId = event.getGroupId();
+        Long userId = event.getUserId();
+        switch (SessionType.fromValue(event.getSubType())) {
+            case GROUP -> {
+                // 群聊场景的 Key
+                return "group_" + groupId + "_" + userId;
+            }
+            case PRIVATE -> {
+                // 私聊场景的 Key
+                return "private_" + userId;
+            }
+            default -> throw new IllegalArgumentException("Unsupported session type: " + event.getSubType());
+        }
     }
 
     public static SessionType checkStrictSessionIdType(String sessionIdWithPrefix) {
         if (sessionIdWithPrefix == null || sessionIdWithPrefix.isEmpty()) {
             throw new IllegalArgumentException("Session ID cannot be null or empty");
         }
-        if (sessionIdWithPrefix.startsWith("g_")) {
+        if (sessionIdWithPrefix.startsWith("group_")) {
             return SessionType.GROUP;
-        } else if (sessionIdWithPrefix.startsWith("p_")) {
+        } else if (sessionIdWithPrefix.startsWith("private_")) {
             return SessionType.PRIVATE;
         } else {
             throw new IllegalArgumentException("Invalid Session ID format: " + sessionIdWithPrefix);
@@ -447,6 +456,26 @@ public final class BotUtils {
     }
 
     public static Long removeSessionIdPrefix(String sessionIdWithPrefix) {
-        return Long.parseLong(sessionIdWithPrefix.substring(2));
+        SessionType type = checkStrictSessionIdType(sessionIdWithPrefix);
+        switch (type) {
+            case GROUP -> {
+                String[] parts = sessionIdWithPrefix.split("_");
+                if (parts.length >= 3) {
+                    return Long.parseLong(parts[1]);
+                } else {
+                    throw new IllegalArgumentException("Invalid group session ID format: " + sessionIdWithPrefix);
+                }
+            }
+            case PRIVATE -> {
+                String[] parts = sessionIdWithPrefix.split("_");
+                if (parts.length >= 2) {
+                    return Long.parseLong(parts[1]);
+                } else {
+                    throw new IllegalArgumentException("Invalid private session ID format: " + sessionIdWithPrefix);
+                }
+            }
+            default -> throw new IllegalArgumentException("Unsupported session type: " + type);
+        }
+
     }
 }
