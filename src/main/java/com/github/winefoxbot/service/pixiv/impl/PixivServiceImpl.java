@@ -57,93 +57,122 @@ public class PixivServiceImpl implements PixivService {
 
     private static final boolean ENABLE_COMPRESSION = false;
 
+    /**
+     * 控制同时获取图片的最大任务数
+     */
+    private static final int MAX_CONCURRENT_FETCHES = 10;
+
+    /**
+     * 用于限制全局 fetchImages 方法并发数量的信号量
+     */
+    private final Semaphore fetchPermits = new Semaphore(MAX_CONCURRENT_FETCHES, true); // fair=true
+
+    /**
+     * 用于限制单个图片下载并发数量的信号量
+     */
     private final Semaphore downloadPermits = new Semaphore(20);
 
     /**
      * 异步获取作品图片，优先使用本地缓存。
+     * 全局最多有10个任务同时获取图片，多余的任务会在此方法阻塞等待。
      *
      * @param pid 作品ID
      * @return 一个代表未来文件列表的 CompletableFuture<List<File>>
      */
     @Override
     public CompletableFuture<List<File>> fetchImages(String pid) {
-        // 使用 computeIfAbsent 来原子性地获取或创建锁，确保每个PID只有一个锁实例
-        Lock pidLock = pidLocks.computeIfAbsent(pid, k -> new ReentrantLock());
         return CompletableFuture.supplyAsync(() -> {
-            String pidRelativePath = PIXIV_IMAGE_SUBFOLDER + "/" + pid;
-            boolean lockAcquired = false;
             try {
-                // 等待获取特定PID的锁
-                if (pidLock.tryLock(2, TimeUnit.MINUTES)) {
-                    lockAcquired = true;
-                    log.info("Acquired lock for PID: {}", pid);
-                    try {
-                        List<Path> cachedPaths = fileStorageService.listFiles(pidRelativePath);
-                        if (cachedPaths != null && !cachedPaths.isEmpty()) {
-                            List<File> cachedFiles = cachedPaths.stream()
-                                    .map(Path::toFile)
-                                    .filter(file -> file.length() > 0)
-                                    .collect(Collectors.toList());
-                            if (!cachedFiles.isEmpty()) {
-                                log.info("PID: {} 命中缓存，找到 {} 个文件，直接返回。", pid, cachedFiles.size());
-                                cachedFiles.forEach(file -> fileStorageService.registerFile(file.toPath(), CACHE_EXPIRATION, null));
-                                return cachedFiles;
-                            }
-                        }
-
-                    } catch (IOException e) {
-                        log.info("检查 PID: {} 的缓存时未找到文件或出错，将继续下载。({})", pid, e.getClass().getSimpleName());
-                    }
-
-                    log.info("PID: {} 缓存未命中或为空，开始从网络获取。", pid);
-                    try {
-                        String ugoiraZipUrl = checkUgoiraZip(pid);
-                        if (ugoiraZipUrl != null) {
-                            log.info("PID: {} 识别为动图，开始下载并转换为GIF...", pid);
-                            File gif = downloadUgoiraToGif(pid, ugoiraZipUrl);
-                            if (ENABLE_COMPRESSION && gif.length() >= 15 * 1024 * 1024) {
-                                gif = compressImage(gif, 15, pid);
-                            }
-                            return List.of(gif);
-                        }
-
-                        List<String> imageUrls = getStaticImageUrls(pid);
-                        if (imageUrls.isEmpty()) return List.of();
-
-                        log.info("PID: {}，发现 {} 张静态图片，提交并行下载任务...", pid, imageUrls.size());
-                        List<CompletableFuture<File>> imageFutures = imageUrls.stream()
-                                .map(url -> CompletableFuture.supplyAsync(() -> downloadAndProcessSingleImage(url, pid), downloadExecutor))
-                                .toList();
-
-                        List<File> downloadedFiles = CompletableFuture.allOf(imageFutures.toArray(new CompletableFuture[0]))
-                                .thenApply(v -> imageFutures.stream().map(CompletableFuture::join).collect(Collectors.toList()))
-                                .join();
-
-                        return downloadedFiles; // 简化返回，压缩逻辑可以在 downloadAndProcessSingleImage 内部处理或像之前一样并行处理
-
-                    } catch (Exception e) {
-                        log.error("异步 fetchImages 任务中发生严重错误, PID: {}", pid, e);
-                        throw new CompletionException(e);
-                    }
-                } else {
-                    log.warn("Could not acquire lock for PID: {} within timeout.", pid);
-                    // 考虑返回一个特定的异常或空列表，让调用者知道操作超时
-                    return List.of();
-                }
+                // 在开始任何操作前，获取一个全局获取许可。如果达到并发上限，线程将在此阻塞。
+                log.info("PID: {} 正在等待获取全局下载许可... (剩余许可: {})", pid, fetchPermits.availablePermits());
+                fetchPermits.acquire();
+                log.info("PID: {} 已获取全局下载许可，开始处理。(剩余许可: {})", pid, fetchPermits.availablePermits());
+                return processFetch(pid);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt(); // 恢复中断状态
-                log.error("Lock acquisition interrupted for PID: {}", pid, e);
-                throw new CompletionException(e);
+                log.warn("PID: {} 等待全局获取许可时被中断", pid, e);
+                throw new CompletionException("Task for PID " + pid + " was interrupted while waiting for a fetch permit.", e);
             } finally {
-                if (lockAcquired) {
-                    pidLock.unlock();
-                    log.info("Released lock for PID: {}", pid);
-                    // 可选：当确定一个PID在短时间内不会被再次请求时，可以考虑移除锁以节省内存
-                    // 但对于机器人这类应用，为简单起见，一直保留也可以接受
-                    // pidLocks.remove(pid);
-                }
+                // 确保在任务执行完毕（无论成功或异常）后释放许可
+                fetchPermits.release();
+                log.info("PID: {} 已处理完毕，释放全局下载许可。(剩余许可: {})", pid, fetchPermits.availablePermits() + 1);
             }
         }, downloadExecutor);
+    }
+
+    private List<File> processFetch(String pid) {
+        // 使用 computeIfAbsent 来原子性地获取或创建锁，确保每个PID只有一个锁实例
+        Lock pidLock = pidLocks.computeIfAbsent(pid, k -> new ReentrantLock());
+        boolean lockAcquired = false;
+        try {
+            // 等待获取特定PID的锁
+            if (pidLock.tryLock(2, TimeUnit.MINUTES)) {
+                lockAcquired = true;
+                log.info("Acquired lock for PID: {}", pid);
+                String pidRelativePath = PIXIV_IMAGE_SUBFOLDER + "/" + pid;
+                try {
+                    List<Path> cachedPaths = fileStorageService.listFiles(pidRelativePath);
+                    if (cachedPaths != null && !cachedPaths.isEmpty()) {
+                        List<File> cachedFiles = cachedPaths.stream()
+                                .map(Path::toFile)
+                                .filter(file -> file.length() > 0)
+                                .collect(Collectors.toList());
+                        if (!cachedFiles.isEmpty()) {
+                            log.info("PID: {} 命中缓存，找到 {} 个文件，直接返回。", pid, cachedFiles.size());
+                            cachedFiles.forEach(file -> fileStorageService.registerFile(file.toPath(), CACHE_EXPIRATION, null));
+                            return cachedFiles;
+                        }
+                    }
+
+                } catch (IOException e) {
+                    log.info("检查 PID: {} 的缓存时未找到文件或出错，将继续下载。({})", pid, e.getClass().getSimpleName());
+                }
+
+                log.info("PID: {} 缓存未命中或为空，开始从网络获取。", pid);
+                try {
+                    String ugoiraZipUrl = checkUgoiraZip(pid);
+                    if (ugoiraZipUrl != null) {
+                        log.info("PID: {} 识别为动图，开始下载并转换为GIF...", pid);
+                        File gif = downloadUgoiraToGif(pid, ugoiraZipUrl);
+                        if (ENABLE_COMPRESSION && gif.length() >= 15 * 1024 * 1024) {
+                            gif = compressImage(gif, 15, pid);
+                        }
+                        return List.of(gif);
+                    }
+
+                    List<String> imageUrls = getStaticImageUrls(pid);
+                    if (imageUrls.isEmpty()) return List.of();
+
+                    log.info("PID: {}，发现 {} 张静态图片，提交并行下载任务...", pid, imageUrls.size());
+                    List<CompletableFuture<File>> imageFutures = imageUrls.stream()
+                            .map(url -> CompletableFuture.supplyAsync(() -> downloadAndProcessSingleImage(url, pid), downloadExecutor))
+                            .toList();
+
+                    return CompletableFuture.allOf(imageFutures.toArray(new CompletableFuture[0]))
+                            .thenApply(v -> imageFutures.stream().map(CompletableFuture::join).collect(Collectors.toList()))
+                            .join();
+                } catch (Exception e) {
+                    log.error("异步 fetchImages 任务中发生严重错误, PID: {}", pid, e);
+                    throw new CompletionException(e);
+                }
+            } else {
+                log.warn("Could not acquire lock for PID: {} within timeout.", pid);
+                // 考虑返回一个特定的异常或空列表，让调用者知道操作超时
+                return List.of();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt(); // 恢复中断状态
+            log.error("Lock acquisition interrupted for PID: {}", pid, e);
+            throw new CompletionException(e);
+        } finally {
+            if (lockAcquired) {
+                pidLock.unlock();
+                log.info("Released lock for PID: {}", pid);
+                // 可选：当确定一个PID在短时间内不会被再次请求时，可以考虑移除锁以节省内存
+                // 但对于机器人这类应用，为简单起见，一直保留也可以接受
+                // pidLocks.remove(pid);
+            }
+        }
     }
 
 
