@@ -137,7 +137,7 @@ public class ChatPlugin {
     public void handleGroupPokeNotice(Bot bot, PokeNoticeEvent event) {
         // 1. 必须是戳机器人
         // 2. 必须不是机器人自己戳自己
-        if (!event.getTargetId().equals(bot.getSelfId()) || event.getSenderId().equals(bot.getSelfId())) {
+        if (!event.getTargetId().equals(bot.getSelfId()) || event.getTargetId().equals(bot.getSelfId())) {
             return;
         }
         handlePokeWithPity(bot, event, true);
@@ -149,7 +149,7 @@ public class ChatPlugin {
     public void handlePrivatePokeNotice(Bot bot, PokeNoticeEvent event) {
         // 1. 必须是戳机器人
         // 2. 必须不是机器人自己戳自己
-        if (!event.getTargetId().equals(bot.getSelfId()) || event.getSenderId().equals(bot.getSelfId())) {
+        if (!event.getTargetId().equals(bot.getSelfId()) || event.getTargetId().equals(bot.getSelfId())) {
             return;
         }
         handlePokeWithPity(bot, event, false);
