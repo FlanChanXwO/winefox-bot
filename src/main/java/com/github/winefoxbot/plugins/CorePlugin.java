@@ -40,7 +40,7 @@ public class CorePlugin {
     /**
      * 应用重启
      */
-    @PluginFunction(hidden = true, permission = Permission.ADMIN, group = "核心功能", name = "查看当前版本", description = "查看当前版本", commands = {
+    @PluginFunction(hidden = true, permission = Permission.SUPERADMIN, group = "核心功能", name = "查看当前版本", description = "查看当前版本", commands = {
             COMMAND_PREFIX_REGEX + "restart" + COMMAND_PREFIX_REGEX,
             COMMAND_PREFIX_REGEX + "重启" + COMMAND_SUFFIX_REGEX
     })
@@ -111,7 +111,7 @@ public class CorePlugin {
      * 更新版本
      */
     @Async
-    @PluginFunction(permission = Permission.ADMIN, group = "核心功能", name = "版本更新", description = "版本更新", commands = {
+    @PluginFunction(permission = Permission.SUPERADMIN, group = "核心功能", name = "版本更新", description = "版本更新", commands = {
             COMMAND_PREFIX_REGEX + "update" + COMMAND_PREFIX_REGEX,
             COMMAND_PREFIX_REGEX + "更新版本" + COMMAND_SUFFIX_REGEX
     })
@@ -128,10 +128,4 @@ public class CorePlugin {
         }
     }
 
-    /**
-     * 获取当前运行的JAR文件路径
-     */
-    private String getCurrentJarPath() throws URISyntaxException {
-        return new File(CorePlugin.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getPath();
-    }
 }

@@ -62,7 +62,7 @@ public class PixivSearchPlugin {
     private final PixivService pixivService;
 
     // 存储会话的搜索结果
-    private final  Map<String, LastSearchResult> lastSearchResultMap = new ConcurrentHashMap<>();
+    private final Map<String, LastSearchResult> lastSearchResultMap = new ConcurrentHashMap<>();
     // 存储会话的超时任务，以便可以取消和重置
     private final Map<String, ScheduledFuture<?>> sessionTimeoutTasks = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -70,6 +70,7 @@ public class PixivSearchPlugin {
     private static final Pattern NUMBER_SELECTION_PATTERN = Pattern.compile("^[\\d,，\\s]+$");
     private static final long SESSION_TIMEOUT_SECONDS = 60 * 5;
     private static final String FILE_OUTPUT_DIR = "data/files/pixiv/wrappers";
+
     private static class LastSearchResult {
         PixivSearchParams params;
         PixivSearchResult result;
@@ -89,7 +90,7 @@ public class PixivSearchPlugin {
             group = "Pixiv", name = "Pixiv搜索",
             permission = Permission.USER,
             description = "在Pixiv上搜索插画作品。命令格式：/pixiv搜索 <标签1> <标签2> ... [-p<页码>] [-r]。其中 -p 用于指定页码，-r 用于开启R18搜索。",
-            commands = {"/Pixiv搜索","/pixiv搜索","/P站搜索","/p站搜索"}, hidden = false)
+            commands = {"/Pixiv搜索", "/pixiv搜索", "/P站搜索", "/p站搜索"}, hidden = false)
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(?:p|P)(?:ixiv|站)搜索\\s+(.+?)(?=\\s+-|$)\\s*(.*)" + COMMAND_SUFFIX_REGEX)
     public void handlePixivSearch(Bot bot, AnyMessageEvent event, Matcher matcher) {
@@ -97,21 +98,31 @@ public class PixivSearchPlugin {
         params.setPageNo(1);
         params.setR18(false);
         String keywords = matcher.group(1).trim();
-        if (keywords.isEmpty()) { bot.sendMsg(event, "请输入至少一个搜索标签！", false); return; }
+        if (keywords.isEmpty()) {
+            bot.sendMsg(event, "请输入至少一个搜索标签！", false);
+            return;
+        }
         List<String> tags = new ArrayList<>(Arrays.asList(keywords.split("\\s+")));
         params.setTags(tags);
         String arguments = matcher.group(2).trim();
         if (!arguments.isEmpty()) {
             String[] args = arguments.split("\\s+");
             for (String arg : args) {
-                if ("-r".equalsIgnoreCase(arg)) { params.setR18(true); continue; }
+                if ("-r".equalsIgnoreCase(arg)) {
+                    params.setR18(true);
+                    continue;
+                }
                 if (arg.toLowerCase().startsWith("-p")) {
                     String pageStr = arg.substring(2);
                     if (!pageStr.isEmpty()) {
                         try {
                             int pageNo = Integer.parseInt(pageStr);
-                            if (pageNo > 0) { params.setPageNo(pageNo); }
-                            else { bot.sendMsg(event, "页码必须是大于0的整数哦。", false); return; }
+                            if (pageNo > 0) {
+                                params.setPageNo(pageNo);
+                            } else {
+                                bot.sendMsg(event, "页码必须是大于0的整数哦。", false);
+                                return;
+                            }
                         } catch (NumberFormatException e) {
                             log.warn("无效的页码参数: {}", arg);
                             bot.sendMsg(event, "页码参数格式不正确，应为 -p<数字>，例如 -p2。", false);
@@ -123,6 +134,7 @@ public class PixivSearchPlugin {
         }
         executeSearch(bot, event, params);
     }
+
     @Async
     @AnyMessageHandler
     @Order(1)
@@ -163,7 +175,7 @@ public class PixivSearchPlugin {
             String tipMessage = "已退出当前搜索会话";
             SessionType sessionType = checkStrictSessionIdType(sessionId);
             String quitMessage = switch (sessionType) {
-                case GROUP -> MsgUtils.builder().at(removeSessionIdPrefix(sessionId)).text(" " + tipMessage).build();
+                case GROUP -> MsgUtils.builder().at(event.getUserId()).text(" " + tipMessage).build();
                 case PRIVATE -> MsgUtils.builder().text(tipMessage).build();
             };
             bot.sendMsg(event, quitMessage, false);
@@ -415,7 +427,7 @@ public class PixivSearchPlugin {
                 String tipMessage = "Pixiv搜索会话已超时，请重新发起搜索。";
                 log.info("Pixiv搜索会话 [{}] 因超时已自动结束。", sessionId);
                 String message = switch (sessionType) {
-                    case GROUP -> MsgUtils.builder().at(removeSessionIdPrefix(sessionId)).text(" " + tipMessage).build();
+                    case GROUP -> MsgUtils.builder().at(removedSearch.initiatorUserId).text(" " + tipMessage).build();
                     case PRIVATE -> MsgUtils.builder().text(tipMessage).build();
                 };
                 bot.sendMsg(removedSearch.event, message, false);
