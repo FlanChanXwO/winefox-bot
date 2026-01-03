@@ -36,7 +36,7 @@ public class TestPlugin {
         log.info("echo模块 接收到 {}", messageContent);
         bot.sendMsg(event, MsgUtils.builder()
                 .at(event.getUserId())
-                .text(" " +messageContent + " ⑨！")
+                .text(" " +messageContent)
                 .build(), false);
     }
 

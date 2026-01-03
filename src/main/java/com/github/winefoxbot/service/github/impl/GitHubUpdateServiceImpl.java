@@ -92,15 +92,22 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
             VersionInfo currentVersion = getCurrentVersionInfo();
             log.info("当前运行版本 - Release ID: {}, Asset ID: {}", currentVersion.releaseId, currentVersion.assetId);
 
-            if (latestVersion.releaseId == currentVersion.releaseId && latestVersion.assetId == currentVersion.assetId) {
+            // 【修复代码】只比较 Release ID。因为 Release ID 相同意味着是同一个版本构建。
+            // 由于 CI 流程中覆盖上传会导致 Asset ID 变更，因此不能比较 Asset ID。
+            if (latestVersion.releaseId == currentVersion.releaseId) {
+                // 可以加个日志提示一下，虽然 Asset ID 不同，但 Release ID 相同，视为最新
+                if (latestVersion.assetId != currentVersion.assetId) {
+                    log.info("Release ID 相同但 Asset ID 不同 ({} vs {})，忽略差异，视为已是最新版本。",
+                            currentVersion.assetId, latestVersion.assetId);
+                }
                 throw new IllegalStateException("当前已是最新版本，无需更新。");
             }
+
             if (latestVersion.releaseId < currentVersion.releaseId) {
                 throw new IllegalStateException("检测到的线上版本比当前版本更旧，跳过更新。");
             }
 
             log.info("发现新版本，开始下载并替换...");
-            // 调用已修复的下载方法
             downloadAndReplace(jarAsset);
 
             log.info("文件更新完成，即将重启应用...");
