@@ -15,6 +15,7 @@ import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import com.mikuac.shiro.enums.MsgTypeEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -109,6 +110,7 @@ public class CorePlugin {
     /**
      * 更新版本
      */
+    @Async
     @PluginFunction(permission = Permission.ADMIN, group = "核心功能", name = "版本更新", description = "版本更新", commands = {
             COMMAND_PREFIX_REGEX + "update" + COMMAND_PREFIX_REGEX,
             COMMAND_PREFIX_REGEX + "更新版本" + COMMAND_SUFFIX_REGEX
