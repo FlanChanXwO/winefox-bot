@@ -135,9 +135,7 @@ public class ChatPlugin {
     @Limit(userPermits = 1, timeInSeconds = 10, notificationIntervalSeconds = 30, message = "戳得太快了，酒狐需要休息一下哦~")
     @Async
     public void handleGroupPokeNotice(Bot bot, PokeNoticeEvent event) {
-        // 1. 必须是戳机器人
-        // 2. 必须不是机器人自己戳自己
-        if (!event.getTargetId().equals(bot.getSelfId()) || event.getTargetId().equals(bot.getSelfId())) {
+        if (!event.getTargetId().equals(bot.getSelfId())) {
             return;
         }
         handlePokeWithPity(bot, event, true);
@@ -147,9 +145,7 @@ public class ChatPlugin {
     @Limit(userPermits = 1, timeInSeconds = 1, notificationIntervalSeconds = 30, message = "戳得太快了，酒狐需要休息一下哦~")
     @Async
     public void handlePrivatePokeNotice(Bot bot, PokeNoticeEvent event) {
-        // 1. 必须是戳机器人
-        // 2. 必须不是机器人自己戳自己
-        if (!event.getTargetId().equals(bot.getSelfId()) || event.getTargetId().equals(bot.getSelfId())) {
+        if (!event.getTargetId().equals(bot.getSelfId())) {
             return;
         }
         handlePokeWithPity(bot, event, false);
