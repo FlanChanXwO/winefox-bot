@@ -92,7 +92,6 @@ public class ScriptChecker {
 
     private static void printUsageAndExit(File dir) {
         String absolutePath = dir.getAbsolutePath();
-        // 因为还没有Logger，我们使用 System.out
         System.out.println("======================================================================================");
         System.out.println(">> 首次运行设置完成！专业的应用管理脚本已生成在您的应用目录中。");
         System.out.println(">> 目录: " + absolutePath);
@@ -105,7 +104,7 @@ public class ScriptChecker {
         System.out.println("   - 停止应用:   control.bat stop");
         System.out.println("   - 查看状态:   control.bat status");
         System.out.println("   - 查看日志:   control.bat logs");
-        System.out.println("   - 实时日志:   control.bat logs -f  (需要 PowerShell)");
+        System.out.println("   - 实时日志:   control.ps1 logs -f （使用 PowerShell）");
         System.out.println();
         System.out.println("   [ 在 Linux / macOS 上 ]");
         System.out.println("   - (首次)添加权限: chmod +x *.sh");

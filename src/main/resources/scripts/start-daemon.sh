@@ -14,7 +14,8 @@ JAVA_OPTS="${JAVA_OPTS} -XX:+HeapDumpOnOutOfMemoryError"
 JAVA_OPTS="${JAVA_OPTS} -XX:HeapDumpPath=./logs/heapdump.hprof"
 # 指定Java应用的临时文件目录 (重要！)
 JAVA_OPTS="${JAVA_OPTS} -Djava.io.tmpdir=./tmp"
-
+# 设置文件编码为UTF-8
+JAVA_OPTS="${JAVA_OPTS} -Dfile.encoding=UTF-8"
 # 目标 JAR 文件的相对路径
 JAR_PATH="winefox-bot.jar"
 
@@ -25,8 +26,8 @@ TEMP_JAR_PATH="update-temp"
 UPDATE_EXIT_CODE=5
 # ==================================================
 
-# 获取脚本所在的目录, 并切换到其上一级目录 (项目根目录)
-cd "$(dirname "$0")/.."
+# 获取脚本所在的目录
+cd "$(dirname "$0")"
 echo "[SETUP] Script is now running in directory: $(pwd)"
 
 # 确保日志和临时目录存在，防止相关参数因目录不存在而报错
