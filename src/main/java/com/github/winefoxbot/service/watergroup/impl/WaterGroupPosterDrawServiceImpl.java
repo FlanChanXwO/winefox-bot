@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class WaterGroupPosterDrawServiceImpl implements WaterGroupPosterDrawService {
 
-    private final Playwright playwright;
+    private final Browser browser;
     private final ShiroGroupMembersService shiroGroupMembersService;
     private final ShiroUsersService usersService;
     private final ResourceLoader resourceLoader;
@@ -107,7 +107,6 @@ public class WaterGroupPosterDrawServiceImpl implements WaterGroupPosterDrawServ
                 }).toList();
 
 
-
         StringBuilder rankHtml = new StringBuilder();
         for (int i = 0; i < statList.size(); i++) {
             rankHtml.append(
@@ -139,14 +138,9 @@ public class WaterGroupPosterDrawServiceImpl implements WaterGroupPosterDrawServ
     }
 
     private File renderByPlaywright(String html) {
-        // 增加 playwright 参数以在某些环境下获得更好的渲染效果
-        try (Browser browser = playwright.chromium().launch(
-                new BrowserType.LaunchOptions()
-                        .setHeadless(true)
-                        .setArgs(List.of("--no-sandbox", "--disable-setuid-sandbox")))) {
-            Browser.NewPageOptions pageOptions = new Browser.NewPageOptions();
-            pageOptions.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
-            Page page = browser.newPage(pageOptions);
+        Browser.NewPageOptions pageOptions = new Browser.NewPageOptions();
+        pageOptions.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
+        try (Page page = browser.newPage(pageOptions)) {
             page.setViewportSize(800, 100); // 初始视口可以小一点，后面会根据内容自适应
             page.setContent(html, new Page.SetContentOptions()
                     .setWaitUntil(WaitUntilState.NETWORKIDLE));
@@ -219,23 +213,23 @@ public class WaterGroupPosterDrawServiceImpl implements WaterGroupPosterDrawServ
         }
 
         return """
-    <div class="rank-item %s">
-      <div class="rank-number">%d</div>
-      <div class="avatar">
-        <img src="%s" alt="avatar"/>
-      </div>
-      <div class="info">
-        <div class="name">%s %s</div>
-        <div class="count">发言次数: %d</div>
-      </div>
-      <div class="progress-container">
-        <div class="progress-bar-bg">
-            <div class="progress-bar-fg" style="width: %.2f%%; background: %s;"></div>
-        </div>
-        <div class="percent-text">%.2f%%</div>
-      </div>
-    </div>
-    """
+                <div class="rank-item %s">
+                  <div class="rank-number">%d</div>
+                  <div class="avatar">
+                    <img src="%s" alt="avatar"/>
+                  </div>
+                  <div class="info">
+                    <div class="name">%s %s</div>
+                    <div class="count">发言次数: %d</div>
+                  </div>
+                  <div class="progress-container">
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fg" style="width: %.2f%%; background: %s;"></div>
+                    </div>
+                    <div class="percent-text">%.2f%%</div>
+                  </div>
+                </div>
+                """
                 .formatted(
                         rankClass,          // 应用特殊CSS类
                         rank,

@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.nio.file.Paths;
+import java.util.List;
 
 /**
  * @author FlanChan (badapple495@outlook.com)
@@ -52,6 +53,7 @@ public class WebDriverConfig {
         return playwright.chromium().launch(
                 new BrowserType.LaunchOptions()
                         .setProxy(proxy)
+                        .setArgs(List.of("--no-sandbox", "--disable-setuid-sandbox"))
                         .setExecutablePath(Paths.get(edgeBinaryPath))
                         .setHeadless(true)
         );

@@ -42,18 +42,20 @@ public class BitTorrentServiceImpl implements BitTorrentService {
     private final BitTorrentConfig bitTorrentConfig;
     private final OkHttpClient client;
     private final Browser browser;
+
     @Override
     public BitTorrentSearchResult search(String keyword, int page) {
         return search(keyword, page, false, null);
     }
 
     public String getRedirectedUrl() {
-        Page page = browser.newPage();
-        page.navigate(bitTorrentConfig.getBaseUrl(), new Page.NavigateOptions()
-                .setWaitUntil(WaitUntilState.NETWORKIDLE)
-                .setTimeout(10_000)
-        );
-        return page.url();
+        try (Page page = browser.newPage()) {
+            page.navigate(bitTorrentConfig.getBaseUrl(), new Page.NavigateOptions().
+                    setWaitUntil(WaitUntilState.NETWORKIDLE).
+                    setTimeout(10_000)
+            );
+            return page.url();
+        }
     }
 
 

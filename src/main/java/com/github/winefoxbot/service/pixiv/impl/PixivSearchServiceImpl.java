@@ -110,93 +110,94 @@ public class PixivSearchServiceImpl implements PixivSearchService {
     public PixivSearchResult search(PixivSearchParams params) {
         // 重试循环
         try (BrowserContext context = createBrowserContext()) {
-            Page page = context.newPage();
-            for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-                // 步骤 1: 导航并加载原始页面
-                String searchUrl = buildSearchUrl(params);
-                log.info("[Attempt {}/{}] Navigating to Pixiv search URL: {}", attempt, MAX_RETRIES, searchUrl);
-                try {
-                    page.navigate(searchUrl, new Page.NavigateOptions().setTimeout(60000));
-                    page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(30000));
-                    log.info("Page loaded. URL: {}", page.url());
-
-                    smoothAutoScroll(page);
-                    log.info("Page scrolling complete.");
-
-                    // 步骤 2: 提取元数据
-                    long totalArtworks = extractTotalArtworks(page);
-                    int totalPages = totalArtworks > 0 ? (int) Math.ceil((double) totalArtworks / 60) : 0;
-                    List<PixivSearchResult.ArtworkData> artworksData = extractArtworksPidsAndUids(page);
-
-                    if (artworksData.isEmpty()) {
-                        log.warn("No artworks found on the page for tags: {}", params.getTags());
-                        return PixivSearchResult.builder().artworks(List.of()).totalPages(0).totalArtworks(0).screenshot(new byte[0]).build();
-                    }
-
-                    // 步骤 3: 在浏览器中直接操作DOM，准备截图区域
-                    removeStarIcons(page);
-                    if (params.isR18()) {
-                        blurArtworks(page);
-                    }
-                    addNumberingToArtworks(page);
-
-                    // 步骤 4: 截取核心作品列表区域
-                    Locator artworkContainer = page.locator(ARTWORK_LIST_CSS_SELECTOR);
-                    byte[] gridImageBytes = artworkContainer.screenshot(new Locator.ScreenshotOptions().setType(ScreenshotType.PNG));
-                    String gridImageBase64 = "data:image/png;base64," + Base64.getEncoder().encodeToString(gridImageBytes);
-                    log.info("Artwork grid screenshot captured successfully, size: {} bytes.", gridImageBytes.length);
-
-                    // 步骤 5: 准备最终模板所需的所有数据
-                    Map<String, String> res = loadResourcesAsDataUri(RESOURCE_BASE_PATH);
-                    Context thymeleafContext = new Context();
-                    thymeleafContext.setVariable("tags", String.join(" ", params.getTags()));
-                    thymeleafContext.setVariable("currentPage", params.getPageNo());
-                    thymeleafContext.setVariable("totalPages", totalPages);
-                    thymeleafContext.setVariable("totalArtworks", totalArtworks);
-                    thymeleafContext.setVariable("res", res);
-                    thymeleafContext.setVariable("hint_text", "请不要在其它群聊分享或宣传此功能，本功能为酒狐独有");
-                    thymeleafContext.setVariable("gridImage", gridImageBase64);
-
-                    String finalHtml = templateEngine.process(HTML_TEMPLATE, thymeleafContext);
-
-                    byte[] finalScreenshot;
-                    try (BrowserContext screenshotContext = browser.newContext(new Browser.NewContextOptions().setDeviceScaleFactor(2))) {
-                        Page screenshotPage = screenshotContext.newPage();
-                        screenshotPage.setContent(finalHtml);
-                        Locator gridImageLocator = screenshotPage.locator(".pixiv-card img");
-                        gridImageLocator.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(10000));
-                        log.info("Embedded grid image is now visible in the final template.");
-
-                        Locator container = screenshotPage.locator(".container");
-                        finalScreenshot = container.screenshot(new Locator.ScreenshotOptions().setType(ScreenshotType.PNG));
-                        log.info("Final composite image captured successfully.");
-                    }
-                    // 如果代码执行到这里，说明成功了，直接返回结果并退出循环
-                    return PixivSearchResult.builder()
-                            .screenshot(finalScreenshot)
-                            .artworks(artworksData)
-                            .currentPage(params.getPageNo())
-                            .totalPages(totalPages)
-                            .totalArtworks(totalArtworks)
-                            .r18(params.isR18())
-                            .build();
-                } catch (PlaywrightException e) {
-                    log.warn("[Attempt {}/{}] Playwright operation failed: {}. Retrying in {}ms...",
-                            attempt, MAX_RETRIES, e.getMessage(), RETRY_INTERVAL_MS);
-
-                    // 如果这是最后一次尝试，则记录错误并抛出异常
-                    if (attempt == MAX_RETRIES) {
-                        log.error("All {} retries failed for Pixiv search. Aborting.", MAX_RETRIES, e);
-                        throw new RuntimeException("Failed to perform Pixiv search after " + MAX_RETRIES + " attempts.", e);
-                    }
-
-                    // 等待指定的间隔时间再进行下一次尝试
+            try(Page page = context.newPage()) {
+                for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                    // 步骤 1: 导航并加载原始页面
+                    String searchUrl = buildSearchUrl(params);
+                    log.info("[Attempt {}/{}] Navigating to Pixiv search URL: {}", attempt, MAX_RETRIES, searchUrl);
                     try {
-                        TimeUnit.MILLISECONDS.sleep(RETRY_INTERVAL_MS);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt(); // 恢复中断状态
-                        log.error("Retry sleep was interrupted.", ie);
-                        throw new RuntimeException("Pixiv search retry was interrupted.", ie);
+                        page.navigate(searchUrl, new Page.NavigateOptions().setTimeout(60000));
+                        page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(30000));
+                        log.info("Page loaded. URL: {}", page.url());
+
+                        smoothAutoScroll(page);
+                        log.info("Page scrolling complete.");
+
+                        // 步骤 2: 提取元数据
+                        long totalArtworks = extractTotalArtworks(page);
+                        int totalPages = totalArtworks > 0 ? (int) Math.ceil((double) totalArtworks / 60) : 0;
+                        List<PixivSearchResult.ArtworkData> artworksData = extractArtworksPidsAndUids(page);
+
+                        if (artworksData.isEmpty()) {
+                            log.warn("No artworks found on the page for tags: {}", params.getTags());
+                            return PixivSearchResult.builder().artworks(List.of()).totalPages(0).totalArtworks(0).screenshot(new byte[0]).build();
+                        }
+
+                        // 步骤 3: 在浏览器中直接操作DOM，准备截图区域
+                        removeStarIcons(page);
+                        if (params.isR18()) {
+                            blurArtworks(page);
+                        }
+                        addNumberingToArtworks(page);
+
+                        // 步骤 4: 截取核心作品列表区域
+                        Locator artworkContainer = page.locator(ARTWORK_LIST_CSS_SELECTOR);
+                        byte[] gridImageBytes = artworkContainer.screenshot(new Locator.ScreenshotOptions().setType(ScreenshotType.PNG));
+                        String gridImageBase64 = "data:image/png;base64," + Base64.getEncoder().encodeToString(gridImageBytes);
+                        log.info("Artwork grid screenshot captured successfully, size: {} bytes.", gridImageBytes.length);
+
+                        // 步骤 5: 准备最终模板所需的所有数据
+                        Map<String, String> res = loadResourcesAsDataUri(RESOURCE_BASE_PATH);
+                        Context thymeleafContext = new Context();
+                        thymeleafContext.setVariable("tags", String.join(" ", params.getTags()));
+                        thymeleafContext.setVariable("currentPage", params.getPageNo());
+                        thymeleafContext.setVariable("totalPages", totalPages);
+                        thymeleafContext.setVariable("totalArtworks", totalArtworks);
+                        thymeleafContext.setVariable("res", res);
+                        thymeleafContext.setVariable("hint_text", "请不要在其它群聊分享或宣传此功能，本功能为酒狐独有");
+                        thymeleafContext.setVariable("gridImage", gridImageBase64);
+
+                        String finalHtml = templateEngine.process(HTML_TEMPLATE, thymeleafContext);
+
+                        byte[] finalScreenshot;
+                        try (BrowserContext screenshotContext = browser.newContext(new Browser.NewContextOptions().setDeviceScaleFactor(2))) {
+                            Page screenshotPage = screenshotContext.newPage();
+                            screenshotPage.setContent(finalHtml);
+                            Locator gridImageLocator = screenshotPage.locator(".pixiv-card img");
+                            gridImageLocator.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(10000));
+                            log.info("Embedded grid image is now visible in the final template.");
+
+                            Locator container = screenshotPage.locator(".container");
+                            finalScreenshot = container.screenshot(new Locator.ScreenshotOptions().setType(ScreenshotType.PNG));
+                            log.info("Final composite image captured successfully.");
+                        }
+                        // 如果代码执行到这里，说明成功了，直接返回结果并退出循环
+                        return PixivSearchResult.builder()
+                                .screenshot(finalScreenshot)
+                                .artworks(artworksData)
+                                .currentPage(params.getPageNo())
+                                .totalPages(totalPages)
+                                .totalArtworks(totalArtworks)
+                                .r18(params.isR18())
+                                .build();
+                    } catch (PlaywrightException e) {
+                        log.warn("[Attempt {}/{}] Playwright operation failed: {}. Retrying in {}ms...",
+                                attempt, MAX_RETRIES, e.getMessage(), RETRY_INTERVAL_MS);
+
+                        // 如果这是最后一次尝试，则记录错误并抛出异常
+                        if (attempt == MAX_RETRIES) {
+                            log.error("All {} retries failed for Pixiv search. Aborting.", MAX_RETRIES, e);
+                            throw new RuntimeException("Failed to perform Pixiv search after " + MAX_RETRIES + " attempts.", e);
+                        }
+
+                        // 等待指定的间隔时间再进行下一次尝试
+                        try {
+                            TimeUnit.MILLISECONDS.sleep(RETRY_INTERVAL_MS);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt(); // 恢复中断状态
+                            log.error("Retry sleep was interrupted.", ie);
+                            throw new RuntimeException("Pixiv search retry was interrupted.", ie);
+                        }
                     }
                 }
             }
