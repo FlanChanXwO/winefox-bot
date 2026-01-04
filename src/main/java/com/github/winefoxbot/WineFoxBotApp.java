@@ -1,6 +1,6 @@
 package com.github.winefoxbot;
 
-import com.github.winefoxbot.init.ScriptChecker;
+import com.github.winefoxbot.core.init.ScriptChecker;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.ai.model.chat.client.autoconfigure.ChatClientAutoConfiguration;
 import org.springframework.boot.SpringApplication;
@@ -13,7 +13,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableAsync
 @EnableScheduling
 @EnableAspectJAutoProxy(proxyTargetClass = true)
-@MapperScan("com.github.winefoxbot.mapper")
+@MapperScan({
+        "com.github.winefoxbot.core.mapper",
+        "com.github.winefoxbot.plugins.**.mapper"
+})
 @SpringBootApplication(exclude = ChatClientAutoConfiguration.class)
 @EnableCaching
 public class WineFoxBotApp {

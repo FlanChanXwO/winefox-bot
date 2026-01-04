@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:17.7-alpine  # 使用 Alpine 版本更轻量，也可用 postgres:latest
+    container_name: postgresql
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres            # 超级用户
+      POSTGRES_PASSWORD: postgres123     # 请修改为强密码
+      POSTGRES_DB: winefoxbot            # 初始数据库
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+      TZ: Asia/Shanghai                  # 时区设置
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256  # 或 md5
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+      - ./postgres_init:/docker-entrypoint-initdb.d  # 初始化脚本
+      - ./postgres_config:/etc/postgresql          # 配置文件（可选）
+    networks:
+      - winefox-bot-app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=100"
+      - "-c"
+      - "shared_buffers=256MB"
+  # --- 新增的 Redis 服务 ---
+  redis:
+    image: redis:7-alpine # 使用轻量的 Alpine 版本
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379" # 将容器的 6379 端口映射到主机的 6379 端口
+    volumes:
+      # 挂载持久化数据目录
+      - ./redis_data:/data
+      #  挂载配置文件
+      - ./redis_config/redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      - winefox-bot-app-network # 加入同一个网络
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server /usr/local/etc/redis/redis.conf # 使用指定的配置文件启动 Redis
+
+volumes:
+  postgres_data: # 定义 postgres 的命名卷
+    driver: local
+  redis_data: # 定义 redis 的命名卷
+    driver: local
+
+networks:
+  winefox-bot-app-network: # 定义网络
+    driver: bridge

@@ -1,12 +1,9 @@
 package com.github.winefoxbot;
 
 import cn.hutool.core.lang.Dict;
-import cn.hutool.core.lang.Pair;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import cn.hutool.setting.yaml.YamlUtil;
-import com.fasterxml.jackson.dataformat.yaml.YAMLParser;
-import com.github.winefoxbot.config.http.ProxyConfig;
 import okhttp3.Headers;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -16,7 +13,6 @@ import org.springframework.http.HttpHeaders;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 

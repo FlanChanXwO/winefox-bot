@@ -11,7 +11,7 @@
 
     <groupId>com.github</groupId>
     <artifactId>winefox-bot</artifactId>
-    <version>1.4.1</version>
+    <version>1.5.3</version>
 
     <name>winefox-bot</name>
 
@@ -144,7 +144,6 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
         </dependency>
-
         <!-- Flyway Core -->
         <dependency>
             <groupId>org.flywaydb</groupId>
@@ -160,6 +159,11 @@
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
             <version>${mybatis-plus.version}</version>
+        </dependency>
+        <!-- redis -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>

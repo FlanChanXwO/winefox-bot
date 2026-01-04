@@ -13,11 +13,27 @@ spring:
     virtual:
       enabled: true
   cache:
-    type: caffeine # 指定缓存类型为 caffeine
-    caffeine:
-      spec: > # 使用 spec 字符串进行详细配置
-        maximumSize=500,
-        expireAfterWrite=10m
+#    type: caffeine # 指定缓存类型为 caffeine
+#    caffeine:
+#      spec: > # 使用 spec 字符串进行详细配置
+#        maximumSize=500,
+#        expireAfterWrite=10m
+    type: redis
+    redis:
+      # 全局默认的过期时间，设置为 10 分钟，与你之前的 Caffeine 配置一致
+      # 如果不设置，缓存将永不过期
+      time-to-live: 10m
+      # 缓存键的前缀。这非常重要！可以避免不同应用的 key 冲突。
+      # 例如，一个 key "user::123" 在 Redis 中会存储为 "myapp:cache:user::123"
+      key-prefix: "winefoxbot:cache:" # 注意：这里的值应该是一个字符串
+      # 是否缓存 null 值，防止缓存穿透。默认为 false。
+      # 如果你的方法可能返回 null 且这个结果也需要被缓存，可以设为 true。
+      cache-null-values: true
+      # 是否使用前缀，默认为 true。建议保持开启。
+      use-key-prefix: true
+  data:
+    redis:
+      timeout: 1000ms # Redis 操作超时时间
   main:
     lazy-initialization: false
   sql:
@@ -34,7 +50,8 @@ spring:
     hikari:
       auto-commit: true
       connection-timeout: 30000
-      maximum-pool-size: 10
+      maximum-pool-size: 20
+
   ai:
     openai:
       chat:
@@ -100,11 +117,13 @@ okhttp:
     port: 7889
     enabled: on
     no-proxy-hosts:
+      - localhost
+      - 127.0.0.1
+      - ::1
       - sex.nyan.run
       - api.lolicon.app
       - i.pixiv.re
       - q2.qlogo.cn
-
 # 日志级别
 logging:
   level:
@@ -146,7 +165,7 @@ shiro:
       enable: true
     client:
       reconnect-interval: 5
-  interceptor: com.github.winefoxbot.aop.interceptor.BotReceiveMsgInterceptor
+  interceptor: com.github.winefoxbot.core.aop.interceptor.BotReceiveMsgInterceptor
 
 # JobRunr 任务调度配置
 jobrunr:

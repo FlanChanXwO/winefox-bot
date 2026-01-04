@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <!-- 关键：添加 viewport meta 标签 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>动态图片展示</title>
+    <style>
+        /* 字体定义 (保持不变) */
+        @font-face {
+            font-family: 'NotoSansSC-Regular';
+            src: local('Noto Sans SC Regular'), local('思源黑体 CN Regular');
+        }
+        @font-face {
+            font-family: 'NotoSansSC-Bold';
+            src: local('Noto Sans SC Bold'), local('思源黑体 CN Bold');
+        }
+        @font-face {
+            font-family: 'SSFangTangTi';
+            src: local('得意黑'), local('Smiley Sans'), local('SSFangTangTi');
+        }
+
+        /* 基础样式 */
+        body {
+            margin: 0;
+            padding: 15px; /* 在body上加一些padding，防止内容紧贴屏幕边缘 */
+            background-color: #f9f9f9;
+            font-family: 'NotoSansSC-Regular', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box; /* 让padding不影响总宽度 */
+        }
+
+        .container {
+            /* 关键改动：使用 max-width */
+            width: 100%; /* 宽度占满父容器 (body) */
+            max-width: 800px; /* 但最大不超过800px */
+            padding: 20px;
+            background-color: #fff0f5;
+            box-sizing: border-box;
+            border-radius: 12px;
+        }
+
+        /* 头部样式 */
+        .header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #ffdae5;
+            padding: 10px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+
+        .header .title-cn {
+            font-size: 28px; /* 稍微缩小默认字体 */
+            font-family: 'SSFangTangTi', 'NotoSansSC-Bold', sans-serif;
+            color: #d15a7c;
+            text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.05);
+        }
+
+        /* 卡片样式 */
+        .pixiv-card {
+            background-color: white;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            min-height: 250px; /* 移动端适当减小最小高度 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.3s ease;
+        }
+
+        .pixiv-card.loading {
+            background-color: #f0f0f0;
+        }
+
+        .pixiv-card img {
+            display: block;
+            margin: 0 auto;
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+        }
+
+        /* 底部样式 */
+        .footer {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            background-color: #ffdae5;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .footer p {
+            margin: 0;
+            color: #5A5A5A;
+            font-family: 'NotoSansSC-Bold', sans-serif;
+        }
+
+        .hint-text {
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .support-info {
+            font-size: 10px;
+            color: #888;
+        }
+
+        /* 关键：媒体查询，针对小屏幕进行微调 */
+        @media (max-width: 600px) {
+            body {
+                padding: 10px; /* 手机上padding可以更小 */
+            }
+            .container {
+                padding: 15px; /* 容器内边距也减小 */
+            }
+            .header .title-cn {
+                font-size: 24px; /* 标题再小一点 */
+            }
+            .hint-text {
+                font-size: 14px;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <p class="title-cn">动态图片展示</p>
+    </div>
+
+    <div class="pixiv-card" id="imageCard">
+        <img id="dynamicImage" src="" alt="动态加载的图片..." />
+    </div>
+
+    <div class="footer">
+        <p class="hint-text">图片每 3 秒自动刷新</p>
+        <p class="support-info">Powered By Spring Boot</p>
+    </div>
+</div>
+
+<script>
+    // JavaScript部分保持不变
+    const imageElement = document.getElementById('dynamicImage');
+    const imageCard = document.getElementById('imageCard');
+
+    function updateImage() {
+        imageCard.classList.add('loading');
+
+        fetch('/api/latest-image')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('授权失败或服务器错误');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('获取到新图片URL:', data.url);
+                const tempImg = new Image();
+                tempImg.src = data.url;
+                tempImg.onload = function() {
+                    imageElement.src = data.url;
+                    imageCard.classList.remove('loading');
+                };
+                tempImg.onerror = function() { // 添加错误处理
+                    console.error('图片资源加载失败:', data.url);
+                    imageCard.classList.remove('loading');
+                };
+            })
+            .catch(error => {
+                console.error('获取图片失败:', error);
+                imageCard.classList.remove('loading');
+                document.querySelector('.hint-text').innerText = '图片加载失败，请检查网络或权限。';
+            });
+    }
+
+    updateImage();
+    setInterval(updateImage, 3000);
+</script>
+
+</body>
+</html>
+
