@@ -78,6 +78,11 @@ public class ObjectStorageService implements FileStorageService {
     }
 
     @Override
+    public boolean deleteFile(Path filePath, Consumer<Path> afterDeleteCallback) throws IOException {
+        throw new UnsupportedOperationException(NOT_IMPLEMENTED_MSG);
+    }
+
+    @Override
     public boolean exists(String path) {
         throw new UnsupportedOperationException(NOT_IMPLEMENTED_MSG);
     }

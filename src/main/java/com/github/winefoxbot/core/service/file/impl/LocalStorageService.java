@@ -264,6 +264,29 @@ public class LocalStorageService implements FileStorageService {
         return deleted;
     }
 
+    /**
+     * 删除文件的核心实现，接收一个 Path 对象。
+     * @param filePath 要删除的文件的路径
+     * @param afterDeleteCallback 删除后执行的回调
+     * @return 如果文件被成功删除则返回 true
+     * @throws IOException 如果发生 I/O 错误
+     */
+    @Override
+    public boolean deleteFile(Path filePath, Consumer<Path> afterDeleteCallback) throws IOException {
+        boolean deleted = Files.deleteIfExists(filePath);
+        if (deleted) {
+            log.info("File deleted successfully: {}", filePath);
+            // 注意：从 fileRecords 中移除记录的操作应该由调用者（如 cleanupExpiredFiles）负责
+            // 因为这个方法可能被其他地方调用，不一定需要操作 fileRecords。
+            if (afterDeleteCallback != null) {
+                afterDeleteCallback.accept(filePath);
+            }
+        }
+        // saveRecords() 也不应该在这里调用，应该在批量操作（如清理任务）结束后统一调用。
+        return deleted;
+    }
+
+
     @Override
     public boolean deleteDirectory(Path directoryPath) throws IOException {
         if (!Files.isDirectory(directoryPath)) {
@@ -354,19 +377,36 @@ public class LocalStorageService implements FileStorageService {
         log.debug("Running scheduled task to clean up expired files...");
         Instant now = Instant.now();
         boolean changed = false;
-        for (FileRecord record : fileRecords.values()) {
+        // 使用迭代器以安全地删除元素
+        Iterator<Map.Entry<String, FileRecord>> iterator = fileRecords.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, FileRecord> entry = iterator.next();
+            FileRecord record = entry.getValue();
+
             if (record.getExpireTime() != null && record.getExpireTime().isBefore(now)) {
                 try {
                     log.info("File expired: {}. Deleting...", record.getAbsolutePath());
-                    deleteFile(record.getAbsolutePath().getPath(), record.getOnDeleteCallback());
-                    changed = true;
+
+                    // [!!!! 关键修正 !!!!]
+                    // 1. 从记录的URI直接创建Path对象
+                    Path expiredFilePath = Paths.get(record.getAbsolutePath());
+                    // 2. 调用一个重载的、接收Path对象的deleteFile方法
+                    if (deleteFile(expiredFilePath, record.getOnDeleteCallback())) {
+                        iterator.remove(); // 如果文件删除成功，再从记录中移除
+                        changed = true;
+                    }
+
                 } catch (IOException e) {
                     log.error("Error deleting expired file: {}", record.getAbsolutePath(), e);
+                } catch (IllegalArgumentException e) {
+                    log.error("Invalid path found for expired record: {}", record.getAbsolutePath(), e);
                 }
             }
         }
+
         if (changed) {
             log.info("Expired file cleanup finished, some files were deleted.");
+            saveRecords(); // 只有当记录实际发生变化时才保存
         } else {
             log.debug("Expired file cleanup finished, no files to delete.");
         }

@@ -102,6 +102,8 @@ public interface FileStorageService {
      */
     boolean deleteFile(String path, Consumer<Path> afterDeleteCallback) throws IOException;
 
+    boolean deleteFile(Path filePath, Consumer<Path> afterDeleteCallback) throws IOException;
+
     boolean deleteDirectory(Path directoryPath) throws IOException;
 
 
