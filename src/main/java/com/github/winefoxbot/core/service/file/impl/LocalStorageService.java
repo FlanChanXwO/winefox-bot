@@ -139,7 +139,6 @@ public class LocalStorageService implements FileStorageService {
 
     @Override
     public Path saveFileByCacheKey(String cacheKey, InputStream inputStream, Duration expireAfter) throws IOException {
-        // 直接复用 writeFile 方法
         return writeFile(cacheKey, inputStream, expireAfter, null);
     }
 
@@ -184,7 +183,7 @@ public class LocalStorageService implements FileStorageService {
             log.info("File for cache key '{}' saved successfully.", cacheKey);
         } catch (IOException e) {
             log.error("Failed to save file for cache key '{}'.", cacheKey, e);
-            // 根据业务需求，这里可以抛出自定义的运行时异常
+
         }
     }
 
@@ -213,14 +212,11 @@ public class LocalStorageService implements FileStorageService {
         Instant now = Instant.now();
         Instant expireTime = (expireAfter != null) ? now.plus(expireAfter) : null;
 
-        // [!!!! 关键修正 !!!!] 将 Path 转换为 URI
         URI fileUri = absolutePath.toAbsolutePath().toUri();
 
-        // 注意：这里的 key 仍然使用 string, 但 record 内部使用 URI
         FileRecord record = new FileRecord(fileUri, now, expireTime, onDeleteCallback);
         fileRecords.put(fileUri.toString(), record); // 使用 URI 的字符串形式作为 key
 
-        // 之前建议的优化：移除这里的 saveRecords()，或者保持原样看是否能解决问题先
         saveRecords();
 
         if (onDeleteCallback != null) {
