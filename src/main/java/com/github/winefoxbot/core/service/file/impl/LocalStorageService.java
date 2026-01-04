@@ -43,6 +43,7 @@ public class LocalStorageService implements FileStorageService {
                 log.info("Local storage base directory created at: {}", storageBasePath.toAbsolutePath());
             }
             loadAndCleanupRecords(); // 启动时加载并清理
+            cleanupAllEmptyDirectories();
         } catch (IOException e) {
             log.error("Failed to initialize LocalStorageService", e);
             throw new IllegalStateException("Could not initialize storage directory or records", e);
@@ -77,6 +78,64 @@ public class LocalStorageService implements FileStorageService {
         // 如果记录不存在但文件存在（可能重启后），暂时认为有效
         return filePath;
     }
+
+    /**
+     * 定时任务：在每天凌晨5点执行，递归地从存储根目录开始清理所有空文件夹。
+     * cron = "0 0 5 * * ?" 解释: [秒] [分] [时] [日] [月] [周]
+     * 0 0 3 * * ?  => 每天的凌晨5点0分0秒执行
+     */
+    @Scheduled(cron = "0 0 5 * * ?")
+    public void scheduledCleanupEmptyDirectories() {
+        log.info("Starting scheduled task to clean up all empty directories...");
+        cleanupAllEmptyDirectories();
+        log.info("Scheduled empty directory cleanup finished.");
+    }
+
+    /**
+     * 从存储根目录 (storageBasePath) 开始，递归地查找并删除所有空目录。
+     */
+    public void cleanupAllEmptyDirectories() {
+        try {
+            // 使用Files.walk进行深度优先遍历，并以相反的顺序处理路径（从最深层开始）
+            // 这样可以确保在删除父目录之前，其子目录已经被处理（或删除）
+            try (Stream<Path> walk = Files.walk(storageBasePath)) {
+                walk.filter(Files::isDirectory)
+                        .sorted(Comparator.reverseOrder()) // 从最深的目录开始
+                        .forEach(this::deleteDirectoryIfEmpty);
+            }
+        } catch (IOException e) {
+            log.error("An error occurred during the empty directory cleanup process.", e);
+        }
+    }
+
+    /**
+     * 检查并删除一个目录，如果它是空的话。
+     * @param dir 要检查的目录
+     */
+    private void deleteDirectoryIfEmpty(Path dir) {
+        // 确保我们不会删除根存储目录本身
+        if (dir.equals(storageBasePath)) {
+            return;
+        }
+
+        try {
+            // 使用 try-with-resources 确保 DirectoryStream 被正确关闭
+            // Files.list(dir).findAny().isEmpty() 是一个高效的判断目录是否为空的方法
+            try (Stream<Path> entries = Files.list(dir)) {
+                if (entries.findAny().isEmpty()) {
+                    try {
+                        Files.delete(dir);
+                        log.info("Successfully deleted empty directory: {}", dir);
+                    } catch (IOException e) {
+                        log.error("Failed to delete empty directory: {}", dir, e);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            log.error("Could not check if directory is empty: {}", dir, e);
+        }
+    }
+
 
     @Override
     public Path saveFileByCacheKey(String cacheKey, InputStream inputStream, Duration expireAfter) throws IOException {

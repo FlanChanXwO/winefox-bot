@@ -14,7 +14,7 @@ import java.util.HashMap;
 public class ImageController {
 
     private final Random random = new Random();
-    private final String[] images = {"/images/1.gif", "/images/2.gif", "/images/3.gif"};
+    private final String[] images = {"/images/1.gif", "/images/2.gif", "/images/3.gif","/images/4.gif","/images/5.gif"};
     private static final String AUTH_SESSION_KEY = "user_authorized"; // 和 ViewController 保持一致
 
     @GetMapping("/api/latest-image")

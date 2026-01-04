@@ -141,7 +141,6 @@ mybatis-plus:
     db-config:
       update-strategy: always
       insert-strategy: always
-
 # 应用自身配置
 winefox:
   app:
