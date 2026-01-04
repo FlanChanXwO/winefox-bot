@@ -12,7 +12,7 @@ import lombok.Getter;
 public class FeatureNotEnabledException extends BaseException {
 
 
-    public FeatureNotEnabledException(Bot bot, Event event, String message) {
-        super(bot, event, message);
+    public FeatureNotEnabledException(Bot bot, Event event, String message, Exception e) {
+        super(bot, event, message, e);
     }
 }

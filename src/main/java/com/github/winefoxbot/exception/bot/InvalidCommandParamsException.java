@@ -12,7 +12,7 @@ import lombok.Getter;
 public class InvalidCommandParamsException extends BaseException {
 
 
-    public InvalidCommandParamsException(Bot bot, Event event, String message) {
-        super(bot, event, message);
+    public InvalidCommandParamsException(Bot bot, Event event, String message, Exception e) {
+        super(bot, event, message, e);
     }
 }

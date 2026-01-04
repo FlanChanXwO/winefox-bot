@@ -12,7 +12,7 @@ import lombok.Getter;
 public class NetworkException extends BaseException {
 
 
-    public NetworkException(Bot bot, Event event, String message) {
-        super(bot, event, message);
+    public NetworkException(Bot bot, Event event, String message, Exception e) {
+        super(bot, event, message, e);
     }
 }

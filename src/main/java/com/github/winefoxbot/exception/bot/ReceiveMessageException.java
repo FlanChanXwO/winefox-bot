@@ -11,7 +11,7 @@ import lombok.Getter;
 @Getter
 public class ReceiveMessageException extends BaseException {
 
-    public ReceiveMessageException(Bot bot, Event event, String message) {
-        super(bot, event, message);
+    public ReceiveMessageException(Bot bot, Event event, String message, Exception e) {
+        super(bot, event, message, e);
     }
 }

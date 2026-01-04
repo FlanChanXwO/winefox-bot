@@ -15,8 +15,8 @@ import lombok.Getter;
 public class RateLimitException extends BaseException {
 
 
-    public RateLimitException(Bot bot, Event event, String message) {
-        super(bot, event, message);
+    public RateLimitException(Bot bot, Event event, String message, Exception e) {
+        super(bot, event, message, e);
     }
 
     @Override

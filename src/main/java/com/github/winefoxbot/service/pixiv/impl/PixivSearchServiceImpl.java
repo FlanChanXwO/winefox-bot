@@ -2,7 +2,8 @@ package com.github.winefoxbot.service.pixiv.impl;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
-import com.github.winefoxbot.config.PixivConfig;
+import com.github.winefoxbot.config.pixiv.PixivConfig;
+import com.github.winefoxbot.config.pixiv.PixivProperties;
 import com.github.winefoxbot.model.dto.pixiv.PixivSearchParams;
 import com.github.winefoxbot.model.dto.pixiv.PixivSearchResult;
 import com.github.winefoxbot.service.pixiv.PixivSearchService;
@@ -41,7 +42,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PixivSearchServiceImpl implements PixivSearchService {
 
-    private final PixivConfig pixivConfig;
+    private final PixivProperties pixivProperties;
     private final Browser browser;
     private final TemplateEngine templateEngine;
     private final ResourcePatternResolver resourceResolver;
@@ -99,8 +100,8 @@ public class PixivSearchServiceImpl implements PixivSearchService {
                 new Browser.NewContextOptions().setLocale("zh-CN")
         );
         List<Cookie> cookies = List.of(
-                new Cookie("p_ab_id", pixivConfig.getPAbId()).setDomain(".pixiv.net").setPath("/"),
-                new Cookie("PHPSESSID", pixivConfig.getPhpSessId()).setDomain(".pixiv.net").setPath("/")
+                new Cookie("p_ab_id", pixivProperties.getCookie().getPAbId()).setDomain(".pixiv.net").setPath("/"),
+                new Cookie("PHPSESSID", pixivProperties.getCookie().getPhpsessid()).setDomain(".pixiv.net").setPath("/")
         );
         this.sharedContext.addCookies(cookies);
         log.info("Shared Pixiv BrowserContext initialized and cookies set.");
@@ -265,15 +266,6 @@ public class PixivSearchServiceImpl implements PixivSearchService {
         }).collect(Collectors.toList());
     }
 
-    private BrowserContext createBrowserContext() {
-        BrowserContext context = browser.newContext(new Browser.NewContextOptions().setLocale("zh-CN"));
-        List<Cookie> cookies = List.of(
-                new Cookie("p_ab_id", pixivConfig.getPAbId()).setDomain(".pixiv.net").setPath("/"),
-                new Cookie("PHPSESSID", pixivConfig.getPhpSessId()).setDomain(".pixiv.net").setPath("/")
-        );
-        context.addCookies(cookies);
-        return context;
-    }
 
     private String buildSearchUrl(PixivSearchParams params) {
         String tags = params.getTags().stream().map(URLUtil::encode).collect(Collectors.joining(" "));

@@ -1,7 +1,6 @@
 package com.github.winefoxbot.plugins;
 
 import com.github.winefoxbot.annotation.PluginFunction;
-import com.github.winefoxbot.config.app.WineFoxBotConfig;
 import com.github.winefoxbot.model.enums.Permission;
 import com.github.winefoxbot.service.pixiv.PixivAuthorSubscriptionService;
 import com.mikuac.shiro.annotation.AnyMessageHandler;

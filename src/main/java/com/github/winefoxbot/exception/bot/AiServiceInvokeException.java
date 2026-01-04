@@ -10,7 +10,7 @@ import lombok.Getter;
  */
 @Getter
 public class AiServiceInvokeException extends BaseException {
-    public AiServiceInvokeException(Bot bot, Event event, String message) {
-        super(bot, event, message);
+    public AiServiceInvokeException(Bot bot, Event event, String message, Exception source) {
+        super(bot, event, message, source);
     }
 }

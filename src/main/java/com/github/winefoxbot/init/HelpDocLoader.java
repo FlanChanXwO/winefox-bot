@@ -101,7 +101,7 @@ public class HelpDocLoader {
                     if (funcAnnotation.autoGenerateHelp()) {
                         String cmdRegex = getCmdRegexFromMessageHandlerAnnotation(method);
                         if (cmdRegex != null) {
-                            commands.addAll(CommandRegexParser.extractCommands(cmdRegex));
+                            commands.addAll(CommandRegexParser.generateCommands(cmdRegex));
                         }
                     }
                     helpDoc.setCommands(commands.stream().distinct().collect(Collectors.toList()));

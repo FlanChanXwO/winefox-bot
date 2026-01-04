@@ -12,7 +12,7 @@ import lombok.Getter;
 public class ResourceNotFoundException extends BaseException {
 
 
-    public ResourceNotFoundException(Bot bot, Event event, String message) {
-        super(bot, event, message);
+    public ResourceNotFoundException(Bot bot, Event event, String message, Exception e) {
+        super(bot, event, message, e);
     }
 }

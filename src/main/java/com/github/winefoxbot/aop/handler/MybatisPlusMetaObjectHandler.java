@@ -23,12 +23,13 @@ public class MybatisPlusMetaObjectHandler implements MetaObjectHandler {
     @Override
     public void insertFill(MetaObject metaObject) {
         log.debug("start insert fill ....");
-        // setFieldValByName("字段名", "字段值", metaObject)
-        this.strictInsertFill(metaObject, "createdAt", LocalDateTime.class, LocalDateTime.now());
-        this.strictInsertFill(metaObject, "createTime", LocalDateTime.class, LocalDateTime.now());
-        this.strictInsertFill(metaObject, "updatedAt", LocalDateTime.class, LocalDateTime.now());
-        this.strictInsertFill(metaObject, "time", LocalDateTime.class, LocalDateTime.now());
-        this.strictInsertFill(metaObject, "lastUpdated", LocalDateTime.class, LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        this.strictInsertFill(metaObject, "createdAt", LocalDateTime.class, now);
+        this.strictInsertFill(metaObject, "updatedAt", LocalDateTime.class, now);
+        this.strictInsertFill(metaObject, "createTime", LocalDateTime.class, now);
+        this.strictUpdateFill(metaObject, "updateTime", LocalDateTime.class, now);
+        this.strictInsertFill(metaObject, "time", LocalDateTime.class, now);
+        this.strictInsertFill(metaObject, "lastUpdated", LocalDateTime.class, now);
     }
 
     /**
@@ -38,8 +39,9 @@ public class MybatisPlusMetaObjectHandler implements MetaObjectHandler {
     @Override
     public void updateFill(MetaObject metaObject) {
         log.debug("start update fill ....");
-        this.strictUpdateFill(metaObject, "updatedAt", LocalDateTime.class, LocalDateTime.now());
-        this.strictUpdateFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
-        this.strictUpdateFill(metaObject,"lastUpdated", LocalDateTime.class, LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        this.strictUpdateFill(metaObject, "updatedAt", LocalDateTime.class, now);
+        this.strictUpdateFill(metaObject, "updateTime", LocalDateTime.class, now);
+        this.strictUpdateFill(metaObject,"lastUpdated", LocalDateTime.class, now);
     }
 }

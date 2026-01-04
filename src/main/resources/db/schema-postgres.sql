@@ -221,3 +221,44 @@ CREATE TABLE IF NOT EXISTS pixiv_author_subscription
     created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Final DDL for PostgreSQL (Using Integer for Enums, fully compatible with MybatisPlus and Flyway)
+
+-- =================================================================
+-- Section 1:   Table Creation for pixiv_bookmark
+-- 使用 IF NOT EXISTS 保证表创建的幂等性 (Flyway friendly)
+-- =================================================================
+CREATE TABLE IF NOT EXISTS pixiv_bookmark (
+                                              id VARCHAR(20) PRIMARY KEY,
+                                              tracked_user_id VARCHAR(20) NOT NULL,
+                                              title TEXT NOT NULL,
+                                              illust_type INT NOT NULL,
+    -- x_restrict 使用 SMALLINT 存储数字 (0: ALL_AGES, 1: R18, 2: R18G)
+                                              x_restrict SMALLINT NOT NULL,
+                                              sl_level INT NOT NULL ,
+                                              author_id VARCHAR(20),
+                                              author_name TEXT NOT NULL ,
+                                              image_url TEXT NOT NULL,
+                                              width INT NOT NULL,
+                                              height INT NOT NULL,
+                                              page_count INT NOT NULL,
+                                              tags JSONB NOT NULL,
+                                              description TEXT,
+                                              ai_type INT NOT NULL,
+                                              pixiv_create_date TIMESTAMP NOT NULL,
+                                              pixiv_update_date TIMESTAMP NOT NULL,
+    -- 由 MybatisPlusMetaObjectHandler 自动填充
+                                              create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+-- Indexes for pixiv_bookmark
+CREATE INDEX IF NOT EXISTS idx_pixiv_bookmark_tracked_user_id ON pixiv_bookmark (tracked_user_id);
+CREATE INDEX IF NOT EXISTS idx_pixiv_bookmark_author_id ON pixiv_bookmark (author_id);
+CREATE INDEX IF NOT EXISTS idx_pixiv_bookmark_tags_gin ON pixiv_bookmark USING GIN (tags);
+
+-- Comments
+COMMENT ON TABLE pixiv_bookmark IS '存储特定用户 P站收藏作品的信息';
+COMMENT ON COLUMN pixiv_bookmark.x_restrict IS '作品分级 (0: ALL_AGES, 1: R18, 2: R18G)';
+COMMENT ON COLUMN pixiv_bookmark.create_time IS '记录在本地数据库的创建时间';
+COMMENT ON COLUMN pixiv_bookmark.update_time IS '记录在本地数据库的更新时间';
+

@@ -104,7 +104,7 @@ public class LimitAspect {
 
             if (shouldNotify) {
                 log.info("满足通知条件，准备抛出 RateLimitException 以发送提示。");
-                throw new RateLimitException(bot, event,limit.message());
+                throw new RateLimitException(bot, event,limit.message(), null);
             } else {
                 log.debug("限流被触发，但处于通知冷却中，仅中断流程不发送提示。");
                 // 即使不通知，也要中断流程

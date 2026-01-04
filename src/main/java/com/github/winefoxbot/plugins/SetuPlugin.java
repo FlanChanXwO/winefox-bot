@@ -27,9 +27,6 @@ import com.mikuac.shiro.annotation.common.Order;
 import com.mikuac.shiro.annotation.common.Shiro;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.core.Bot;
-import com.mikuac.shiro.dto.action.common.ActionData;
-import com.mikuac.shiro.dto.action.common.ActionRaw;
-import com.mikuac.shiro.dto.action.response.GroupFilesResp;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import com.mikuac.shiro.enums.MsgTypeEnum;
@@ -230,7 +227,7 @@ public class SetuPlugin {
         }
 
         // 所有重试都失败后
-        throw new NetworkException(bot,event,"尝试多次后仍未能获取到图片，请稍后再试~");
+        throw new NetworkException(bot,event,"尝试多次后仍未能获取到图片，请稍后再试~",null);
     }
 
     /**
@@ -385,7 +382,7 @@ public class SetuPlugin {
             try (ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(imageBytes)) {
                 bot.sendMsg(event, MsgUtils.builder().img(byteArrayInputStream.readAllBytes()).build(), false);
             }  catch (IOException e) {
-                throw new SendMessageException(bot,event,"发送图片时发生错误");
+                throw new SendMessageException(bot,event,"发送图片时发生错误",e);
             }
         }
     }
@@ -396,7 +393,7 @@ public class SetuPlugin {
             try {
                 sendAsPdfFile(bot, event, imagePath);
             } catch (IOException e) {
-                throw new SendMessageException(bot,event,"发送PDF文件时发生错误");
+                throw new SendMessageException(bot,event,"发送PDF文件时发生错误",e);
             }
         } else {
             bot.sendMsg(event, MsgUtils.builder().img(imagePath.toUri().toString()).build(), false);
@@ -414,7 +411,7 @@ public class SetuPlugin {
         pdfPath = PdfUtil.wrapImageIntoPdf(List.of(imagePath), fileStorageProperties.getLocal().getBasePath() + File.separator + "setu_tmp");
 
         if (pdfPath == null) {
-            throw new ResourceNotFoundException(bot,event,"PDF文件生成失败，请稍后再试~");
+            throw new ResourceNotFoundException(bot,event,"PDF文件生成失败，请稍后再试~",null);
         }
 
         String fileName = pdfPath.getFileName().toString();

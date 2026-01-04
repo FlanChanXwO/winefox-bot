@@ -1,7 +1,6 @@
 package com.github.winefoxbot.plugins;
 
 import com.github.winefoxbot.annotation.PluginFunction;
-import com.github.winefoxbot.config.app.WineFoxBotConfig;
 import com.github.winefoxbot.model.entity.QQGroupAutoHandleAddRequestFeatureConfig;
 import com.github.winefoxbot.model.enums.Permission;
 import com.github.winefoxbot.service.qqgroup.QQGroupService;
@@ -13,8 +12,6 @@ import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import com.mikuac.shiro.enums.MsgTypeEnum;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-
-import java.util.regex.Matcher;
 
 import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_PREFIX_REGEX;
 import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_SUFFIX_REGEX;

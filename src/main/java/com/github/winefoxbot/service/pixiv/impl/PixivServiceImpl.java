@@ -2,7 +2,7 @@ package com.github.winefoxbot.service.pixiv.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.winefoxbot.config.PixivConfig;
+import com.github.winefoxbot.config.pixiv.PixivConfig;
 import com.github.winefoxbot.model.dto.pixiv.PixivDetail;
 import com.github.winefoxbot.model.enums.PixivArtworkType;
 import com.github.winefoxbot.service.file.FileStorageService;

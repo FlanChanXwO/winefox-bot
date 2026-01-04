@@ -12,7 +12,7 @@ import lombok.Getter;
 public class PluginExecutionException extends BaseException {
 
 
-    public PluginExecutionException(Bot bot, Event event, String message) {
-        super(bot, event, message);
+    public PluginExecutionException(Bot bot, Event event, String message, Exception e) {
+        super(bot, event, message, e);
     }
 }

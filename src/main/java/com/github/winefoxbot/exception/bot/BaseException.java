@@ -12,9 +12,11 @@ import lombok.Getter;
 public abstract class BaseException extends RuntimeException {
     private final transient Bot bot;
     private final transient Event event;
-    public BaseException(Bot bot, Event event, String message) {
+    private final transient Exception source;
+    public BaseException(Bot bot, Event event, String message, Exception source) {
         super(message);
         this.bot = bot;
         this.event = event;
+        this.source = source;
     }
 }

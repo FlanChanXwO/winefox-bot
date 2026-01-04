@@ -12,7 +12,7 @@ import lombok.Getter;
 public class PermissionDeniedException extends BaseException {
 
 
-    public PermissionDeniedException(Bot bot, Event event, String message) {
-        super(bot, event, message);
+    public PermissionDeniedException(Bot bot, Event event, String message, Exception e) {
+        super(bot, event, message, e);
     }
 }

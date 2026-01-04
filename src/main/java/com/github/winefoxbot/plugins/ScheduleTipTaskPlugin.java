@@ -2,7 +2,6 @@ package com.github.winefoxbot.plugins;
 
 import com.github.winefoxbot.annotation.Plugin;
 import com.github.winefoxbot.annotation.PluginFunction;
-import com.github.winefoxbot.model.enums.Permission;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Shiro;

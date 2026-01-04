@@ -11,7 +11,7 @@ import lombok.Getter;
 @Getter
 public class CommandParseException extends BaseException {
 
-    public CommandParseException(Bot bot, Event event, String message) {
-        super(bot, event, message);
+    public CommandParseException(Bot bot, Event event, String message, Exception e) {
+        super(bot, event, message, e);
     }
 }

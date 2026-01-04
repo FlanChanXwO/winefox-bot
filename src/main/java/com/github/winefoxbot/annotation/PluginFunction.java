@@ -35,7 +35,7 @@ public @interface PluginFunction {
     String[] commands() default {};
 
     /**
-     * @return 是否自动生成该功能在帮助文档中的命令说明
+     * @return 是否自动生成该功能在帮助文档中的命令说明，不建议给复杂命令使用
      */
     boolean autoGenerateHelp() default false;
 

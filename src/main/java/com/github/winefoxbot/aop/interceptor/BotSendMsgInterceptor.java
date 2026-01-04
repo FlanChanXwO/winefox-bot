@@ -34,12 +34,7 @@ public class BotSendMsgInterceptor implements MethodInterceptor {
 
         // Proceed with the original method call first
         Object result =  method.invoke(originalBot, methodArgs);
-        log.info("Method Name: " + method.getName());
-        String args = Arrays.toString(methodArgs);
-//        log.info("Arguments: " + args.substring(0, Math.min(100, args.length())));
-//        log.info("Return value: " + result);
-        log.info("==================================================");
-        // After the method call, handle the logic if it's a sendMsg call
+        log.info("Bot Sending Message -> Method Name: " + method.getName());
         switch (method.getName()) {
             case "sendMsg" -> botSendMsgHandler.handleAnyMessageEvent(originalBot, methodArgs, result);
             case "sendGroupMsg" -> botSendMsgHandler.handleGroupMessageEvent(originalBot, methodArgs, result);

@@ -57,6 +57,7 @@ setu:
     params:
       # 获取图片数量的参数
       # 对应的 URL 参数: num=1
+      # 目前只支持参数1
       num:
         key: "num"
         value: "1"

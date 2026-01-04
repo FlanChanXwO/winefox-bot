@@ -12,7 +12,7 @@ import lombok.Getter;
 public class TimeoutException extends BaseException {
 
 
-    public TimeoutException(Bot bot, Event event, String message) {
-        super(bot, event, message);
+    public TimeoutException(Bot bot, Event event, String message, Exception e) {
+        super(bot, event, message, e);
     }
 }

@@ -46,7 +46,6 @@ public class BotSendMsgHandler {
                 message.setGroupId(Long.valueOf(id));
             }
             message.setUserId(bot.getSelfId());
-            log.info("instance of messageContent: {}", messageContent.getClass().getName());
             if (messageContent instanceof String msg) {
                 message.setMessage(JSONUtil.parseArray(BotUtils.parseCQtoJsonStr(messageContent,true)));
                 message.setPlainText(BotUtils.getPlainTextMessage(msg));

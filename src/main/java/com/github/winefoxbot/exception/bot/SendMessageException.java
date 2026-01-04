@@ -12,7 +12,7 @@ import lombok.Getter;
 public class SendMessageException extends BaseException {
 
 
-    public SendMessageException(Bot bot, Event event, String message) {
-        super(bot, event, message);
+    public SendMessageException(Bot bot, Event event, String message, Exception e) {
+        super(bot, event, message, e);
     }
 }

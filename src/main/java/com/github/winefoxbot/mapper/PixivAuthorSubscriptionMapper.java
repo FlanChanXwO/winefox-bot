@@ -2,6 +2,7 @@ package com.github.winefoxbot.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.github.winefoxbot.model.entity.PixivAuthorSubscription;
+import com.github.winefoxbot.model.entity.PixivBookmark;
 
 /**
 * @author FlanChan
@@ -10,6 +11,7 @@ import com.github.winefoxbot.model.entity.PixivAuthorSubscription;
 * @Entity com.github.winefoxbot.model.entity.PixivAuthorSubscription
 */
 public interface PixivAuthorSubscriptionMapper extends BaseMapper<PixivAuthorSubscription> {
+
 
 }
 

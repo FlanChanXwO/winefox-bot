@@ -12,7 +12,7 @@ import lombok.Getter;
 public class ExternalServiceException extends BaseException{
 
 
-    public ExternalServiceException(Bot bot, Event event, String message) {
-        super(bot, event, message);
+    public ExternalServiceException(Bot bot, Event event, String message, Exception e) {
+        super(bot, event, message, e);
     }
 }

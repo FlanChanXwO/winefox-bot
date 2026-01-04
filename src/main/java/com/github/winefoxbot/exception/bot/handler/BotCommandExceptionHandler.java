@@ -67,6 +67,11 @@ public class BotCommandExceptionHandler {
             return null;
         } catch (BaseException e) {
             log.error("插件执行失败: [{}], 异常信息: {}", joinPoint.getSignature().toShortString(), e.getMessage());
+            if (e.getSource() != null) {
+                e.getSource().printStackTrace();
+            } else {
+                e.printStackTrace();
+            }
             Bot bot = e.getBot();
             Event event = e.getEvent();
             if (bot != null && event != null) {

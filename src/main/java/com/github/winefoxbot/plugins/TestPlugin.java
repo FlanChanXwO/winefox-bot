@@ -45,6 +45,6 @@ public class TestPlugin {
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "throw" + COMMAND_SUFFIX_REGEX)
     public void exceptionTest(Bot bot, AnyMessageEvent event) {
-        throw new CommandParseException(bot, event,"这是一个测试用的命令解析异常");
+        throw new CommandParseException(bot, event,"这是一个测试用的命令解析异常",null);
     }
 }

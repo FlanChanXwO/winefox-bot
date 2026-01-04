@@ -5,39 +5,27 @@ import com.github.winefoxbot.annotation.PluginFunction;
 import com.github.winefoxbot.model.dto.pixiv.PixivDetail;
 import com.github.winefoxbot.model.dto.pixiv.PixivSearchParams;
 import com.github.winefoxbot.model.dto.pixiv.PixivSearchResult;
-import com.github.winefoxbot.model.dto.shiro.SendMsgResult;
 import com.github.winefoxbot.model.enums.Permission;
-import com.github.winefoxbot.model.enums.PixivArtworkType;
 import com.github.winefoxbot.model.enums.SessionType;
+import com.github.winefoxbot.service.pixiv.PixivArtworkService;
 import com.github.winefoxbot.service.pixiv.PixivSearchService;
 import com.github.winefoxbot.service.pixiv.PixivService;
 import com.github.winefoxbot.service.shiro.ShiroSessionStateService;
-import com.github.winefoxbot.utils.BotUtils;
-import com.github.winefoxbot.utils.DocxUtil;
-import com.github.winefoxbot.utils.FileUtil;
-import com.github.winefoxbot.utils.PdfUtil;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Order;
 import com.mikuac.shiro.annotation.common.Shiro;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.core.Bot;
-import com.mikuac.shiro.dto.action.common.ActionData;
-import com.mikuac.shiro.dto.action.response.GroupFilesResp;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
-import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import com.mikuac.shiro.enums.MsgTypeEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.tomcat.util.buf.StringUtils;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -65,23 +53,25 @@ import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
 @RequiredArgsConstructor
 @Slf4j
 public class PixivSearchPlugin {
+    // 核心服务
     private final PixivSearchService pixivSearchService;
     private final PixivService pixivService;
     private final ShiroSessionStateService sessionStateService;
-    // 存储会话的搜索结果
+    // 重构后引入的统一发送服务
+    private final PixivArtworkService artworkService;
+
+    // 会话管理
     private final Map<String, LastSearchResult> lastSearchResultMap = new ConcurrentHashMap<>();
-    // 存储会话的超时任务，以便可以取消和重置
     private final Map<String, ScheduledFuture<?>> sessionTimeoutTasks = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
-    // 新增：用于跟踪每个用户并发请求数量
+    // 用户并发请求控制
     private final ConcurrentHashMap<Long, AtomicInteger> userRequestCounts = new ConcurrentHashMap<>();
     private static final int MAX_CONCURRENT_REQUESTS_PER_USER = 3;
 
+    // 常量定义
     private static final Pattern NUMBER_SELECTION_PATTERN = Pattern.compile("^[\\d,，\\s]+$");
     private static final long SESSION_TIMEOUT_SECONDS = 60 * 5;
-    private static final String FILE_OUTPUT_DIR = "data/files/pixiv/wrappers";
-
 
     private static class LastSearchResult {
         PixivSearchParams params;
@@ -93,7 +83,7 @@ public class PixivSearchPlugin {
             this.params = params;
             this.result = result;
             this.event = event;
-            this.initiatorUserId = event.getUserId(); // 在构造时记录发起者
+            this.initiatorUserId = event.getUserId();
         }
     }
 
@@ -162,29 +152,17 @@ public class PixivSearchPlugin {
         LastSearchResult lastSearch = lastSearchResultMap.get(sessionId);
         String message = event.getMessage().trim();
 
-        // 条件1: 如果没有活跃会话，忽略消息
-        if (lastSearch == null) {
+        if (lastSearch == null || !Objects.equals(lastSearch.initiatorUserId, event.getUserId())) {
             return CompletableFuture.completedFuture(MESSAGE_IGNORE);
         }
 
-        // 条件2: 如果消息不是由会话发起人发送的，忽略消息
-        if (!Objects.equals(lastSearch.initiatorUserId, event.getUserId())) {
-            return CompletableFuture.completedFuture(MESSAGE_IGNORE);
-        }
-
-        // --- 修复命令模式阻塞问题的关键改动 ---
-        // 只要会话存在且消息来自发起者，就应该消费掉这个消息，除非它是一个新的合法命令。
-        // 这可以防止会话期间的无关聊天内容（如 "你好", "在吗"）被其他插件响应。
         if (message.matches(COMMAND_PREFIX_REGEX + ".+" + COMMAND_SUFFIX_REGEX)) {
-            // 如果用户输入了另一个命令，则允许其通过，并结束当前会话。
             clearSession(sessionId);
             sessionStateService.exitCommandMode(sessionId);
             bot.sendMsg(event, "已退出当前Pixiv搜索会话，开始处理新命令。", false);
             return CompletableFuture.completedFuture(MESSAGE_IGNORE);
         }
 
-
-        // 更新事件对象，用于后续的回复和超时提醒
         lastSearch.event = event;
 
         boolean isExit = "退出".equals(message) || "exit".equalsIgnoreCase(message);
@@ -234,7 +212,6 @@ public class PixivSearchPlugin {
                     if (index > 0 && index <= artworks.size()) {
                         String pid = artworks.get(index - 1).getPid();
                         log.info("用户 {} 选择了作品 PID: {}", event.getUserId(), pid);
-                        // 调用新的处理方法，该方法包含并发检查
                         processArtworkRequest(bot, event, pid);
                     } else {
                         bot.sendMsg(event, String.format("序号 %d 超出范围啦，请输入 1 到 %d 之间的数字。", index, artworks.size()), false);
@@ -242,13 +219,11 @@ public class PixivSearchPlugin {
                 }
             }
         } else {
-            // 如果不是已知的交互指令，也消费掉消息，并给出提示
             bot.sendMsg(event, "未知指令。请发送【序号】、【上一页】/【下一页】或【退出】。", false);
         }
 
-        // 任何有效的交互都应该重置超时
         resetSessionTimeout(bot, sessionId);
-        return CompletableFuture.completedFuture(MESSAGE_BLOCK); // 阻塞所有已处理的消息
+        return CompletableFuture.completedFuture(MESSAGE_BLOCK);
     }
 
     /**
@@ -271,12 +246,12 @@ public class PixivSearchPlugin {
         sendArtworkByPidAsync(bot, event, pid);
     }
 
+    /**
+     * 异步获取作品信息并调用统一的发送服务。
+     * 这是重构的核心，内部逻辑被 `artworkSenderService` 替代。
+     */
     @Async("taskExecutor")
     public void sendArtworkByPidAsync(Bot bot, AnyMessageEvent event, String pid) {
-        boolean isInGroup = event.getGroupId() != null;
-        Integer messageId = event.getMessageId();
-        String fileName = null;
-        Path filePath = null;
         try {
             // 1. 获取作品详细信息
             PixivDetail pixivDetail = pixivService.getPixivArtworkDetail(pid);
@@ -284,89 +259,20 @@ public class PixivSearchPlugin {
             // 2. 异步下载图片文件
             List<File> files = pixivService.fetchImages(pid).join();
 
-            if (files == null || files.isEmpty()) {
-                bot.sendMsg(event, MsgUtils.builder()
-                        .reply(messageId)
-                        .text("未能获取到PID: " + pid + " 的图片文件！")
-                        .build(), false);
-                return;
-            }
+            // 3. 调用统一的发送服务
+            String additionalText = "\n可以继续发送【序号】获取其他作品，或发送【退出】结束本次搜索。";
+            artworkService.sendArtwork(bot, event, pixivDetail, files, additionalText);
 
-            // 3. 构建通用文本信息
-            MsgUtils builder = MsgUtils.builder();
-            builder.text(String.format("""
-                            作品标题：%s (%s)
-                            作者：%s (%s)
-                            作品链接：https://www.pixiv.net/artworks/%s
-                            标签：%s
-                            """, pixivDetail.getTitle(), pixivDetail.getPid(),
-                    pixivDetail.getUserName(), pixivDetail.getUid(),
-                    pixivDetail.getPid(), StringUtils.join(pixivDetail.getTags(), ',')));
-
-            // 4. 根据是否为R18内容，选择不同发送策略
-            if (pixivDetail.getIsR18()) {
-                // --- R18 内容处理逻辑 ---
-                bot.sendMsg(event, builder.build(), false);
-                filePath = pixivDetail.getType() == PixivArtworkType.GIF
-                        ? DocxUtil.wrapImagesIntoDocx(files, FILE_OUTPUT_DIR)
-                        : PdfUtil.wrapImagesIntoPdf(files, FILE_OUTPUT_DIR);
-                if (filePath == null) {
-                    log.error("生成R18文件包失败, pid={}", pid);
-                    bot.sendMsg(event, MsgUtils.builder().text("生成R18文件包失败，请稍后重试。").build(), false);
-                    return;
-                }
-                fileName = filePath.getFileName().toString();
-                CompletableFuture<SendMsgResult> sendFuture = BotUtils.uploadFileAsync(bot, event, filePath, fileName);
-                // 使用 thenRunAsync 或 whenCompleteAsync 在发送完成后执行删除操作
-                Path finalFilePath = filePath;
-                String finalFileName = fileName;
-                sendFuture.whenCompleteAsync((result, throwable) -> {
-                    if (result.isSuccess()) {
-                        deleteGroupFile(bot, event, finalFileName);
-                    } else {
-                        BotUtils.sendMsgByEvent(bot, event, "文件上传失败，可能是奇怪的原因导致了。", false);
-                    }
-                    FileUtil.deleteFileWithRetry(finalFilePath.toAbsolutePath().toString());
-                });
-            } else {
-                // --- 非R18 内容处理逻辑 ---
-                for (File file : files) {
-                    builder.img(FileUtil.getFileUrlPrefix() + file.getAbsolutePath());
-                }
-                builder.text("\n可以继续发送【序号】获取其他作品，或发送【退出】结束本次搜索。");
-                SendMsgResult sendResp = BotUtils.sendMsgByEvent(bot, event, builder.build(), false);
-                // 添加重试逻辑
-                int retryTimes = 3;
-                while (sendResp != null && !sendResp.isSuccess() && retryTimes-- > 0) {
-                    log.warn("发送 Pixiv 图片失败，正在重试，剩余次数={}，pid={}", retryTimes, pid);
-                    // 稍作等待再重试
-                    Thread.sleep(1000);
-                    sendResp = BotUtils.sendMsgByEvent(bot, event, builder.build(), false);
-                }
-                if (sendResp == null || !sendResp.isSuccess()) {
-                    log.error("发送 Pixiv 图片最终失败，pid={}", pid);
-                    bot.sendMsg(event, MsgUtils.builder().text("图片发送失败，请稍后重试。").build(), false);
-                }
-            }
         } catch (IOException e) {
             log.error("获取 Pixiv 作品信息时发生IO异常 pid={}", pid, e);
-            bot.sendMsg(event, MsgUtils.builder().reply(messageId).text("获取 Pixiv 作品信息失败，可能是网络问题，请重试。").build(), false);
+            bot.sendMsg(event, MsgUtils.builder().reply(event.getMessageId()).text("获取 Pixiv 作品信息失败，可能是网络问题，请重试。").build(), false);
         } catch (Exception e) {
             log.error("处理 Pixiv 图片失败 pid={}", pid, e);
-            bot.sendMsg(event, MsgUtils.builder().reply(messageId).text("处理 Pixiv 图片时发生未知错误：" + e.getMessage()).build(), false);
+            bot.sendMsg(event, MsgUtils.builder().reply(event.getMessageId()).text("处理 Pixiv 图片时发生未知错误：" + e.getMessage()).build(), false);
         } finally {
             // 任务结束，减少并发计数
             userRequestCounts.get(event.getUserId()).decrementAndGet();
             log.info("PID: {} 获取任务完成，用户 {} 的并发数减一", pid, event.getUserId());
-        }
-    }
-
-    private void deleteGroupFile(Bot bot, GroupMessageEvent groupMessageEvent, String fileName) {
-        try {
-            TimeUnit.SECONDS.sleep(30);
-            BotUtils.deleteGroupFile(bot, groupMessageEvent, fileName);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
         }
     }
 
@@ -377,9 +283,9 @@ public class PixivSearchPlugin {
             PixivSearchResult result = pixivSearchService.search(params);
             String sessionId = sessionStateService.getSessionKey(event);
             if (result != null && result.getScreenshot() != null && result.getTotalArtworks() > 0) {
-                sessionStateService.enterCommandMode(sessionId); // 在发送消息前进入命令模式
+                sessionStateService.enterCommandMode(sessionId);
                 lastSearchResultMap.put(sessionId, new LastSearchResult(params, result, event));
-                resetSessionTimeout(bot, sessionId); // 设置/重置超时
+                resetSessionTimeout(bot, sessionId);
                 String tagsString = String.join(" ", params.getTags());
                 String r18Flag = params.isR18() ? " -r" : "";
                 String previousCommand = String.format("pixiv搜索 %s%s -p", tagsString, r18Flag);
@@ -393,7 +299,7 @@ public class PixivSearchPlugin {
                 bot.sendMsg(event, msg.build(), false);
             } else {
                 clearSession(sessionId);
-                sessionStateService.exitCommandMode(sessionId); // 确保没有结果时也退出命令模式
+                sessionStateService.exitCommandMode(sessionId);
                 String noResultMessage = String.format("抱歉，没有找到关于 [%s] 的结果呢。", String.join(" ", params.getTags()));
                 if (params.isR18()) noResultMessage += " (已在R18分类下搜索)";
                 if (params.getPageNo() > 1) noResultMessage += String.format(" (在第%d页)", params.getPageNo());
