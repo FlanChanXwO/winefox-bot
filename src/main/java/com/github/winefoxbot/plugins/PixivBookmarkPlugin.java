@@ -78,7 +78,7 @@ public class PixivBookmarkPlugin {
             commands = {"鼠鼠的收藏"}
     )
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "鼠鼠的收藏")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^鼠鼠的收藏$")
     public void getRandomBookmark(Bot bot, AnyMessageEvent event) {
         log.info("用户 [{}] 请求随机收藏。", event.getUserId());
         String sessionKey = shiroSessionStateService.getSessionKey(event);
