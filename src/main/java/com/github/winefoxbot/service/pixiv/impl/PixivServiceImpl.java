@@ -22,6 +22,8 @@ import javax.net.ssl.SSLHandshakeException;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -81,6 +83,7 @@ public class PixivServiceImpl implements PixivService {
      */
     @Override
     public CompletableFuture<List<File>> fetchImages(String pid) {
+
         return CompletableFuture.supplyAsync(() -> {
             try {
                 // 在开始任何操作前，获取一个全局获取许可。如果达到并发上限，线程将在此阻塞。
@@ -183,7 +186,7 @@ public class PixivServiceImpl implements PixivService {
             String name = url.substring(url.lastIndexOf("/") + 1);
             String relativePath = PIXIV_IMAGE_SUBFOLDER + "/" + pid + "/" + name;
             log.info("启动下载任务：{} ", relativePath);
-            Request request = new Request.Builder().url(url).headers(pixivConfig.getHeaders()).build();
+            Request request = new Request.Builder().url(replaceMirrorHost(url)).headers(pixivConfig.getHeaders()).build();
             int retry = 0;
             while (retry < 10) {
                 try (Response res = httpClient.newCall(request).execute()) {
@@ -227,8 +230,8 @@ public class PixivServiceImpl implements PixivService {
             Path zipFile = tempDir.resolve(pid + ".zip");
             Path extractDir = tempDir.resolve("extracted");
             Path tempGif = tempDir.resolve(pid + ".gif");
-
-            Request zipReq = new Request.Builder().url(zipUrl).headers(pixivConfig.getHeaders()).build();
+            System.out.println(zipUrl);
+            Request zipReq = new Request.Builder().url(replaceMirrorHost(zipUrl)).headers(pixivConfig.getHeaders()).build();
             try (Response res = httpClient.newCall(zipReq).execute(); InputStream in = res.body().byteStream()) {
                 if (!res.isSuccessful()) throw new IOException("Zip download failed: " + res.code());
                 Files.copy(in, zipFile); // 写入临时文件，这是允许的
@@ -258,6 +261,43 @@ public class PixivServiceImpl implements PixivService {
                 });
             }
         }
+    }
+
+    /**
+     * 使用配置的镜像主机替换URL中的主机部分。
+     * @param url
+     * @return
+     */
+    private String replaceMirrorHost(String url) {
+        String downloadMirrorHost = pixivConfig.getPixivProperties().getApi().getDownloadMirrorHost();
+        if (downloadMirrorHost != null && !downloadMirrorHost.isBlank()) {
+            try {
+                // 1. 将原始 URL 字符串解析为 URI 对象
+                URI originalUri = new URI(url);
+
+                // 2. 使用原始 URI 的各个部分，但用新的主机名（镜像地址）来构建一个新的 URI
+                // 这样做可以保留原始的 scheme (http/https), path, query, fragment 等所有部分
+                URI newUri = new URI(
+                        originalUri.getScheme(),
+                        originalUri.getUserInfo(),
+                        downloadMirrorHost, // <-- 在这里使用配置的镜像主机
+                        originalUri.getPort(),
+                        originalUri.getPath(),
+                        originalUri.getQuery(),
+                        originalUri.getFragment()
+                );
+
+                // 3. 将新的 URI 对象转换回字符串形式
+                log.debug("Pixiv 图片地址已通过镜像重写: {}", url);
+                return newUri.toString();
+            } catch (URISyntaxException e) {
+                // 如果原始 url 格式不正确，解析会失败。
+                // 在这种情况下，我们选择记录一个警告，然后继续使用原始 URL，而不是让整个流程失败。
+                log.warn("无法将原始 Pixiv URL [{}] 解析为 URI，将使用原始地址。错误: {}", url, e.getMessage());
+            }
+        }
+        log.debug("Pixiv 图片地址未使用镜像，保持原样: {}", url);
+        return url;
     }
 
 

@@ -46,5 +46,6 @@ public class PixivProperties {
         private String bookmarkUrlTemplate = "https://www.pixiv.net/ajax/user/{userId}/illusts/bookmarks?tag={tag}&offset={offset}&limit={limit}&rest=show&lang=zh";
         private Integer limitPerPage = 48;
         private String unmaskUrlTemplate = "https://www.pixiv.net/ajax/illusts/bookmarks/delete";
+        private String downloadMirrorHost = "www.pixiv.net";
     }
 }
