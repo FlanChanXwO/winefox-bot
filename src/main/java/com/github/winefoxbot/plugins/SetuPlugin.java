@@ -79,15 +79,15 @@ public class SetuPlugin {
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd =  COMMAND_PREFIX_REGEX + "(解除瑟瑟限制|开启瑟瑟限制)" + COMMAND_SUFFIX_REGEX)
     public void toggleR18(Bot bot, AnyMessageEvent event) {
-        String msg = event.getMessage().replace(COMMAND_PREFIX_REGEX, "");
+        String msg = event.getMessage();
         Long sessionId = BotUtils.getSessionId(event);
         SetuConfig config = setuConfigService.getOrCreateSetuConfig(sessionId, SessionType.fromValue(event.getMessageType()));
         Boolean r18Enabled = config.getR18Enabled();
         // 功能开关指令
-        if ("解除瑟瑟限制".equals(msg) && r18Enabled) {
+        if (msg.contains("解除") && r18Enabled) {
             bot.sendMsg(event, "R18已经开启了", false);
             return;
-        } else if ("开启瑟瑟限制".equals(msg) && !r18Enabled) {
+        } else if (msg.contains("开启") && !r18Enabled) {
             bot.sendMsg(event, "R18已经关闭了", false);
             return;
         }
