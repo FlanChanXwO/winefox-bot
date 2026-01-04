@@ -13,7 +13,11 @@ import org.springframework.context.annotation.Import;
 @Import({WineFoxBotProperties.class,WineFoxBotAppProperties.class,WineFoxBotAppUpdateProperties.class})
 public class WineFoxBotConfig {
 
-    public final static String COMMAND_PREFIX_REGEX = "^/";
+    public final static String COMMAND_PREFIX = "/";
 
-    public final static String COMMAND_SUFFIX_REGEX = "$";
+    public final static String COMMAND_PREFIX_REGEX = "^" + COMMAND_PREFIX;
+
+    public final static String COMMAND_SUFFIX = "";
+
+    public final static String COMMAND_SUFFIX_REGEX = COMMAND_SUFFIX + "$";
 }

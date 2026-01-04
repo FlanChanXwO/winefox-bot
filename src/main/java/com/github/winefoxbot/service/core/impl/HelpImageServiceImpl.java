@@ -10,6 +10,7 @@ import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.ScreenshotType;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -40,9 +41,20 @@ public class HelpImageServiceImpl implements HelpImageService {
     private static final String HTML_TEMPLATE = "help_report/main";
     private static final String RESOURCE_BASE_PATH = "templates/help_report/res";
 
+    private static final String CACHE_PARENT_DIR = "help";
+
+    @PostConstruct
+    private void clearHelpFolder() {
+        try {
+            fileStorageService.deleteDirectory(CACHE_PARENT_DIR);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Override
     public byte[] generateAllHelpImage(){
-        String cacheKey = "help/all_help_image.png"; // 使用层级结构，更清晰
+        String cacheKey =  CACHE_PARENT_DIR + "/all_help_image.png"; // 使用层级结构，更清晰
         byte[] cachedImage = fileStorageService.getFileByCacheKey(cacheKey);
         if (cachedImage != null) {
             log.info("Cache hit for all help image using key: {}", cacheKey);
@@ -73,7 +85,7 @@ public class HelpImageServiceImpl implements HelpImageService {
         }
 
         // 根据规范化的分组名生成唯一的缓存键
-        String cacheKey = String.format("help/group_%s.png", normalizedGroupName);
+        String cacheKey = String.format(CACHE_PARENT_DIR + "/group_%s.png", normalizedGroupName);
 
         byte[] cachedImage = fileStorageService.getFileByCacheKey(cacheKey);
         if (cachedImage != null) {

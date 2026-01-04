@@ -16,6 +16,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.regex.Matcher;
 
+import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_PREFIX_REGEX;
+import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_SUFFIX_REGEX;
+
 /**
  * @author FlanChan (badapple495@outlook.com)
  * @since 2025-12-26-21:35
@@ -31,9 +34,9 @@ public class QQGroupAutoHandleAddRequestPlugin {
             hidden = true,
             permission = Permission.ADMIN, commands = {"开启自动处理加群", "关闭自动处理加群"})
     @GroupMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^" + WineFoxBotConfig.COMMAND_PREFIX_REGEX + "(开启自动处理加群|关闭自动处理加群)" + "$")
-    public void toggleAutoHandleAddRequest(Bot bot, GroupMessageEvent event, Matcher matcher) {
-        String msg = event.getMessage().replace(WineFoxBotConfig.COMMAND_PREFIX_REGEX, "");
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(开启自动处理加群|关闭自动处理加群)" + COMMAND_SUFFIX_REGEX)
+    public void toggleAutoHandleAddRequest(Bot bot, GroupMessageEvent event) {
+        String msg = event.getMessage().replace(COMMAND_PREFIX_REGEX, "");
         Long groupId = event.getGroupId();
         QQGroupAutoHandleAddRequestFeatureConfig config = qqGroupService.getOrCreateAutoHandleAddRequestConfig(groupId);// 确保配置存在
         // 功能开关指令

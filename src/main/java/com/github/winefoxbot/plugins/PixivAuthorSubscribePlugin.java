@@ -13,6 +13,8 @@ import com.mikuac.shiro.enums.MsgTypeEnum;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import static com.github.winefoxbot.config.app.WineFoxBotConfig.*;
+
 /**
  * @author FlanChan (badapple495@outlook.com)
  * @since 2025-12-29-18:41
@@ -23,9 +25,13 @@ import org.springframework.stereotype.Component;
 public class PixivAuthorSubscribePlugin {
     private final PixivAuthorSubscriptionService pixivAuthorSubscriptionService;
 
-    @PluginFunction(group = "Pixiv", name = "订阅作者" , hidden = true, description = "订阅作者更新，当有新的更新时，会进行推送，根据分级会进行选择性包装，你可以用另一个命令设置推送地点", permission = Permission.ADMIN, commands = {"/开启自动撤回", "/关闭自动撤回"})
+    @PluginFunction(group = "Pixiv", name = "订阅作者" , hidden = true, description = "订阅作者更新，当有新的更新时，会进行推送，根据分级会进行选择性包装，你可以用另一个命令设置推送地点",
+            permission = Permission.USER,
+            commands = {
+                    COMMAND_PREFIX + "P站作者订阅" + COMMAND_SUFFIX,
+            })
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^" + WineFoxBotConfig.COMMAND_PREFIX_REGEX + "订阅" + "$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd =  COMMAND_PREFIX_REGEX + "P站作者订阅" +  COMMAND_SUFFIX_REGEX)
     public void toggleAutoRevoke(Bot bot, AnyMessageEvent event) {
 
     }

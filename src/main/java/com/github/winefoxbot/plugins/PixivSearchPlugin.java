@@ -44,8 +44,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_PREFIX_REGEX;
-import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_SUFFIX_REGEX;
+import static com.github.winefoxbot.config.app.WineFoxBotConfig.*;
 import static com.github.winefoxbot.utils.BotUtils.checkStrictSessionIdType;
 import static com.mikuac.shiro.core.BotPlugin.MESSAGE_BLOCK;
 import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
@@ -95,8 +94,13 @@ public class PixivSearchPlugin {
     @PluginFunction(
             group = "Pixiv", name = "Pixiv搜索",
             permission = Permission.USER,
-            description = "在Pixiv上搜索插画作品。命令格式：/pixiv搜索 <标签1> <标签2> ... [-p<页码>] [-r]。其中 -p 用于指定页码，-r 用于开启R18搜索。",
-            commands = {"/Pixiv搜索", "/pixiv搜索", "/P站搜索", "/p站搜索"}, hidden = false)
+            description = "在Pixiv上搜索插画作品。命令格式：" + COMMAND_PREFIX + "pixiv搜索 <标签1> <标签2> ... [-p<页码>] [-r]" + COMMAND_SUFFIX + "。其中 -p 用于指定页码，-r 用于开启R18搜索。",
+            commands = {
+                    COMMAND_PREFIX + "pixiv搜索 <标签1> <标签2> ... [-p<页码>] [-r]" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "P站搜索 <标签1> <标签2> ... [-p<页码>] [-r]" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "Pixiv搜索 <标签1> <标签2> ... [-p<页码>] [-r]" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "p站搜索 <标签1> <标签2> ... [-p<页码>] [-r]" + COMMAND_SUFFIX,
+            })
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(?:p|P)(?:ixiv|站)搜索\\s+(.+?)(?=\\s+-|$)\\s*(.*)" + COMMAND_SUFFIX_REGEX)
     public void handlePixivSearch(Bot bot, AnyMessageEvent event, Matcher matcher) {

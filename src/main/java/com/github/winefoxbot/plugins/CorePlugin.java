@@ -18,8 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_PREFIX_REGEX;
-import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_SUFFIX_REGEX;
+import static com.github.winefoxbot.config.app.WineFoxBotConfig.*;
 
 /**
  * @author FlanChan (badapple495@outlook.com)
@@ -38,8 +37,8 @@ public class CorePlugin {
      * 应用重启
      */
     @PluginFunction(hidden = true, permission = Permission.SUPERADMIN, group = "核心功能", name = "查看当前版本", description = "查看当前版本", commands = {
-            COMMAND_PREFIX_REGEX + "restart" + COMMAND_PREFIX_REGEX,
-            COMMAND_PREFIX_REGEX + "重启" + COMMAND_SUFFIX_REGEX
+            COMMAND_PREFIX + "restart" + COMMAND_SUFFIX,
+            COMMAND_PREFIX + "重启" + COMMAND_SUFFIX
     })
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(restart|重启)" + COMMAND_SUFFIX_REGEX)
@@ -74,8 +73,8 @@ public class CorePlugin {
      * 查看版本
      */
     @PluginFunction(permission = Permission.USER, group = "核心功能", name = "查看当前版本", description = "查看当前版本", commands = {
-            COMMAND_PREFIX_REGEX + "version" + COMMAND_PREFIX_REGEX,
-            COMMAND_PREFIX_REGEX + "当前版本" + COMMAND_SUFFIX_REGEX
+            COMMAND_PREFIX + "version" + COMMAND_SUFFIX,
+            COMMAND_PREFIX + "当前版本" + COMMAND_SUFFIX
     })
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(version|当前版本)" + COMMAND_SUFFIX_REGEX)
@@ -109,8 +108,8 @@ public class CorePlugin {
      */
     @Async
     @PluginFunction(permission = Permission.SUPERADMIN, group = "核心功能", name = "版本更新", description = "版本更新", commands = {
-            COMMAND_PREFIX_REGEX + "update" + COMMAND_PREFIX_REGEX,
-            COMMAND_PREFIX_REGEX + "更新版本" + COMMAND_SUFFIX_REGEX
+            COMMAND_PREFIX + "update" + COMMAND_SUFFIX,
+            COMMAND_PREFIX + "更新版本" + COMMAND_SUFFIX
     })
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(update|更新版本)" + COMMAND_SUFFIX_REGEX)

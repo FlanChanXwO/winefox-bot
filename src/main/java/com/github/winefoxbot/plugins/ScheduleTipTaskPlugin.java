@@ -21,6 +21,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 
+import static com.github.winefoxbot.config.app.WineFoxBotConfig.*;
+
 /**
  * @author FlanChan (badapple495@outlook.com)
  * @since 2025-12-12-15:15
@@ -32,11 +34,11 @@ public class ScheduleTipTaskPlugin {
 
     private final ScheduledExecutorService scheduler;
 
-    private final Map<Long,ScheduledFuture<?>> scheduledTasks = new ConcurrentHashMap<>(1000);
+    private final Map<Long, ScheduledFuture<?>> scheduledTasks = new ConcurrentHashMap<>(1000);
 
-    @PluginFunction(group = "实用功能", name = "定时提醒", description = "使用 /定时 提醒时间 提醒内容 命令设置定时提醒，使用 /取消定时提醒 取消提醒，使用 /定时提醒状态 查看当前提醒状态。时间格式支持数字加单位（s=秒，m=分钟，h=小时）或日期时间格式（如：15:30:00）。", commands = {"/定时 提醒时间 提醒内容", "/取消定时提醒", "/定时提醒状态"})
+    @PluginFunction(group = "实用功能", name = "定时提醒", description = "使用 " + COMMAND_PREFIX + "定时 提醒时间 提醒内容+" + COMMAND_SUFFIX + " 命令设置定时提醒，使用 /取消定时提醒 取消提醒，使用 /定时提醒状态 查看当前提醒状态。时间格式支持数字加单位（s=秒，m=分钟，h=小时）或日期时间格式（如：15:30:00）。", commands = {"/定时 提醒时间 提醒内容", "/取消定时提醒", "/定时提醒状态"})
     @AnyMessageHandler
-    @MessageHandlerFilter(cmd = "^/定时提醒\\s+(\\S+|\\d{1,2}:\\d{2})\\s+(.+)$")
+    @MessageHandlerFilter(cmd = COMMAND_PREFIX_REGEX + "定时提醒\\s+(\\S+|\\d{1,2}:\\d{2})\\s+(.+)" + COMMAND_SUFFIX_REGEX)
     public void handleScheduleTask(Bot bot, AnyMessageEvent event, Matcher matcher) {
         try {
             Long userId = event.getUserId();
@@ -115,7 +117,7 @@ public class ScheduleTipTaskPlugin {
                 scheduledTasks.remove(userId);
             }, delay, timeUnit);
             // 记录已设置的任务
-            scheduledTasks.put(userId,scheduleTask);
+            scheduledTasks.put(userId, scheduleTask);
             // 定时任务信息格式化输出
             String message;
             // 当时间单位为毫秒时，转化为小时、分钟、秒
@@ -138,8 +140,8 @@ public class ScheduleTipTaskPlugin {
             bot.sendMsg(event, message, false);
         } catch (Exception ex) {
             bot.sendMsg(event, MsgUtils.builder()
-                            .at(event.getUserId())
-                            .text(" 设置定时任务失败，请重试。")
+                    .at(event.getUserId())
+                    .text(" 设置定时任务失败，请重试。")
                     .build(), false);
             ex.printStackTrace();
         }
@@ -158,7 +160,6 @@ public class ScheduleTipTaskPlugin {
             return LocalTime.parse(time + ":00", formatterWithSeconds);
         }
     }
-
 
 
     @AnyMessageHandler

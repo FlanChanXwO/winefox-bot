@@ -16,6 +16,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.regex.Matcher;
 
+import static com.github.winefoxbot.config.app.WineFoxBotConfig.*;
+
 @Shiro
 @Component
 @Slf4j
@@ -26,9 +28,13 @@ public class HelpPlugin {
     @PluginFunction(
             group = "核心功能", name = "帮助文档",
             description = "生成并发送帮助图片，展示所有可用功能及其说明。如果在命令1个空格之后加上\"<功能组名>\"可以获取指定功能组的帮助文档图片。", permission = Permission.USER,
-            commands = {"/help", "/h", "/wf帮助","/帮助"})
+            commands = {
+                    COMMAND_PREFIX + "help" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX +  "h" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "wf帮助" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "帮助" + COMMAND_SUFFIX})
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/(支援|help|h|酒狐的特殊能力|wf帮助|帮助)(?:\\s+(.+))?$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(help|h|wf帮助|帮助)(?:\\s+(.+))?" + COMMAND_SUFFIX_REGEX)
     public void helpCommand(Bot bot, AnyMessageEvent event, Matcher matcher) {
         try {
             log.info("正在生成帮助图片...");

@@ -19,6 +19,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.github.winefoxbot.config.app.WineFoxBotConfig.*;
+
 /**
  * 复读机插件
  *
@@ -28,7 +30,7 @@ import java.util.regex.Pattern;
 @Shiro
 @Slf4j
 @Component
-public class RepeaterPlugin{
+public class RepeaterPlugin {
 
     private final Map<Long, Set<Long>> repeaterFollowers = new ConcurrentHashMap<>();
 
@@ -37,9 +39,16 @@ public class RepeaterPlugin{
 
 
     // 开启复读跟随
-    @PluginFunction(group = "复读机", name = "复读跟随", description = "使用 /复读跟随 命令开启复读跟随功能，使用 /停止复读跟随 关闭该功能。当你发送消息时，机器人会自动复读你的消息。", commands = {"/复读跟随", "/停止复读跟随"})
+    @PluginFunction(group = "复读机", name = "复读跟随", description = "使用 " + COMMAND_PREFIX + "复读跟随" + COMMAND_SUFFIX + " 命令开启复读跟随功能，使用 /停止复读跟随 关闭该功能。当你发送消息时，机器人会自动复读你的消息。",
+           commands = {
+                   COMMAND_PREFIX + "开启复读跟随" + COMMAND_SUFFIX,
+                   COMMAND_PREFIX + "打开复读跟随" + COMMAND_SUFFIX,
+                   COMMAND_PREFIX + "停止复读跟随" + COMMAND_SUFFIX,
+                   COMMAND_PREFIX + "关闭复读跟随" + COMMAND_SUFFIX,
+                   COMMAND_PREFIX + "取消复读跟随" + COMMAND_SUFFIX,
+           })
     @GroupMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/(开启|打开|停止|关闭|取消)复读跟随$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(开启|打开|停止|关闭|取消)复读跟随" + COMMAND_SUFFIX_REGEX)
     public void enableFollowRepeat(Bot bot, GroupMessageEvent event) {
         Long userId = event.getSender().getUserId();
         Long groupId = event.getGroupId();
@@ -128,7 +137,6 @@ public class RepeaterPlugin{
             bot.sendGroupMsg(groupId, message, false);
         }
     }
-
 
 
     private static final int SHORTEST_LENGTH = 1; // 最短消息长度

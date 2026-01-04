@@ -27,6 +27,8 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.regex.Matcher;
 
+import static com.github.winefoxbot.config.app.WineFoxBotConfig.*;
+
 /**
  * @author FlanChan (badapple495@outlook.com)
  * @since 2025-12-15-23:56
@@ -51,11 +53,15 @@ public class WaterGroupPlugin {
 
     @PluginFunction(group = "发言统计",
             name = "开启发言统计推送",
-            description = "使用 /开启群发言统计每天定时推送 命令开启本群的发言统计功推送能。",
+            description = "使用 " + COMMAND_PREFIX + "开启群发言统计每天定时推送" + COMMAND_SUFFIX + " 命令开启本群的发言统计功推送能。",
             permission = Permission.ADMIN,
-            commands = {"/开启群发言统计每天定时推送", "/打开群发言统计每天定时推送", "/启动群发言统计每天定时推送"})
+            commands = {
+                    COMMAND_PREFIX + "开启群发言统计每天定时推送" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "打开群发言统计每天定时推送" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "启动群发言统计每天定时推送" + COMMAND_SUFFIX
+            })
     @GroupMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/(开启|打开|启动)群发言统计每天定时推送$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(开启|打开|启动)群发言统计每天定时推送" + COMMAND_SUFFIX_REGEX)
     public void enableWaterGroupStatsPush(Bot bot, GroupMessageEvent event) {
         Long groupId = event.getGroupId();
         if (waterGroupScheduleService.checkScheduled(groupId)) {
@@ -70,11 +76,13 @@ public class WaterGroupPlugin {
 
     @PluginFunction(group = "发言统计",
             name = "修改发言统计推送时间",
-            description = "使用 /修改发言统计推送时间 HH:mm 命令修改本群的发言统计推送时间。",
+            description = "使用 " + COMMAND_PREFIX + "修改发言统计推送时间 HH:mm" + COMMAND_SUFFIX + " 命令修改本群的发言统计推送时间。",
             permission = Permission.ADMIN,
-            commands = {"/修改发言统计推送时间"})
+            commands = {
+                    COMMAND_PREFIX + "修改发言统计推送时间 HH:mm" + COMMAND_SUFFIX
+            })
     @GroupMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/修改发言统计推送时间\\s+(\\d{2}:\\d{2})$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "修改发言统计推送时间\\s+(\\d{2}:\\d{2})" + COMMAND_SUFFIX_REGEX)
     public void modifyWaterGroupStatsPushTime(Bot bot, GroupMessageEvent event, Matcher matcher) {
         Long groupId = event.getGroupId();
         if (!waterGroupScheduleService.checkScheduled(groupId)) {
@@ -102,9 +110,13 @@ public class WaterGroupPlugin {
             name = "关闭发言统计推送",
             description = "使用 /关闭群发言统计每天定时推送 命令关闭本群的发言统计推送功能。",
             permission = Permission.ADMIN,
-            commands = {"/关闭群发言统计每天定时推送", "/停止群发言统计每天定时推送", "/取消群发言统计每天定时推送"})
+            commands = {
+                    COMMAND_PREFIX + "关闭群发言统计每天定时推送" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "停止群发言统计每天定时推送" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "取消群发言统计每天定时推送" + COMMAND_SUFFIX
+            })
     @GroupMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/(关闭|停止|取消)群发言统计每天定时推送$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(关闭|停止|取消)群发言统计每天定时推送" + COMMAND_SUFFIX_REGEX)
     public void disableWaterGroupStatsPush(Bot bot, GroupMessageEvent event) {
         Long groupId = event.getGroupId();
         if (!waterGroupScheduleService.checkScheduled(groupId)) {
@@ -122,9 +134,9 @@ public class WaterGroupPlugin {
             name = "查看发言统计推送状态",
             description = "使用 /发言统计推送状态 命令查看本群的发言统计推送状态。",
             permission = Permission.USER,
-            commands = {"/每日发言统计推送状态"})
+            commands = {COMMAND_PREFIX + "每日发言统计推送状态" + COMMAND_SUFFIX})
     @GroupMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/每日发言统计推送状态$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "每日发言统计推送状态" + COMMAND_SUFFIX_REGEX)
     public void checkWaterGroupStatsPushStatus(Bot bot, GroupMessageEvent event) {
         Long groupId = event.getGroupId();
         WaterGroupSchedule waterGroupSchedule = waterGroupScheduleService.getScheduleJob(groupId);
@@ -140,9 +152,9 @@ public class WaterGroupPlugin {
             name = "查看发言统计",
             description = "使用 /今日发言 命令查看本群的发言统计排名。",
             permission = Permission.USER,
-            commands = {"/今日发言"})
+            commands = {COMMAND_PREFIX + "今日发言" + COMMAND_SUFFIX})
     @GroupMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/今日发言$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "今日发言" + COMMAND_SUFFIX_REGEX)
     public void showWaterGroupStats(Bot bot, GroupMessageEvent event) {
         Long groupId = event.getGroupId();
         List<WaterGroupMessageStat> ranks = waterGroupService.getDailyRanking(groupId);

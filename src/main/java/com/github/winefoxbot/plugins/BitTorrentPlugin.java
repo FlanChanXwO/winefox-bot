@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 
+import static com.github.winefoxbot.config.app.WineFoxBotConfig.*;
 import static com.github.winefoxbot.utils.FileUtil.formatDataSize;
 import static com.mikuac.shiro.core.BotPlugin.MESSAGE_BLOCK;
 import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
@@ -102,10 +103,10 @@ public class BitTorrentPlugin {
         return MESSAGE_BLOCK;
     }
 
-    @PluginFunction(group = "实用功能", name = "磁力链搜索", description = "使用 /bt <关键词> [页码] 命令进行搜索，页码可以不要，不要就默认搜索第一页", commands = {"/bt <关键词> [页码]"})
+    @PluginFunction(group = "实用功能", name = "磁力链搜索", description = "使用 /bt <关键词> [页码] 命令进行搜索，页码可以不要，不要就默认搜索第一页", commands = {COMMAND_PREFIX + "bt <关键词> [页码]" + COMMAND_SUFFIX})
     @AnyMessageHandler
     @Async
-    @MessageHandlerFilter(cmd = "^/bt\\s+(\\S+)(\\s+(\\d+))?$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd =  COMMAND_PREFIX_REGEX + "bt\\s+(\\S+)(\\s+(\\d+))?" + COMMAND_SUFFIX_REGEX)
     public void searchBt(Bot bot, AnyMessageEvent event, Matcher matcher) {
         if (!bitTorrentConfig.isEnabled()) {
             bot.sendMsg(event, MsgUtils.builder().text("BitTorrent 搜索功能已被禁用").build(), false);

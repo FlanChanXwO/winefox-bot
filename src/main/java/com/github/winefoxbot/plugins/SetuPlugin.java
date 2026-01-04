@@ -52,8 +52,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 
-import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_PREFIX_REGEX;
-import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_SUFFIX_REGEX;
+import static com.github.winefoxbot.config.app.WineFoxBotConfig.*;
 
 /**
  * @author FlanChan (badapple495@outlook.com)
@@ -75,7 +74,10 @@ public class SetuPlugin {
     private static final int MAX_RETRIES = 3;
     private static final Duration IMAGE_CACHE_DURATION = Duration.ofHours(1); // 图片缓存1h
 
-    @PluginFunction(group = "瑟瑟功能", name = "解除限制开关", description = "解除限制", permission = Permission.ADMIN, commands = {"/解除瑟瑟限制", "/开启瑟瑟限制"})
+    @PluginFunction(group = "瑟瑟功能", name = "解除限制开关", description = "解除限制", permission = Permission.ADMIN, commands = {
+            COMMAND_PREFIX + "解除瑟瑟限制" + COMMAND_SUFFIX,
+            COMMAND_PREFIX + "开启瑟瑟限制" + COMMAND_SUFFIX
+    })
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd =  COMMAND_PREFIX_REGEX + "(解除瑟瑟限制|开启瑟瑟限制)" + COMMAND_SUFFIX_REGEX)
     public void toggleR18(Bot bot, AnyMessageEvent event) {
@@ -95,7 +97,11 @@ public class SetuPlugin {
         bot.sendMsg(event, updated ? "设置已更新，当前R18状态：" + (config.getR18Enabled() ? "开启" : "关闭") : "设置更新失败，请重试", false);
     }
 
-    @PluginFunction(group = "瑟瑟功能", name = "自动撤回奇怪图片开关", description = "开启或者关闭自动撤回在奇怪分级", permission = Permission.ADMIN, commands = {"/开启瑟瑟自动撤回", "/关闭瑟瑟自动撤回"})
+    @PluginFunction(group = "瑟瑟功能", name = "自动撤回奇怪图片开关", description = "开启或者关闭自动撤回在奇怪分级", permission = Permission.ADMIN,
+    commands = {
+            COMMAND_PREFIX + "开启瑟瑟自动撤回" + COMMAND_SUFFIX,
+            COMMAND_PREFIX + "关闭瑟瑟自动撤回" + COMMAND_SUFFIX
+    })
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd =  COMMAND_PREFIX_REGEX + "(开启|关闭)瑟瑟自动撤回" + COMMAND_SUFFIX_REGEX)
     public void toggleAutoRevoke(Bot bot, AnyMessageEvent event) {
@@ -120,10 +126,10 @@ public class SetuPlugin {
             name = "设置并发请求数",
             description = "设置当前会话（群/私聊）允许同时获取图片的最大数量",
             permission = Permission.ADMIN, // 仅管理员可用
-            commands = {"/设置瑟瑟并发数 [数量]", "/设置色色并发数 [数量]"}
+            commands = {COMMAND_PREFIX + "设置瑟瑟并发数 [数字]" + COMMAND_SUFFIX, COMMAND_PREFIX + "设置色色并发数 [数字]" + COMMAND_SUFFIX}
     )
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "设置(瑟瑟|色色)并发数\\s+(\\d+)$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "设置(瑟瑟|色色)并发数\\s+(\\d+)" + COMMAND_SUFFIX_REGEX)
     public void setMaxRequests(Bot bot, AnyMessageEvent event, Matcher matcher) {
         String numStr = matcher.group(2);
         int newMaxRequests;
@@ -166,7 +172,7 @@ public class SetuPlugin {
     )
     @Order(10)
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "?(来(份|个|张))(\\S*?)(色|瑟|涩|塞|)图"+ COMMAND_SUFFIX_REGEX)
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd =  "^(来(份|个|张))(\\S*?)(色|瑟|涩|塞|)图$")
     public void getRandomPicture(Bot bot, AnyMessageEvent event, Matcher matcher) {
         String sessionKey = shiroSessionStateService.getSessionKey(event);
         shiroSessionStateService.enterCommandMode(sessionKey);

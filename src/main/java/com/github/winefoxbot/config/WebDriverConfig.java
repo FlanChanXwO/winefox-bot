@@ -23,14 +23,12 @@ import java.util.List;
 @Configuration
 @ConfigurationProperties(prefix = "webdriver")
 public class WebDriverConfig {
-    private String edgeDriverPath = "path/to/edgeBinaryPath";
 
-    private String edgeBinaryPath = "path/to/edge/binary";
+    private String browserBinaryPath = "path/to/edge/binary";
 
     @PostConstruct
     public void init() {
         // 设置 WebDriver 的路径
-        System.setProperty("webdriver.edge.driver",edgeDriverPath);
         System.setProperty("playwright.skipBrowserDownload", "true");
     }
 
@@ -54,7 +52,7 @@ public class WebDriverConfig {
                 new BrowserType.LaunchOptions()
                         .setProxy(proxy)
                         .setArgs(List.of("--no-sandbox", "--disable-setuid-sandbox"))
-                        .setExecutablePath(Paths.get(edgeBinaryPath))
+                        .setExecutablePath(Paths.get(browserBinaryPath))
                         .setHeadless(true)
         );
     }

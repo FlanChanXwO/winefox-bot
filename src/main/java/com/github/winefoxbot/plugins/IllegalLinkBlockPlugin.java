@@ -29,6 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.github.winefoxbot.config.app.WineFoxBotConfig.*;
+
 /**
  * 非法链接拦截器 (带有渐进式惩罚和冷却重置)
  *
@@ -62,36 +64,35 @@ public class IllegalLinkBlockPlugin {
 
     @PluginFunction(group =  "链接拦截" ,name = "非法链接拦截器",
             permission = Permission.ADMIN,
-            description = "拦截群内发送的非法链接，支持渐进式惩罚和冷却重置。管理员可通过命令启用或禁用该功能。")
+            description = "拦截群内发送的非法链接，支持渐进式惩罚和冷却重置。管理员可通过命令启用或禁用该功能。",
+            commands = {
+                    COMMAND_PREFIX + "启用链接拦截" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "禁用链接拦截" + COMMAND_SUFFIX
+            }
+    )
     @GroupMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/启用链接拦截$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(启用链接拦截|禁用链接拦截)" + COMMAND_SUFFIX_REGEX)
     public void enableIllegalLinkBlockInGroup(Bot bot, GroupMessageEvent event) {
         Long groupId = event.getGroupId();
-        if (enableIllegalLinkBlockGroups.add(groupId)) {
-            bot.sendGroupMsg(groupId, "已启用链接拦截功能。", false);
-            log.info("群组[{}] 已启用链接拦截功能。", groupId);
+        String message = event.getMessage();
+        if (message.contains("禁用")) {
+            if (enableIllegalLinkBlockGroups.remove(groupId)) {
+                bot.sendGroupMsg(groupId, "已禁用链接拦截功能。", false);
+                log.info("群组[{}] 已禁用链接拦截功能。", groupId);
+            } else {
+                bot.sendGroupMsg(groupId, "链接拦截功能未启用，无需重复操作。", false);
+                log.info("群组[{}] 链接拦截功能未启用，忽略重复禁用请求。", groupId);
+            }
         } else {
-            bot.sendGroupMsg(groupId, "链接拦截功能已启用，无需重复操作。", false);
-            log.info("群组[{}] 链接拦截功能已启用，忽略重复启用请求。", groupId);
+            if (enableIllegalLinkBlockGroups.add(groupId)) {
+                bot.sendGroupMsg(groupId, "已启用链接拦截功能。", false);
+                log.info("群组[{}] 已启用链接拦截功能。", groupId);
+            } else {
+                bot.sendGroupMsg(groupId, "链接拦截功能已启用，无需重复操作。", false);
+                log.info("群组[{}] 链接拦截功能已启用，忽略重复启用请求。", groupId);
+            }
         }
     }
-
-    @PluginFunction(group =  "链接拦截" ,name = "非法链接拦截器",
-            permission = Permission.ADMIN,
-            description = "拦截群内发送的非法链接，支持渐进式惩罚和冷却重置。管理员可通过命令启用或禁用该功能。")
-    @GroupMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/禁用链接拦截$")
-    public void disableIllegalLinkBlockInGroup(Bot bot, GroupMessageEvent event) {
-        Long groupId = event.getGroupId();
-        if (enableIllegalLinkBlockGroups.remove(groupId)) {
-            bot.sendGroupMsg(groupId, "已禁用链接拦截功能。", false);
-            log.info("群组[{}] 已禁用链接拦截功能。", groupId);
-        } else {
-            bot.sendGroupMsg(groupId, "链接拦截功能未启用，无需重复操作。", false);
-            log.info("群组[{}] 链接拦截功能未启用，忽略重复禁用请求。", groupId);
-        }
-    }
-
 
     @GroupMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text)

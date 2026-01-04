@@ -35,6 +35,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+import static com.github.winefoxbot.config.app.WineFoxBotConfig.*;
+
 @Shiro
 @ConditionalOnClass(DeepSeekService.class)
 @Component
@@ -69,9 +71,9 @@ public class ChatPlugin {
             name = "清空会话",
             description = "清空当前会话的消息记录，重新开始对话。",
             permission = Permission.ADMIN,
-            commands = {"/清空会话"})
+            commands = {COMMAND_PREFIX + "清空会话" + COMMAND_SUFFIX})
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/清空会话$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "清空会话" + COMMAND_SUFFIX_REGEX)
     public void clearConversation(Bot bot, AnyMessageEvent event) {
         Long groupId = event.getGroupId();
         Long sessionId = (groupId != null) ? groupId : event.getUserId();
