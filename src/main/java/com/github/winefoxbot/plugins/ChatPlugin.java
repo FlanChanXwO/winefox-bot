@@ -3,6 +3,7 @@ package com.github.winefoxbot.plugins;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.winefoxbot.annotation.Block;
 import com.github.winefoxbot.annotation.Limit;
+import com.github.winefoxbot.annotation.Plugin;
 import com.github.winefoxbot.annotation.PluginFunction;
 import com.github.winefoxbot.model.enums.Permission;
 import com.github.winefoxbot.service.chat.AiInteractionHelper;
@@ -36,7 +37,14 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import static com.github.winefoxbot.config.app.WineFoxBotConfig.*;
+import static com.mikuac.shiro.core.BotPlugin.MESSAGE_BLOCK;
+import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
 
+@Plugin(
+        name = "娱乐功能",
+        description = "提供私聊和群聊的智能聊天回复功能，以及戳一戳的互动回应。",
+        permission = Permission.USER,
+        order = 6)
 @Shiro
 @ConditionalOnClass(DeepSeekService.class)
 @Component
@@ -67,10 +75,26 @@ public class ChatPlugin {
      */
     private static final double PASSIVE_VOICE_REPLY_CHANCE = 0.05; // 5%
 
-    @PluginFunction(group = "聊天功能",
-            name = "清空会话",
+
+    /**
+     * 此方法仅用于生成帮助文档，实际消息处理由专门的处理器完成。
+     */
+    @PluginFunction(
+            name = "聊天回复",
+            description = "艾特酒狐或者直接在私聊中给酒狐发消息也许会有回应哦，戳一戳也有。也许如果你提到她的名字也可能会有回应呢~",
+            permission = Permission.USER,
+            autoGenerateHelp = false
+    )
+    @AnyMessageHandler
+    @MessageHandlerFilter(types = MsgTypeEnum.text)
+    public int chatDoc() {
+        return MESSAGE_IGNORE;
+    }
+
+    @PluginFunction(name = "清空会话",
             description = "清空当前会话的消息记录，重新开始对话。",
             permission = Permission.ADMIN,
+            hidden = true,
             commands = {COMMAND_PREFIX + "清空会话" + COMMAND_SUFFIX})
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "清空会话" + COMMAND_SUFFIX_REGEX)
@@ -113,11 +137,7 @@ public class ChatPlugin {
         }
     }
 
-    @PluginFunction(group = "聊天功能",
-            name = "聊天回复",
-            description = "当用户在群聊中At机器人发送消息时，进行智能回复。",
-            permission = Permission.USER
-    )
+
     @GroupMessageHandler
     @MessageHandlerFilter(at = AtEnum.NEED)
     @Async

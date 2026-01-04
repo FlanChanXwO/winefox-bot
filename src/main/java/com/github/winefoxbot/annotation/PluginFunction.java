@@ -15,12 +15,6 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface PluginFunction {
-
-    /**
-     * @return 功能所属的分组，例如 "管理功能" 或 "娱乐功能"
-     */
-    String group();
-
     /**
      * @return 功能的具体名称，例如 "禁言用户"
      */
@@ -32,16 +26,22 @@ public @interface PluginFunction {
     /**
      * 执行此功能所需的最低权限。
      * 默认为 USER，即所有普通用户都可以使用。
+     * @return 权限
      */
     Permission permission() default Permission.USER;
     /**
-     * @return 触发该功能的命令（包括别名）。可选参数。
+     * @return 触发该功能的命令描述（包括别名）。可选参数。
      */
     String[] commands() default {};
 
     /**
-     * 是否隐藏？
-     * @return
+     * @return 是否自动生成该功能在帮助文档中的命令说明
+     */
+    boolean autoGenerateHelp() default false;
+
+    /**
+     *
+     * @return 是否隐藏该功能在帮助文档
      */
     boolean hidden() default false;
 }

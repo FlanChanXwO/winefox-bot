@@ -1,5 +1,6 @@
 package com.github.winefoxbot.plugins;
 
+import com.github.winefoxbot.annotation.Plugin;
 import com.github.winefoxbot.annotation.PluginFunction;
 import com.github.winefoxbot.model.entity.WaterGroupMessageStat;
 import com.github.winefoxbot.model.entity.WaterGroupSchedule;
@@ -33,6 +34,11 @@ import static com.github.winefoxbot.config.app.WineFoxBotConfig.*;
  * @author FlanChan (badapple495@outlook.com)
  * @since 2025-12-15-23:56
  */
+@Plugin(
+        name = "发言统计",
+        description = "提供群发言统计功能，包括发言计数、每日发言统计图片生成与定时推送等",
+        permission = Permission.USER,
+        order = 12)
 @Shiro
 @Component
 @Slf4j
@@ -51,7 +57,7 @@ public class WaterGroupPlugin {
         waterGroupService.incrementMessageCount(groupId, userId);
     }
 
-    @PluginFunction(group = "发言统计",
+    @PluginFunction(
             name = "开启发言统计推送",
             description = "使用 " + COMMAND_PREFIX + "开启群发言统计每天定时推送" + COMMAND_SUFFIX + " 命令开启本群的发言统计功推送能。",
             permission = Permission.ADMIN,
@@ -74,7 +80,7 @@ public class WaterGroupPlugin {
         bot.sendGroupMsg(groupId, "已开启群发言统计每天定时推送！将在每天的%s".formatted(sendTime.toString()), false);
     }
 
-    @PluginFunction(group = "发言统计",
+    @PluginFunction(
             name = "修改发言统计推送时间",
             description = "使用 " + COMMAND_PREFIX + "修改发言统计推送时间 HH:mm" + COMMAND_SUFFIX + " 命令修改本群的发言统计推送时间。",
             permission = Permission.ADMIN,
@@ -106,7 +112,7 @@ public class WaterGroupPlugin {
         bot.sendGroupMsg(groupId, "已修改发言统计推送时间为每天的 %s".formatted(newTime.toString()), false);
     }
 
-    @PluginFunction(group = "发言统计",
+    @PluginFunction(
             name = "关闭发言统计推送",
             description = "使用 /关闭群发言统计每天定时推送 命令关闭本群的发言统计推送功能。",
             permission = Permission.ADMIN,
@@ -130,7 +136,7 @@ public class WaterGroupPlugin {
     }
 
 
-    @PluginFunction(group = "发言统计",
+    @PluginFunction(
             name = "查看发言统计推送状态",
             description = "使用 /发言统计推送状态 命令查看本群的发言统计推送状态。",
             permission = Permission.USER,
@@ -148,7 +154,7 @@ public class WaterGroupPlugin {
     }
 
 
-    @PluginFunction(group = "发言统计",
+    @PluginFunction(
             name = "查看发言统计",
             description = "使用 /今日发言 命令查看本群的发言统计排名。",
             permission = Permission.USER,

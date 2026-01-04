@@ -1,6 +1,8 @@
 package com.github.winefoxbot.plugins;
 
+import com.github.winefoxbot.annotation.Plugin;
 import com.github.winefoxbot.annotation.PluginFunction;
+import com.github.winefoxbot.model.enums.Permission;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Shiro;
@@ -27,6 +29,10 @@ import static com.github.winefoxbot.config.app.WineFoxBotConfig.*;
  * @author FlanChan (badapple495@outlook.com)
  * @since 2025-12-12-15:15
  */
+@Plugin(
+        name = "实用功能",
+        description = "提供定时提醒功能，用户可以设置定时提醒消息，支持多种时间格式。",
+        order = 5)
 @Shiro
 @Component
 @RequiredArgsConstructor
@@ -36,7 +42,7 @@ public class ScheduleTipTaskPlugin {
 
     private final Map<Long, ScheduledFuture<?>> scheduledTasks = new ConcurrentHashMap<>(1000);
 
-    @PluginFunction(group = "实用功能", name = "定时提醒", description = "使用 " + COMMAND_PREFIX + "定时 提醒时间 提醒内容+" + COMMAND_SUFFIX + " 命令设置定时提醒，使用 /取消定时提醒 取消提醒，使用 /定时提醒状态 查看当前提醒状态。时间格式支持数字加单位（s=秒，m=分钟，h=小时）或日期时间格式（如：15:30:00）。", commands = {"/定时 提醒时间 提醒内容", "/取消定时提醒", "/定时提醒状态"})
+    @PluginFunction(name = "定时提醒", description = "使用 " + COMMAND_PREFIX + "定时 提醒时间 提醒内容+" + COMMAND_SUFFIX + " 命令设置定时提醒，使用 /取消定时提醒 取消提醒，使用 /定时提醒状态 查看当前提醒状态。时间格式支持数字加单位（s=秒，m=分钟，h=小时）或日期时间格式（如：15:30:00）。", commands = {"/定时 提醒时间 提醒内容", "/取消定时提醒", "/定时提醒状态"})
     @AnyMessageHandler
     @MessageHandlerFilter(cmd = COMMAND_PREFIX_REGEX + "定时提醒\\s+(\\S+|\\d{1,2}:\\d{2})\\s+(.+)" + COMMAND_SUFFIX_REGEX)
     public void handleScheduleTask(Bot bot, AnyMessageEvent event, Matcher matcher) {

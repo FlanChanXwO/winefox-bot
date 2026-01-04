@@ -29,7 +29,7 @@ import static com.github.winefoxbot.config.app.WineFoxBotConfig.COMMAND_SUFFIX_R
 @RequiredArgsConstructor
 public class TestPlugin {
 
-    @PluginFunction(group = "测试", name = "echo模块", description = "回复收到的消息内容", hidden = true, permission = Permission.SUPERADMIN)
+    @PluginFunction( name = "echo模块", description = "回复收到的消息内容", hidden = true, permission = Permission.SUPERADMIN)
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "echo(?:\\s+(\\S+))?" + COMMAND_SUFFIX_REGEX)
     public void echo(Bot bot, AnyMessageEvent event, Matcher matcher) {
@@ -41,7 +41,7 @@ public class TestPlugin {
                     .build(), false);
     }
 
-    @PluginFunction(group = "测试", name = "异常测试", description = "回复收到的消息内容", hidden = true, permission = Permission.SUPERADMIN)
+    @PluginFunction( name = "异常测试", description = "回复收到的消息内容", hidden = true, permission = Permission.SUPERADMIN)
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "throw" + COMMAND_SUFFIX_REGEX)
     public void exceptionTest(Bot bot, AnyMessageEvent event) {

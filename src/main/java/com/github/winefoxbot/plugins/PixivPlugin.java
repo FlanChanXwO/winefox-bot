@@ -1,6 +1,7 @@
 package com.github.winefoxbot.plugins;
 
 import cn.hutool.core.lang.UUID;
+import com.github.winefoxbot.annotation.Plugin;
 import com.github.winefoxbot.annotation.PluginFunction;
 import com.github.winefoxbot.model.dto.pixiv.PixivDetail;
 import com.github.winefoxbot.model.dto.shiro.SendMsgResult;
@@ -50,6 +51,13 @@ import java.util.regex.Matcher;
 
 import static com.github.winefoxbot.config.app.WineFoxBotConfig.*;
 
+
+@Plugin(name = "Pixiv",
+        description = "提供 Pixiv 图片获取与排行榜订阅功能",
+        permission = Permission.USER,
+        iconPath = "icon/pixiv.ico",
+        order = 13
+)
 @Component
 @Slf4j
 @Shiro
@@ -61,7 +69,7 @@ public class PixivPlugin {
     private final PixivRankPushScheduleService pixivRankPushScheduleService;
     private static final String FILE_OUTPUT_DIR = "data/files/pixiv/wrappers";
 
-    @PluginFunction(group = "Pixiv", name = "查看P站排行订阅状态", description = "查看当前群聊的P站排行订阅状态。", commands = {COMMAND_PREFIX + "查看P站排行订阅" + COMMAND_SUFFIX, COMMAND_PREFIX + "p站订阅状态" + COMMAND_SUFFIX})
+    @PluginFunction(name = "查看P站排行订阅状态", description = "查看当前群聊的P站排行订阅状态。", commands = {COMMAND_PREFIX + "查看P站排行订阅" + COMMAND_SUFFIX, COMMAND_PREFIX + "p站订阅状态" + COMMAND_SUFFIX})
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(查看P站排行订阅|p站订阅状态)" + COMMAND_SUFFIX_REGEX)
     public void checkRankPushSubscription(Bot bot, AnyMessageEvent event) {
@@ -85,7 +93,7 @@ public class PixivPlugin {
         bot.sendMsg(event, reply.toString().trim(), true);
     }
 
-    @PluginFunction(group = "Pixiv", name = "订阅P站排行",
+    @PluginFunction( name = "订阅P站排行",
             permission = Permission.ADMIN,
             description = "订阅P站排行榜推送。用法: " + COMMAND_PREFIX + "订阅P站排行榜 [类型] [时间]" + COMMAND_SUFFIX + "。类型支持\"每日\"，\"每周\"，\"每月\", 例如: /订阅P站排行榜 每日 09:30", commands = {COMMAND_PREFIX + "订阅P站排行榜 每日 09:30" + COMMAND_SUFFIX, COMMAND_PREFIX + "订阅P站排行榜 每周 10:00" + COMMAND_SUFFIX, COMMAND_PREFIX + "订阅P站排行榜 每月 12:00" + COMMAND_SUFFIX})
     @AnyMessageHandler
@@ -141,12 +149,12 @@ public class PixivPlugin {
     }
 
 
-    @PluginFunction(group = "Pixiv", name = "取消P站排行榜订阅",
+    @PluginFunction( name = "取消P站排行榜订阅",
             permission = Permission.ADMIN,
             description = "取消订阅P站排行榜。用法: /取消P站排行榜 [类型]", commands = {COMMAND_PREFIX + "取消P站排行榜 每日" + COMMAND_SUFFIX,
             COMMAND_PREFIX + "取消P站排行榜 每周" + COMMAND_SUFFIX, COMMAND_PREFIX + "取消P站排行榜 每月" + COMMAND_SUFFIX})
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX +  "取消P站排行榜\\s+(每日|每周|每月)" + COMMAND_SUFFIX_REGEX)
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "取消P站排行榜\\s+(每日|每周|每月)" + COMMAND_SUFFIX_REGEX)
     public void unsubscribeRankPush(Bot bot, AnyMessageEvent event, Matcher matcher) {
         if (event.getGroupId() == null) {
             bot.sendMsg(event, "此功能仅限群聊使用。", true);
@@ -179,7 +187,7 @@ public class PixivPlugin {
 
 
     @Async
-    @PluginFunction(group = "Pixiv", name = "Pixiv 图片获取", description = "使用 "+COMMAND_PREFIX+"p <PID 或 URL>"+COMMAND_SUFFIX+" 命令获取 Pixiv 作品图片。", commands = { COMMAND_PREFIX + "p <PID 或 URL>" + COMMAND_SUFFIX})
+    @PluginFunction( name = "Pixiv 图片获取", description = "使用 " + COMMAND_PREFIX + "p <PID 或 URL>" + COMMAND_SUFFIX + " 命令获取 Pixiv 作品图片。", commands = {COMMAND_PREFIX + "p <PID 或 URL>" + COMMAND_SUFFIX})
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(p|P|pixiv)(?:\\s+(\\S+))?" + COMMAND_SUFFIX_REGEX)
     public void getPixivPic(Bot bot, AnyMessageEvent event, Matcher matcher) {
@@ -393,13 +401,13 @@ public class PixivPlugin {
     }
 
     @Async
-    @PluginFunction(group = "Pixiv", name = "Pixiv 排行榜获取", description = "获取 Pixiv 排行榜前6名插画作品。",
-    commands = { COMMAND_PREFIX + "p站今日排行榜" + COMMAND_SUFFIX,
-            COMMAND_PREFIX + "p站本周排行榜" + COMMAND_SUFFIX,
-            COMMAND_PREFIX + "p站本月排行榜" + COMMAND_SUFFIX,
-            COMMAND_PREFIX + "prd" + COMMAND_SUFFIX,
-            COMMAND_PREFIX + "prw" + COMMAND_SUFFIX,
-            COMMAND_PREFIX + "prm" + COMMAND_SUFFIX})
+    @PluginFunction(name = "Pixiv 排行榜获取", description = "获取 Pixiv 排行榜前6名插画作品。",
+            commands = {COMMAND_PREFIX + "p站今日排行榜" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "p站本周排行榜" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "p站本月排行榜" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "prd" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "prw" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "prm" + COMMAND_SUFFIX})
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "((p|P)站(本|今)(日|周|月)排行榜|pr(d|w|m))(?:\\s+(\\S+))?" + COMMAND_SUFFIX_REGEX)
     public void getPixivRankByType(Bot bot, AnyMessageEvent event, Matcher matcher) {

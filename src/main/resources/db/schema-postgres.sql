@@ -212,3 +212,12 @@ COMMENT ON TABLE shiro_friends IS '存储每个Bot的好友关系';
 COMMENT ON COLUMN shiro_friends.bot_id IS 'Bot自身的ID';
 COMMENT ON COLUMN shiro_friends.friend_id IS '好友的用户ID';
 
+CREATE TABLE IF NOT EXISTS pixiv_author_subscription
+(
+    author_id       VARCHAR(20) PRIMARY KEY,
+    author_name     VARCHAR(255),
+    is_active       BOOLEAN   NOT NULL DEFAULT TRUE,
+    last_checked_at TIMESTAMP, -- 使用 timestamptz 是 PostgreSQL 的好习惯
+    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

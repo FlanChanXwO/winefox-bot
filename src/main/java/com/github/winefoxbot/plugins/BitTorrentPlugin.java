@@ -6,10 +6,12 @@ package com.github.winefoxbot.plugins;
  */
 
 import cn.hutool.core.lang.Pair;
+import com.github.winefoxbot.annotation.Plugin;
 import com.github.winefoxbot.annotation.PluginFunction;
 import com.github.winefoxbot.config.BitTorrentConfig;
 import com.github.winefoxbot.model.dto.bittorrent.BitTorrentSearchResult;
 import com.github.winefoxbot.model.dto.bittorrent.BitTorrentSearchResultItem;
+import com.github.winefoxbot.model.enums.Permission;
 import com.github.winefoxbot.service.bittorrent.BitTorrentService;
 import com.github.winefoxbot.service.shiro.ShiroSessionStateService;
 import com.google.common.cache.Cache;
@@ -48,6 +50,11 @@ import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
  * /bt IPX
  * /bt IPX 47
  */
+@Plugin(
+        name = "实用功能",
+        description = "提供 BitTorrent 磁力链搜索功能，支持关键词和分页查询",
+        permission = Permission.USER,
+        order = 5)
 @Shiro
 @Component
 @Slf4j
@@ -103,7 +110,7 @@ public class BitTorrentPlugin {
         return MESSAGE_BLOCK;
     }
 
-    @PluginFunction(group = "实用功能", name = "磁力链搜索", description = "使用 /bt <关键词> [页码] 命令进行搜索，页码可以不要，不要就默认搜索第一页", commands = {COMMAND_PREFIX + "bt <关键词> [页码]" + COMMAND_SUFFIX})
+    @PluginFunction(name = "磁力链搜索", description = "使用 /bt <关键词> [页码] 命令进行搜索，页码可以不要，不要就默认搜索第一页", commands = {COMMAND_PREFIX + "bt <关键词> [页码]" + COMMAND_SUFFIX})
     @AnyMessageHandler
     @Async
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd =  COMMAND_PREFIX_REGEX + "bt\\s+(\\S+)(\\s+(\\d+))?" + COMMAND_SUFFIX_REGEX)

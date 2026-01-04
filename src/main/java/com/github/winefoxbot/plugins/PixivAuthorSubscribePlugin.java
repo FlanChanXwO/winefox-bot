@@ -25,7 +25,7 @@ import static com.github.winefoxbot.config.app.WineFoxBotConfig.*;
 public class PixivAuthorSubscribePlugin {
     private final PixivAuthorSubscriptionService pixivAuthorSubscriptionService;
 
-    @PluginFunction(group = "Pixiv", name = "订阅作者" , hidden = true, description = "订阅作者更新，当有新的更新时，会进行推送，根据分级会进行选择性包装，你可以用另一个命令设置推送地点",
+    @PluginFunction(name = "订阅作者" , hidden = true, description = "订阅作者更新，当有新的更新时，会进行推送，根据分级会进行选择性包装，你可以用另一个命令设置推送地点",
             permission = Permission.USER,
             commands = {
                     COMMAND_PREFIX + "P站作者订阅" + COMMAND_SUFFIX,

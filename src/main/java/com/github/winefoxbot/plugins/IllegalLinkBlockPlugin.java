@@ -62,7 +62,7 @@ public class IllegalLinkBlockPlugin {
 
     private final Set<Long> enableIllegalLinkBlockGroups = new ConcurrentHashSet<>();
 
-    @PluginFunction(group =  "链接拦截" ,name = "非法链接拦截器",
+    @PluginFunction(name = "链接拦截",
             permission = Permission.ADMIN,
             description = "拦截群内发送的非法链接，支持渐进式惩罚和冷却重置。管理员可通过命令启用或禁用该功能。",
             commands = {

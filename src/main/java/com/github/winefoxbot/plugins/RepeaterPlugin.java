@@ -1,6 +1,8 @@
 package com.github.winefoxbot.plugins;
 
+import com.github.winefoxbot.annotation.Plugin;
 import com.github.winefoxbot.annotation.PluginFunction;
+import com.github.winefoxbot.model.enums.Permission;
 import com.mikuac.shiro.annotation.GroupMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Order;
@@ -27,6 +29,8 @@ import static com.github.winefoxbot.config.app.WineFoxBotConfig.*;
  * @author FlanChan (badapple495@outlook.com)
  * @since 2025-12-09-2:12
  */
+@Plugin(name = "娱乐功能", description = "复读机功能，包括自动复读和复读跟随功能，以及奇怪的+1" , order = 7 ,permission = Permission.USER ,
+        iconPath = "icon/娱乐功能.png")
 @Shiro
 @Slf4j
 @Component
@@ -34,19 +38,13 @@ public class RepeaterPlugin {
 
     private final Map<Long, Set<Long>> repeaterFollowers = new ConcurrentHashMap<>();
 
-    // 每个群组的最大跟随人数限制
     private static final int MAX_FOLLOWERS_PER_GROUP = 10;
 
 
-    // 开启复读跟随
-    @PluginFunction(group = "复读机", name = "复读跟随", description = "使用 " + COMMAND_PREFIX + "复读跟随" + COMMAND_SUFFIX + " 命令开启复读跟随功能，使用 /停止复读跟随 关闭该功能。当你发送消息时，机器人会自动复读你的消息。",
-           commands = {
-                   COMMAND_PREFIX + "开启复读跟随" + COMMAND_SUFFIX,
-                   COMMAND_PREFIX + "打开复读跟随" + COMMAND_SUFFIX,
-                   COMMAND_PREFIX + "停止复读跟随" + COMMAND_SUFFIX,
-                   COMMAND_PREFIX + "关闭复读跟随" + COMMAND_SUFFIX,
-                   COMMAND_PREFIX + "取消复读跟随" + COMMAND_SUFFIX,
-           })
+    @PluginFunction( name = "复读",
+            description = "使用 " + COMMAND_PREFIX + "复读跟随" + COMMAND_SUFFIX + " 命令开启复读跟随功能，使用 "+COMMAND_PREFIX+"停止复读跟随"+COMMAND_SUFFIX+" 关闭该功能。当你发送消息时，机器人会自动复读你的消息。" +
+                    "此外如果有其他用户发送了相同的消息且达到一定次数，机器人也会复读该消息。"
+            , autoGenerateHelp = true)
     @GroupMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(开启|打开|停止|关闭|取消)复读跟随" + COMMAND_SUFFIX_REGEX)
     public void enableFollowRepeat(Bot bot, GroupMessageEvent event) {

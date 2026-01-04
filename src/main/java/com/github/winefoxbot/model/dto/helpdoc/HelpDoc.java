@@ -14,10 +14,6 @@ import java.util.List;
 @AllArgsConstructor
 public class HelpDoc {
     /**
-     * 功能分组
-     */
-    private String group;
-    /**
      * 功能名称
      */
     private String name;
@@ -36,6 +32,8 @@ public class HelpDoc {
 
     // 辅助方法，用于格式化显示
     public String getFormattedCommands() {
-        return commands.isEmpty() ? "无" : String.join(", ", commands);
+        return commands == null || commands.isEmpty() ? "无" : String.join(", ", commands);
     }
 }
+
+

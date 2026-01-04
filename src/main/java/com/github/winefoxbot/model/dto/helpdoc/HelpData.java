@@ -1,20 +1,17 @@
 package com.github.winefoxbot.model.dto.helpdoc;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.util.List;
 
 @Data
 public class HelpData {
-    @JsonProperty("top-background")
-    private String topBackground;
-
-    @JsonProperty("bottom-background")
-    private String bottomBackground;
+    @JsonIgnore
+    private String bottomBackground = "image/bottom.jpg";
     
-    @JsonProperty("default-icon")
-    private String defaultIcon;
+    @JsonIgnore
+    private String defaultIcon = "icon/默认图标.png";
 
     private List<HelpGroup> groups;
 }

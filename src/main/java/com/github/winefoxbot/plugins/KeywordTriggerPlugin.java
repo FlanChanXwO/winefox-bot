@@ -29,9 +29,7 @@ public class KeywordTriggerPlugin {
     private final DeepSeekService deepSeekService;
     private final ObjectMapper objectMapper;
 
-    @PluginFunction(group = "聊天功能", name = "关键词触发回复", description = "当\"酒狐\"在群里被提到时，可能会冒泡",
-            permission = Permission.USER
-    )
+
     @GroupMessageHandler
     @MessageHandlerFilter(at = AtEnum.NOT_NEED, cmd = "(小?酒狐).*")
     public void handleMessage(Bot bot, GroupMessageEvent event) {

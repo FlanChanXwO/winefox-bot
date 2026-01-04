@@ -21,8 +21,8 @@ import java.util.List;
  */
 @Data
 @Configuration
-@ConfigurationProperties(prefix = "webdriver")
-public class WebDriverConfig {
+@ConfigurationProperties(prefix = "playwright")
+public class PlaywrightConfig {
 
     private String browserBinaryPath = "path/to/edge/binary";
 

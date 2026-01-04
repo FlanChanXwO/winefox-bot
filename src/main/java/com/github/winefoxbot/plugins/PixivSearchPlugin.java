@@ -1,5 +1,6 @@
 package com.github.winefoxbot.plugins;
 
+import com.github.winefoxbot.annotation.Plugin;
 import com.github.winefoxbot.annotation.PluginFunction;
 import com.github.winefoxbot.model.dto.pixiv.PixivDetail;
 import com.github.winefoxbot.model.dto.pixiv.PixivSearchParams;
@@ -53,6 +54,12 @@ import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
  * @author FlanChan (badapple495@outlook.com)
  * @since 2026-01-01-16:29
  */
+@Plugin(name = "Pixiv",
+        description = "提供 Pixiv 图片获取与排行榜订阅功能",
+        permission = Permission.USER,
+        iconPath = "icon/pixiv.ico",
+        order = 13
+)
 @Shiro
 @Component
 @RequiredArgsConstructor
@@ -92,8 +99,9 @@ public class PixivSearchPlugin {
 
     @Async
     @PluginFunction(
-            group = "Pixiv", name = "Pixiv搜索",
+            name = "Pixiv搜索",
             permission = Permission.USER,
+            autoGenerateHelp = false,
             description = "在Pixiv上搜索插画作品。命令格式：" + COMMAND_PREFIX + "pixiv搜索 <标签1> <标签2> ... [-p<页码>] [-r]" + COMMAND_SUFFIX + "。其中 -p 用于指定页码，-r 用于开启R18搜索。",
             commands = {
                     COMMAND_PREFIX + "pixiv搜索 <标签1> <标签2> ... [-p<页码>] [-r]" + COMMAND_SUFFIX,

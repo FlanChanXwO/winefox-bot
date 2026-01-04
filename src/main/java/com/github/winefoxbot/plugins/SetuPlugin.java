@@ -1,6 +1,7 @@
 package com.github.winefoxbot.plugins;
 
 import cn.hutool.core.util.URLUtil;
+import com.github.winefoxbot.annotation.Plugin;
 import com.github.winefoxbot.annotation.PluginFunction;
 import com.github.winefoxbot.config.file.FileStorageProperties;
 import com.github.winefoxbot.config.setu.SetuApiConfig;
@@ -58,6 +59,13 @@ import static com.github.winefoxbot.config.app.WineFoxBotConfig.*;
  * @author FlanChan (badapple495@outlook.com)
  * @since 2025-12-09-1:44
  */
+@Plugin(
+        name = "瑟瑟",
+        description = "提供随机色图获取功能，支持R18和自动撤回等设置",
+        permission = Permission.USER,
+        iconPath = "icon/瑟瑟功能.ico",
+        order = 12
+)
 @Component
 @Shiro
 @Slf4j
@@ -74,10 +82,7 @@ public class SetuPlugin {
     private static final int MAX_RETRIES = 3;
     private static final Duration IMAGE_CACHE_DURATION = Duration.ofHours(1); // 图片缓存1h
 
-    @PluginFunction(group = "瑟瑟功能", name = "解除限制开关", description = "解除限制", permission = Permission.ADMIN, commands = {
-            COMMAND_PREFIX + "解除瑟瑟限制" + COMMAND_SUFFIX,
-            COMMAND_PREFIX + "开启瑟瑟限制" + COMMAND_SUFFIX
-    })
+    @PluginFunction( name = "解除限制开关", description = "解除限制", permission = Permission.ADMIN, autoGenerateHelp = true)
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd =  COMMAND_PREFIX_REGEX + "(解除瑟瑟限制|开启瑟瑟限制)" + COMMAND_SUFFIX_REGEX)
     public void toggleR18(Bot bot, AnyMessageEvent event) {
@@ -97,11 +102,7 @@ public class SetuPlugin {
         bot.sendMsg(event, updated ? "设置已更新，当前R18状态：" + (config.getR18Enabled() ? "开启" : "关闭") : "设置更新失败，请重试", false);
     }
 
-    @PluginFunction(group = "瑟瑟功能", name = "自动撤回奇怪图片开关", description = "开启或者关闭自动撤回在奇怪分级", permission = Permission.ADMIN,
-    commands = {
-            COMMAND_PREFIX + "开启瑟瑟自动撤回" + COMMAND_SUFFIX,
-            COMMAND_PREFIX + "关闭瑟瑟自动撤回" + COMMAND_SUFFIX
-    })
+    @PluginFunction( name = "自动撤回奇怪图片开关", description = "开启或者关闭自动撤回在奇怪分级", permission = Permission.ADMIN, autoGenerateHelp = true)
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd =  COMMAND_PREFIX_REGEX + "(开启|关闭)瑟瑟自动撤回" + COMMAND_SUFFIX_REGEX)
     public void toggleAutoRevoke(Bot bot, AnyMessageEvent event) {
@@ -122,7 +123,6 @@ public class SetuPlugin {
     }
 
     @PluginFunction(
-            group = "瑟瑟功能",
             name = "设置并发请求数",
             description = "设置当前会话（群/私聊）允许同时获取图片的最大数量",
             permission = Permission.ADMIN, // 仅管理员可用
@@ -163,7 +163,6 @@ public class SetuPlugin {
 
     @Async
     @PluginFunction(
-            group = "瑟瑟功能",
             name = "随机福利图片获取",
             description = "使用命令获取随机色图，可附加标签，如：来份碧蓝档案色图",
             commands = {"来份色图", "来个色图", "来份涩图", "来个涩图", "来份瑟图", "来个瑟图", "来份塞图", "来个塞图", "来份[标签]色图", "来个[标签]色图",

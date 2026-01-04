@@ -10,6 +10,7 @@ import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.ScreenshotType;
+import com.microsoft.playwright.options.WaitForSelectorState;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,7 @@ import org.thymeleaf.context.Context;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 帮助图片生成服务的实现类。
@@ -130,11 +132,18 @@ public class HelpImageServiceImpl implements HelpImageService {
         context.setVariable("res", res);
         String htmlContent = templateEngine.process(HTML_TEMPLATE, context);
         try (BrowserContext browserContext = browser.newContext(
-                new Browser.NewContextOptions().setDeviceScaleFactor(1))) {
+                new Browser.NewContextOptions()
+                        .setDeviceScaleFactor(1))) {
             try (Page page = browserContext.newPage()) {
                 // 直接使用完全渲染好的HTML
                 page.setContent(htmlContent);
+                // 等待容器
                 Locator container = page.locator(".container");
+                // 1. 获取要截图元素的高度
+                int viewportHeight = (int) container.evaluate("element => element.scrollHeight");
+                // 2. 设置视口大小以容纳整个元素
+                page.setViewportSize(800, viewportHeight + 10);
+                container.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.ATTACHED));
                 return container.screenshot(new Locator.ScreenshotOptions().setType(ScreenshotType.PNG));
             }
         }
@@ -143,7 +152,6 @@ public class HelpImageServiceImpl implements HelpImageService {
     private Map<String, String> loadResourcesAsDataUri(String basePath) {
         Map<String, String> resourceMap = new HashMap<>();
 
-        // [关键修正] 在路径模式末尾添加 "/**"，使其可以扫描所有子目录
         String locationPattern = ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX + basePath + "/**/*.*";
 
         log.info("Scanning for resources with pattern (including subdirectories): {}", locationPattern);
@@ -189,11 +197,24 @@ public class HelpImageServiceImpl implements HelpImageService {
 
     private String loadResourceAsDataUri(Resource resource) throws IOException {
         byte[] fileBytes = resource.getInputStream().readAllBytes();
-        String mimeType = "application/octet-stream";
+        String mimeType = "application/octet-stream"; // 默认MIME类型
         String filename = resource.getFilename();
+
         if (filename != null) {
-            if (filename.endsWith(".png")) mimeType = "image/png";
-            else if (filename.endsWith(".jpg") || filename.endsWith(".jpeg")) mimeType = "image/jpeg";
+            String lowerCaseFilename = filename.toLowerCase(); // 转换为小写以进行不区分大小写的比较
+            if (lowerCaseFilename.endsWith(".png")) {
+                mimeType = "image/png";
+            } else if (lowerCaseFilename.endsWith(".jpg") || lowerCaseFilename.endsWith(".jpeg")) {
+                mimeType = "image/jpeg";
+            } else if (lowerCaseFilename.endsWith(".ico")) { // 【增加】对 .ico 的支持
+                mimeType = "image/x-icon";
+            } else if (lowerCaseFilename.endsWith(".gif")) { // 【可选增加】对 .gif 的支持
+                mimeType = "image/gif";
+            } else if (lowerCaseFilename.endsWith(".svg")) { // 【可选增加】对 .svg 的支持
+                mimeType = "image/svg+xml";
+            } else if (lowerCaseFilename.endsWith(".webp")) { // 【可选增加】对 .webp 的支持
+                mimeType = "image/webp";
+            }
         }
         return "data:" + mimeType + ";base64," + Base64.getEncoder().encodeToString(fileBytes);
     }
