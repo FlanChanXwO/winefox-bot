@@ -13,19 +13,9 @@ import java.util.List;
 @Data
 @ConfigurationProperties(prefix = "winefox")
 public class WineFoxBotProperties {
-    /**
-     * 机器人主人QQ号
-     */
-    private List<Long> superusers = new ArrayList<>();
-    /**
-     * 机器人昵称QQ号
-     */
-    private List<Long> bot = new ArrayList<>();
-    /**
-     * 当前版本号
-     */
-    private String version = "latest";
+    private WineFoxBotRebotProperties robot;
 
-    private final WineFoxBotAppProperties app;
+    private WineFoxBotAppProperties app;
 
+    private WineFoxBotAppUpdateProperties appUpdate;
 }

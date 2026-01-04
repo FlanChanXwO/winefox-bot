@@ -1,6 +1,7 @@
 package com.github.winefoxbot.config.app;
 
 import lombok.Data;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
@@ -10,7 +11,7 @@ import org.springframework.context.annotation.Import;
  */
 @Configuration
 @Data
-@Import({WineFoxBotProperties.class,WineFoxBotAppProperties.class,WineFoxBotAppUpdateProperties.class})
+@EnableConfigurationProperties({WineFoxBotProperties.class, WineFoxBotRebotProperties.class,WineFoxBotAppProperties.class,WineFoxBotAppUpdateProperties.class})
 public class WineFoxBotConfig {
 
     public final static String COMMAND_PREFIX = "/";

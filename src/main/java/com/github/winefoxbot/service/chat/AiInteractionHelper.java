@@ -16,7 +16,6 @@ import java.time.format.DateTimeFormatter;
 public class AiInteractionHelper {
 
     private final ObjectMapper objectMapper;
-    private final WineFoxBotProperties wineFoxBotProperties;
     // 格式化时间
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -82,14 +81,13 @@ public class AiInteractionHelper {
      * 创建包含用户基础信息的 ObjectNode。
      * @param userId 用户ID
      * @param nickname 用户昵称
-     * @return 包含 sender, uid, nickname, isMaster 的 ObjectNode
+     * @return 包含 sender, uid, nickname 的 ObjectNode
      */
     private ObjectNode createBaseUserNode(long userId, String nickname) {
         ObjectNode userNode = objectMapper.createObjectNode();
         userNode.put("sender", "user");
         userNode.put("uid", String.valueOf(userId));
         userNode.put("nickname", nickname);
-        userNode.put("isMaster", wineFoxBotProperties.getSuperusers().contains(userId));
         return userNode;
     }
 }

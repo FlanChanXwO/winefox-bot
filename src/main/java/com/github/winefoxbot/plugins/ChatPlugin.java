@@ -101,7 +101,6 @@ public class ChatPlugin {
         Long groupId = event.getGroupId();
         Long sessionId = (groupId != null) ? groupId : event.getUserId();
         String sessionType = (groupId != null) ? "group" : "private";
-
         shiroMessagesService.clearConversation(sessionId, sessionType);
         bot.sendMsg(event, "当前会话的消息记录已经被酒狐忘掉啦，可以开始新的聊天咯！", false);
     }

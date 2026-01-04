@@ -36,7 +36,7 @@ public class BotStatusEventListener extends CoreEvent {
     public void online(Bot bot) {
         // 1. 首先，执行原来的上线通知逻辑
         log.info("Bot {} 上线了！", bot.getSelfId());
-        for (Long superuser : wineFoxBotProperties.getSuperusers()) {
+        for (Long superuser : wineFoxBotProperties.getRobot().getSuperUsers()) {
             bot.sendPrivateMsg(superuser, "我上线啦～", false);
         }
 
@@ -75,7 +75,7 @@ public class BotStatusEventListener extends CoreEvent {
             // 格式化最终消息
             String finalMessage = restartInfo.getSuccessMessage()
                     .replace("{duration}", String.format("%.2f秒", durationSeconds))
-                    .replace("{version}",wineFoxBotProperties.getVersion() + " " + currentVersion);
+                    .replace("{version}",wineFoxBotProperties.getApp().getVersion() + " " + currentVersion);
 
             // 发送消息
             if (MessageType.GROUP.equals(restartInfo.getMessageType())) {

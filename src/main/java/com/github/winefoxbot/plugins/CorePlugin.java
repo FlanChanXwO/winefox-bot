@@ -97,7 +97,7 @@ public class CorePlugin {
         try {
             GitHubUpdateService.VersionInfo currentVersion = updateService.getCurrentVersionInfo();
             GitHubRelease latestRelease = updateService.fetchLatestRelease();
-            String currentVersionStr = String.format("%s (Release ID: %d)", wineFoxBotProperties.getVersion(), currentVersion.releaseId);
+            String currentVersionStr = String.format("%s (Release ID: %d)", wineFoxBotProperties.getApp().getVersion(), currentVersion.releaseId);
             String latestVersionStr = String.format("%s (Release ID: %d)", latestRelease.getTagName(), latestRelease.getId());
             msg = "版本信息：\n" +
                     "当前版本: " + currentVersionStr + "\n" +

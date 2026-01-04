@@ -2,6 +2,7 @@ package com.github.winefoxbot.aop;
 
 import com.github.winefoxbot.annotation.PluginFunction;
 import com.github.winefoxbot.config.app.WineFoxBotProperties;
+import com.github.winefoxbot.config.app.WineFoxBotRebotProperties;
 import com.github.winefoxbot.model.entity.ShiroGroupMember;
 import com.github.winefoxbot.model.enums.GroupMemberRole;
 import com.github.winefoxbot.model.enums.Permission;
@@ -21,6 +22,7 @@ import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Optional;
 
 @Aspect
@@ -75,8 +77,10 @@ public class PermissionCheckAspect {
      * @return 用户的权限
      */
     private Permission getUserPermission(MessageEventWrapper wrapper) {
+        WineFoxBotRebotProperties robotProp = wineFoxBotProperties.getRobot();
+        List<Long> superUsers = robotProp.getSuperUsers();
         // 任何场景下，超级管理员都拥有最高权限
-        if (wineFoxBotProperties.getSuperusers() != null && wineFoxBotProperties.getSuperusers().contains(wrapper.getUserId())) {
+        if (superUsers != null && superUsers.contains(wrapper.getUserId())) {
             return Permission.SUPERADMIN;
         }
 
