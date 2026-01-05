@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -43,12 +44,14 @@ public class ConfigManager {
      * @param <T>       泛型类型
      * @return 封装在 Optional 中的配置值，如果所有范围都找不到则 Optional.empty()
      */
-    public <T> Optional<T> get(String key, String userId, String groupId, Class<T> type) {
+    public <T> Optional<T> get(String key, Long userId, Long groupId, Class<T> type) {
         // 优先级 1: 查询群组配置
         if (groupId != null) {
             Optional<T> groupConfig = getConfigObject("group", groupId, key, type);
             if (groupConfig.isPresent()) {
                 return groupConfig;
+            } else { // 群组配置不存在时，继续查询全局配置
+                return getConfigObject("global", -1L, key, type);
             }
         }
 
@@ -61,31 +64,31 @@ public class ConfigManager {
         }
 
         // 优先级 3: 查询全局配置
-        return getConfigObject("global", "default", key, type);
+        return getConfigObject("global", -1L, key, type);
     }
 
 
     /**
      * 获取配置，如果找不到则返回默认值。
      */
-    public <T> T getOrDefault(String key, String userId, String groupId, T defaultValue) {
+    public <T> T getOrDefault(String key, Long userId, Long groupId, T defaultValue) {
         @SuppressWarnings("unchecked") // 我们知道 defaultValue 的类型是 T
         Class<T> type = (Class<T>) defaultValue.getClass();
         return get(key, userId, groupId, type).orElse(defaultValue);
     }
 
-    public String getString(String key, String userId, String groupId, String defaultValue) {
+    public String getString(String key, Long userId, Long groupId, String defaultValue) {
         return getOrDefault(key, userId, groupId, defaultValue);
     }
     
-    public Integer getInt(String key, String userId, String groupId, Integer defaultValue) {
+    public Integer getInt(String key, Long userId, Long groupId, Integer defaultValue) {
         // 注意：JSONB存的是数字，但反序列化为Object后可能是Integer, Long, Double等
         // 需要做更健壮的转换
         Optional<Number> value = get(key, userId, groupId, Number.class);
         return value.map(Number::intValue).orElse(defaultValue);
     }
 
-    public Boolean getBoolean(String key, String userId, String groupId, Boolean defaultValue) {
+    public Boolean getBoolean(String key, Long userId, Long groupId, Boolean defaultValue) {
         return getOrDefault(key, userId, groupId, defaultValue);
     }
     
@@ -94,7 +97,7 @@ public class ConfigManager {
     /**
      * 获取群组配置 (自动回退到全局)
      */
-    public <T> T getGroupConfigOrDefault(String key, String groupId, T defaultValue) {
+    public <T> T getGroupConfigOrDefault(String key, Long groupId, T defaultValue) {
         return getOrDefault(key, null, groupId, defaultValue);
     }
 
@@ -114,10 +117,10 @@ public class ConfigManager {
      * @param type      目标类型
      * @return Optional<T>
      */
-    private <T> Optional<T> getConfigObject(String scope, String scopeId, String key, Class<T> type) {
+    private <T> Optional<T> getConfigObject(String scope, Long scopeId, String key, Class<T> type) {
         QueryWrapper<WinefoxBotAppConfig> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("scope", scope)
-                .eq("scope_id", scopeId)
+                .eq("scope_id", Objects.toString(scopeId))
                 .eq("config_key", key);
 
         WinefoxBotAppConfig config = configService.getOne(queryWrapper);

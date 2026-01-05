@@ -180,10 +180,10 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
         if (event.getGroupId() == null) return;
         Long userId = event.getUserId();
         Long groupId = event.getGroupId();
-        boolean autoRevoke = configManager.getOrDefault(ConfigConstants.AdultContent.ADULT_AUTO_REVOKE_ENABLED, String.valueOf(userId),String.valueOf(groupId),true);
+        boolean autoRevoke = configManager.getOrDefault(ConfigConstants.AdultContent.ADULT_AUTO_REVOKE_ENABLED, userId,groupId,true);
         if (!autoRevoke) return;
         try {
-            int delay = configManager.getOrDefault(ConfigConstants.AdultContent.ADULT_REVOKE_DELAY_SECONDS,String.valueOf(userId), String.valueOf(groupId), 30);
+            int delay = configManager.getOrDefault(ConfigConstants.AdultContent.ADULT_REVOKE_DELAY_SECONDS,userId, groupId, 30);
             CompletableFuture.delayedExecutor(delay, TimeUnit.SECONDS).execute(() -> {
                 BotUtils.deleteGroupFile(bot, event, fileName);
             });

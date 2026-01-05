@@ -623,7 +623,7 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
      */
     @Override
     public Optional<PixivBookmark> getRandomBookmark(Long userId, Long groupId) {
-        String contentMode = configManager.getOrDefault(ConfigConstants.AdultContent.SETU_CONTENT_MODE, String.valueOf(userId), String.valueOf(groupId), ConfigConstants.AdultContent.MODE_SFW);
+        String contentMode = configManager.getOrDefault(ConfigConstants.AdultContent.SETU_CONTENT_MODE, userId, groupId, ConfigConstants.AdultContent.MODE_SFW);
         String zsetKey = null;
         switch (contentMode) {
             case ConfigConstants.AdultContent.MODE_MIX -> {

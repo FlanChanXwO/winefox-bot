@@ -13,6 +13,7 @@ spring:
     virtual:
       enabled: true
   cache:
+#    测试使用，已不再使用
 #    type: caffeine # 指定缓存类型为 caffeine
 #    caffeine:
 #      spec: > # 使用 spec 字符串进行详细配置

@@ -75,7 +75,7 @@ public class SetuPlugin {
     @PluginFunction(
             name = "随机福利图片获取",
             description = "使用命令获取随机福利图片，可附加标签，如：来份碧蓝档案福利图",
-            commands = {"来份福利图", "来个福利图", "来份[标签]福利图", "来个[标签]福利图"}
+            commands = {"来份色图", "来张色图", "来份[标签]瑟图", "来个[标签]福利图", "来份[标签]涩图", "来点[标签]色图", "来点[标签]瑟图", "来点[标签]涩图", "来点[标签]福利图"}
     )
     @Order(10)
     @AnyMessageHandler
@@ -97,7 +97,7 @@ public class SetuPlugin {
         Long groupId = event.getGroupId();
         Long userId = event.getUserId();
         // 使用 ConfigManager.get 自动处理私聊/群聊/全局配置
-        String contentMode = configManager.getOrDefault(ConfigConstants.AdultContent.SETU_CONTENT_MODE, String.valueOf(userId), String.valueOf(groupId), ConfigConstants.AdultContent.MODE_SFW);
+        String contentMode = configManager.getOrDefault(ConfigConstants.AdultContent.SETU_CONTENT_MODE, userId, groupId, ConfigConstants.AdultContent.MODE_SFW);
         log.info("开始获取图片任务，标签: '{}', 内容模式: {}", tag, contentMode);
 
         for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -290,7 +290,7 @@ public class SetuPlugin {
         sendFuture.whenCompleteAsync((result, throwable) -> {
             // 仅在群聊中且配置开启时，才进行撤回操作
             if (event instanceof GroupMessageEvent groupEvent && event.getGroupId() != null) {
-                boolean autoRevoke = configManager.getOrDefault(ConfigConstants.AdultContent.ADULT_AUTO_REVOKE_ENABLED, String.valueOf(userId), String.valueOf(groupId), true);
+                boolean autoRevoke = configManager.getOrDefault(ConfigConstants.AdultContent.ADULT_AUTO_REVOKE_ENABLED, userId, groupId, true);
                 if (result != null && result.isSuccess() && autoRevoke) {
                     deleteGroupFile(bot, groupEvent, fileName);
                 }
@@ -307,7 +307,7 @@ public class SetuPlugin {
             // 撤回延迟时间也可以通过ConfigManager配置
             Long groupId = groupEvent.getGroupId();
             Long userId = groupEvent.getUserId();
-            int delay = configManager.getOrDefault(ConfigConstants.AdultContent.ADULT_REVOKE_DELAY_SECONDS, String.valueOf(userId), String.valueOf(groupId), 30);
+            int delay = configManager.getOrDefault(ConfigConstants.AdultContent.ADULT_REVOKE_DELAY_SECONDS, userId, groupId, 30);
             TimeUnit.SECONDS.sleep(delay);
             BotUtils.deleteGroupFile(bot, groupEvent, fileName);
             log.info("群组 {} 已根据配置自动撤回文件: {}", groupEvent.getGroupId(), fileName);
