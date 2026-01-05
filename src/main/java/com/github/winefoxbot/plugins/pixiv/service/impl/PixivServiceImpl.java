@@ -2,10 +2,11 @@ package com.github.winefoxbot.plugins.pixiv.service.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.winefoxbot.core.constants.CacheConstants;
+import com.github.winefoxbot.core.service.file.FileStorageService;
 import com.github.winefoxbot.plugins.pixiv.config.PixivConfig;
 import com.github.winefoxbot.plugins.pixiv.model.dto.common.PixivArtworkInfo;
 import com.github.winefoxbot.plugins.pixiv.model.enums.PixivArtworkType;
-import com.github.winefoxbot.core.service.file.FileStorageService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivService;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -15,10 +16,10 @@ import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 import org.jsoup.Jsoup;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import javax.net.ssl.SSLHandshakeException;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -173,7 +174,7 @@ public class PixivServiceImpl implements PixivService {
                 log.info("Released lock for PID: {}", pid);
                 // 可选：当确定一个PID在短时间内不会被再次请求时，可以考虑移除锁以节省内存
                 // 但对于机器人这类应用，为简单起见，一直保留也可以接受
-                // pidLocks.remove(pid);
+                pidLocks.remove(pid);
             }
         }
     }
@@ -181,46 +182,40 @@ public class PixivServiceImpl implements PixivService {
 
     private File downloadAndProcessSingleImage(String url, String pid) {
         try {
-            // 在开始下载前获取一个许可，如果许可不够，当前线程会阻塞在这里
             downloadPermits.acquire();
             String name = url.substring(url.lastIndexOf("/") + 1);
             String relativePath = PIXIV_IMAGE_SUBFOLDER + "/" + pid + "/" + name;
             log.info("启动下载任务：{} ", relativePath);
             Request request = new Request.Builder().url(replaceMirrorHost(url)).headers(pixivConfig.getHeaders()).build();
-            int retry = 0;
-            while (retry < 10) {
-                try (Response res = httpClient.newCall(request).execute()) {
-                    if (!res.isSuccessful()) throw new IOException("下载失败，HTTP Code: " + res.code());
-                    ResponseBody body = res.body();
-                    if (body == null) throw new IOException("下载失败，响应体为空");
-                    try (InputStream in = body.byteStream()) {
-                        Path finalPath = fileStorageService.writeFile(relativePath, in, CACHE_EXPIRATION, null);
-                        log.info("下载完成并注册缓存：{}", finalPath.toAbsolutePath());
-                        return finalPath.toFile();
-                    }
-                } catch (SSLHandshakeException e) {
-                    log.warn("SSL握手失败，正在重试... (第 {}/10 次) for {}", retry + 1, name);
-                    try {
-                        TimeUnit.SECONDS.sleep(1);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        throw new RuntimeException(ie);
-                    }
-                    retry++;
-                } catch (Exception e) {
-                    log.error("处理文件 {} 时发生严重错误", name, e);
-                    throw new RuntimeException("处理文件 " + name + " 失败", e);
+
+            // 移除内部的 while 重试循环，直接调用
+            try (Response res = httpClient.newCall(request).execute()) {
+                if (!res.isSuccessful()) {
+                    // 拦截器重试后仍然失败，记录日志并抛出异常
+                    throw new IOException("下载失败，URL: " + url + ", HTTP Code: " + res.code());
                 }
+                ResponseBody body = res.body();
+                if (body == null) {
+                    throw new IOException("下载失败，响应体为空，URL: " + url);
+                }
+                try (InputStream in = body.byteStream()) {
+                    Path finalPath = fileStorageService.writeFile(relativePath, in, CACHE_EXPIRATION, null);
+                    log.info("下载完成并注册缓存：{}", finalPath.toAbsolutePath());
+                    return finalPath.toFile();
+                }
+            } catch (IOException e) {
+                // 所有重试（由拦截器处理）都失败后，会在这里捕获到最终的IO异常
+                log.error("处理文件 {} 时发生严重错误 (所有重试均失败)", name, e);
+                // 重新包装为 RuntimeException 以适应 CompletableFuture 的异常处理流程
+                throw new RuntimeException("处理文件 " + name + " 失败", e);
             }
-            throw new RuntimeException("Download failed for " + name + " after max retries.");
+
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log.warn("Download task for {} was interrupted while waiting for permit.", url);
             throw new RuntimeException("Download interrupted", e);
         } finally {
-            // 无论下载成功、失败还是抛出异常，都必须释放许可！
             downloadPermits.release();
-            log.info("Permit released for {}", url);
         }
     }
 
@@ -230,7 +225,6 @@ public class PixivServiceImpl implements PixivService {
             Path zipFile = tempDir.resolve(pid + ".zip");
             Path extractDir = tempDir.resolve("extracted");
             Path tempGif = tempDir.resolve(pid + ".gif");
-            System.out.println(zipUrl);
             Request zipReq = new Request.Builder().url(replaceMirrorHost(zipUrl)).headers(pixivConfig.getHeaders()).build();
             try (Response res = httpClient.newCall(zipReq).execute(); InputStream in = res.body().byteStream()) {
                 if (!res.isSuccessful()) throw new IOException("Zip download failed: " + res.code());
@@ -471,6 +465,7 @@ public class PixivServiceImpl implements PixivService {
         }
     }
 
+    @Cacheable(value = CacheConstants.PIXIV_ARTWORK_INFO_CACHE, key = "#pid", unless = "#result == null")
     @Override
     public PixivArtworkInfo getPixivArtworkInfo(String pid) throws IOException {
         String apiUrl = String.format("%s/ajax/illust/%s?lang=zh", PIXIV_BASE, pid);

@@ -39,18 +39,7 @@ CREATE TABLE IF NOT EXISTS shiro_messages
     message      JSON        NOT NULL, -- PostgreSQL has native JSON support
     plain_text   TEXT        NOT NULL
 );
--- winefoxbot 内置表
-CREATE TABLE IF NOT EXISTS app_config
-(
-    id           SERIAL PRIMARY KEY,     -- Use SERIAL for auto-incrementing ID
-    config_group TEXT NOT NULL,          -- 配置分组, e.g., '发言统计', '核心设置'
-    scope        TEXT NOT NULL,          -- 配置范围, e.g., 'global', 'group', 'user'
-    scope_id     TEXT NOT NULL,          -- 范围ID, e.g., 'default', '群号', 'QQ号'
-    config_key   TEXT NOT NULL,          -- 配置键, e.g., 'watergroup.stats.enabled'
-    config_value TEXT,                   -- 配置值
-    description  TEXT,                   -- 配置项描述（可选）
-    UNIQUE (scope, scope_id, config_key) -- 确保每个范围下的配置键是唯一的
-);
+
 
 
 CREATE TABLE IF NOT EXISTS water_group_msg_stat
@@ -114,7 +103,7 @@ CREATE TABLE IF NOT EXISTS pixiv_user_author_subscription_schedule_ref
 );
 
 -- 创建 pixiv_work 表
-CREATE TABLE IF NOT EXISTS pixiv_work
+CREATE TABLE IF NOT EXISTS pixiv_artwork
 (
     id         SERIAL PRIMARY KEY,
     illust_id  VARCHAR(20) NOT NULL,
@@ -122,67 +111,35 @@ CREATE TABLE IF NOT EXISTS pixiv_work
     created_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS uidx_pixiv_work_illust_id ON pixiv_work (illust_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uidx_pixiv_work_illust_id ON pixiv_artwork (illust_id);
 
 
 -- 为 author_id 创建普通索引，加快按作者查询和删除的速度
-CREATE INDEX IF NOT EXISTS idx_pixiv_work_author_id ON pixiv_work (author_id);
+CREATE INDEX IF NOT EXISTS idx_pixiv_work_author_id ON pixiv_artwork (author_id);
 
-
--- 创建屏蔽用户表
--- 增加了 `group_id` 字段来实现分群管理
-CREATE TABLE IF NOT EXISTS qq_group_add_request_blocked_users
+-- winefoxbot 内置表
+CREATE TABLE IF NOT EXISTS winefox_bot_app_config
 (
-    id         SERIAL PRIMARY KEY,               -- 自增主键
-    group_id   BIGINT    NOT NULL,               -- 群号
-    user_id    BIGINT    NOT NULL,               -- 被屏蔽用户的QQ号
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(), -- 屏蔽时间 (带时区)
-    UNIQUE (group_id, user_id)                   -- 确保每个群里一个用户只被屏蔽一次
-);
+    id           SERIAL PRIMARY KEY,
+    -- 配置分组，便于管理和展示，例如在配置菜单中分类显示
+    config_group TEXT NOT NULL,          -- e.g., '核心设置', '发言统计', '色图功能'
 
--- 为常用查询创建索引，提升性能
-CREATE INDEX IF NOT EXISTS idx_blocked_users_group_id_user_id ON qq_group_add_request_blocked_users (group_id, user_id);
+    -- 配置键，使用点分命名法，清晰明了
+    config_key   TEXT NOT NULL,          -- e.g., 'core.owner', 'stats.enabled', 'setu.r18.enabled'
 
+    -- 配置值，可以考虑使用 JSONB 类型以获得更好的灵活性和类型支持
+    config_value jsonb,                   -- 对于简单的键值对 TEXT 足够，若配置项复杂可考虑 JSONB (PostgreSQL)
 
--- 创建群功能配置表
-CREATE TABLE IF NOT EXISTS qq_group_auto_handle_add_request_feature_config
-(
-    id                              SERIAL PRIMARY KEY,               -- 自增主键
-    group_id                        BIGINT    NOT NULL UNIQUE,        -- 群号，设置为唯一，确保每个群只有一条记录
-    auto_handle_add_request_enabled BOOLEAN   NOT NULL DEFAULT FALSE, -- 自动处理加群请求功能开关，默认关闭
-    block_feature_enabled           BOOLEAN   NOT NULL DEFAULT FALSE, -- 屏蔽功能开关，默认关闭
-    created_at                      TIMESTAMP NOT NULL DEFAULT NOW(), -- 记录创建时间
-    updated_at                      TIMESTAMP NOT NULL DEFAULT NOW()  -- 记录更新时间
-);
+    -- 配置的作用范围
+    scope        VARCHAR(16) NOT NULL,   -- 'global', 'group', 'user'
+    scope_id     VARCHAR(64) NOT NULL,   -- 'default', '群号', 'QQ号'
 
--- 为 group_id 创建索引，加快查询速度
-CREATE INDEX IF NOT EXISTS idx_group_feature_config_group_id ON qq_group_auto_handle_add_request_feature_config (group_id);
-
-
--- 创建色图配置表
-CREATE TABLE IF NOT EXISTS setu_config
-(
-    id                     SERIAL PRIMARY KEY,                  -- 自增主键
-    session_id             BIGINT     NOT NULL UNIQUE,          -- 群号，设置为唯一，确保每个群只有一条记录
-    max_request_in_session INTEGER    NOT NULL DEFAULT 1,       -- 会话内最大请求数，超过则自动拒绝
-    session_type           VARCHAR(8) NOT NULL DEFAULT 'group', -- 会话类型，如 'daily', 'weekly'
-    r18_enabled            BOOLEAN    NOT NULL DEFAULT FALSE,   -- 是否开启R18
-    auto_revoke            BOOLEAN    NOT NULL DEFAULT TRUE,    -- 是否自动撤回
-    created_at             TIMESTAMP  NOT NULL DEFAULT NOW(),   -- 记录创建时间
-    updated_at             TIMESTAMP  NOT NULL DEFAULT NOW()    -- 记录更新时间
-);
-
--- 创建色图配置表
-CREATE TABLE IF NOT EXISTS pixiv_config
-(
-    id                     SERIAL PRIMARY KEY,                  -- 自增主键
-    session_id             BIGINT     NOT NULL UNIQUE,          -- 群号，设置为唯一，确保每个群只有一条记录
-    max_request_in_session INTEGER    NOT NULL DEFAULT 1,       -- 会话内最大请求数，超过则自动拒绝
-    session_type           VARCHAR(8) NOT NULL DEFAULT 'group', -- 会话类型，如 'daily', 'weekly'
-    r18_enabled            BOOLEAN    NOT NULL DEFAULT FALSE,   -- 是否开启R18
-    r18_auto_revoke            BOOLEAN    NOT NULL DEFAULT TRUE,    -- 是否r18自动撤回
-    created_at             TIMESTAMP  NOT NULL DEFAULT NOW(),   -- 记录创建时间
-    updated_at             TIMESTAMP  NOT NULL DEFAULT NOW()    -- 记录更新时间
+    -- 附加信息
+    description  TEXT,                   -- 配置项描述
+    created_at   TIMESTAMP NOT NULL DEFAULT NOW(), -- 记录创建时间
+    updated_at   TIMESTAMP NOT NULL DEFAULT NOW(), -- 记录更新时间
+    -- 唯一性约束，确保一个范围内配置键不重复
+    UNIQUE (scope, scope_id, config_key)
 );
 
 

@@ -44,6 +44,7 @@ public class CorePlugin {
 
     private final GitHubUpdateService updateService;
     private final WineFoxBotProperties wineFoxBotProperties;
+    private final HelpImageService helpImageService;
 
     /**
      * 应用重启
@@ -137,7 +138,6 @@ public class CorePlugin {
         }
     }
 
-    private final HelpImageService helpImageService;
 
     @PluginFunction(
             name = "帮助文档",

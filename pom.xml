@@ -11,7 +11,7 @@
 
     <groupId>com.github</groupId>
     <artifactId>winefox-bot</artifactId>
-    <version>1.5.6</version>
+    <version>1.6.1</version>
 
     <name>winefox-bot</name>
 
@@ -25,6 +25,7 @@
         <okhttp.version>4.12.0</okhttp.version>
         <lombok.version>1.18.30</lombok.version>
         <hutool.version>5.8.16</hutool.version>
+        <tika.version>2.9.1</tika.version>
         <jsoup.version>1.21.2</jsoup.version>
         <mybatis-plus.version>3.5.11</mybatis-plus.version>
         <java-image-scaling.version>0.8.6</java-image-scaling.version>
@@ -73,6 +74,11 @@
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-all</artifactId>
             <version>${hutool.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-core</artifactId>
+            <version>${tika.version}</version> <!-- 请使用最新版本 -->
         </dependency>
         <!-- json -->
         <!-- https://mvnrepository.com/artifact/com.jayway.jsonpath/json-path -->

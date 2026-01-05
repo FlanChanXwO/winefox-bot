@@ -80,7 +80,7 @@ public class BotCommandExceptionHandler {
             return null;
         } catch (Exception e) {
             log.error("插件执行时发生未知异常: [{}],", joinPoint.getSignature().toShortString(), e);
-            log.error(e.getMessage());
+            e.printStackTrace();
             // 尝试从方法参数中解析 Bot 和 Event
             findBotAndEventFromArgs(joinPoint.getArgs()).ifPresent(pair -> {
                 Bot bot = pair.getKey();
@@ -94,43 +94,43 @@ public class BotCommandExceptionHandler {
     private void handleBotCommandException(BaseException e, Bot bot, Event event) {
         switch (e) {
             case CommandParseException cpe -> {
-                BotUtils.sendMsgByEvent(bot, event, "命令解析错误: " + cpe.getMessage(), false);
+                BotUtils.sendMsgByEvent(bot, event, cpe.getMessage(), false);
             }
             case ExternalServiceException ese -> {
-                BotUtils.sendMsgByEvent(bot, event, "外部服务错误: " + ese.getMessage(), false);
+                BotUtils.sendMsgByEvent(bot, event,  ese.getMessage(), false);
             }
             case FeatureNotEnabledException fnee -> {
-                BotUtils.sendMsgByEvent(bot, event, "功能未启用: " + fnee.getMessage(), false);
+                BotUtils.sendMsgByEvent(bot, event,  fnee.getMessage(), false);
             }
             case InvalidCommandParamsException icpe -> {
-                BotUtils.sendMsgByEvent(bot, event, "无效的命令参数: " + icpe.getMessage(), false);
+                BotUtils.sendMsgByEvent(bot, event,  icpe.getMessage(), false);
             }
             case PermissionDeniedException pde -> {
-                BotUtils.sendMsgByEvent(bot, event, "权限不足: " + pde.getMessage(), false);
+                BotUtils.sendMsgByEvent(bot, event, pde.getMessage(), false);
             }
             case RateLimitException rle -> {
-                BotUtils.sendMsgByEvent(bot, event, "操作过于频繁: " + rle.getMessage(), false);
+                BotUtils.sendMsgByEvent(bot, event,  rle.getMessage(), false);
             }
             case NetworkException ne -> {
-                BotUtils.sendMsgByEvent(bot, event, "网络错误: " + ne.getMessage(), false);
+                BotUtils.sendMsgByEvent(bot, event, ne.getMessage(), false);
             }
             case ReceiveMessageException rme -> {
-                BotUtils.sendMsgByEvent(bot, event, "消息接收错误: " + rme.getMessage(), false);
+                BotUtils.sendMsgByEvent(bot, event, rme.getMessage(), false);
             }
             case ResourceNotFoundException rnfe -> {
-                BotUtils.sendMsgByEvent(bot, event, "资源未找到: " + rnfe.getMessage(), false);
+                BotUtils.sendMsgByEvent(bot, event, rnfe.getMessage(), false);
             }
             case SendMessageException sme -> {
-                BotUtils.sendMsgByEvent(bot, event, "消息发送错误: " + sme.getMessage(), false);
+                BotUtils.sendMsgByEvent(bot, event, sme.getMessage(), false);
             }
             case TimeoutException te -> {
-                BotUtils.sendMsgByEvent(bot, event, "操作超时: " + te.getMessage(), false);
+                BotUtils.sendMsgByEvent(bot, event, te.getMessage(), false);
             }
             case PluginExecutionException pee -> {
-                BotUtils.sendMsgByEvent(bot, event, "插件执行错误: " + pee.getMessage(), false);
+                BotUtils.sendMsgByEvent(bot, event,  pee.getMessage(), false);
             }
             case AiServiceInvokeException asie -> {
-                BotUtils.sendMsgByEvent(bot, event, "AI服务调用错误: " + asie.getMessage(), false);
+                BotUtils.sendMsgByEvent(bot, event, asie.getMessage(), false);
             }
             default -> log.error("未处理的 BaseException 类型: {}", e.getClass().getName());
         }

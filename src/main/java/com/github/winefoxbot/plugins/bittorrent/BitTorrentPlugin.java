@@ -54,6 +54,7 @@ import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
         name = "实用功能",
         description = "提供 BitTorrent 磁力链搜索功能，支持关键词和分页查询",
         permission = Permission.USER,
+        iconPath = "icon/实用工具.png",
         order = 5)
 @Shiro
 @Component

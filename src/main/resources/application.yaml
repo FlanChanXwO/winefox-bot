@@ -19,18 +19,6 @@ spring:
 #        maximumSize=500,
 #        expireAfterWrite=10m
     type: redis
-    redis:
-      # 全局默认的过期时间，设置为 10 分钟，与你之前的 Caffeine 配置一致
-      # 如果不设置，缓存将永不过期
-      time-to-live: 10m
-      # 缓存键的前缀。这非常重要！可以避免不同应用的 key 冲突。
-      # 例如，一个 key "user::123" 在 Redis 中会存储为 "myapp:cache:user::123"
-      key-prefix: "winefoxbot:cache:" # 注意：这里的值应该是一个字符串
-      # 是否缓存 null 值，防止缓存穿透。默认为 false。
-      # 如果你的方法可能返回 null 且这个结果也需要被缓存，可以设为 true。
-      cache-null-values: true
-      # 是否使用前缀，默认为 true。建议保持开启。
-      use-key-prefix: true
   data:
     redis:
       timeout: 1000ms # Redis 操作超时时间
@@ -66,7 +54,7 @@ setu:
     # 1. 基础信息
     url: "https://api.lolicon.app/setu/v2"
     # 响应类型：有json和image两种可选
-    response-type: json
+    response-type: json #建议使用 json 类型，便于后续扩展功能
     # jsonPath 表达式，用于从 API 响应中提取图片 URL
     json-path: "$.data[0].urls.original"
 
@@ -84,7 +72,6 @@ setu:
       excludeAI:
         key: "excludeAI"
         value: "true"
-
       # 按标签搜索的参数
       # 对应的 URL 参数: tag=... (值是动态的，这里只定义 key)
       tag:
@@ -93,10 +80,16 @@ setu:
       # R18 (成人内容) 开关参数
       # 开启时 URL 参数: r18=1
       # 关闭时 URL 参数: r18=0
-      r18:
+      mode:
         key: "r18"
-        true-value: "1"
-        false-value: "0"
+        safe-mode-value: 0
+        r18-mode-value: 1
+        mix-mode-value: 2
+    response:
+      r18: # 从返回的响应中获取
+        key: "r18"
+        value: "true"
+        json-path: "$.data[0].r18"
 
 # B站解析功能配置
 analysis-bilibili:

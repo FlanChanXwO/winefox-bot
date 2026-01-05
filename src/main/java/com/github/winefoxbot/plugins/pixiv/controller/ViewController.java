@@ -1,6 +1,10 @@
 package com.github.winefoxbot.plugins.pixiv.controller;
 
+import cn.hutool.extra.qrcode.QrCodeUtil;
 import com.github.winefoxbot.core.service.shortlink.TokenService;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -9,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import jakarta.servlet.http.HttpSession;
+
+import java.io.IOException;
 import java.util.Map;
 
 @Controller
@@ -27,10 +33,15 @@ public class ViewController {
      */
     @GetMapping("/generate-link")
     @ResponseBody
-    public Map<String, String> generateLink() {
+    public void generateLink(HttpServletRequest request, HttpServletResponse response) {
         String token = tokenService.createToken();
         String url = "/show?token=" + token; // 实际应为完整域名
-        return Map.of("url", url);
+        try (ServletOutputStream outputStream = response.getOutputStream()) {
+            byte[] bytes = QrCodeUtil.generatePng(request.getScheme() + "://" + "192.168.1.10:"  + request.getServerPort() + url, 300, 300);
+            outputStream.write(bytes);
+        } catch (IOException e) {
+            // 处理异常
+        }
     }
 
     /**

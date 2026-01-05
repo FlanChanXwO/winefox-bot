@@ -29,8 +29,13 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
  * @author FlanChan (badapple495@outlook.com)
  * @since 2025-12-09-2:12
  */
-@Plugin(name = "娱乐功能", description = "复读机功能，包括自动复读和复读跟随功能，以及奇怪的+1" , order = 7 ,permission = Permission.USER ,
-        iconPath = "icon/娱乐功能.png")
+@Plugin(
+        name = "娱乐功能",
+        description = "提供娱乐方式",
+        permission = Permission.USER,
+        iconPath = "icon/娱乐功能.png",
+        order = 7
+)
 @Shiro
 @Slf4j
 @Component

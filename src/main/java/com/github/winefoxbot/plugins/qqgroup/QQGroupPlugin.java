@@ -1,29 +1,26 @@
 package com.github.winefoxbot.plugins.qqgroup;
 
-import com.github.winefoxbot.core.annotation.PluginFunction;
 import com.github.winefoxbot.core.model.dto.TextReply;
 import com.github.winefoxbot.core.model.dto.TextReplyParams;
-import com.github.winefoxbot.core.model.enums.*;
-import com.github.winefoxbot.plugins.qqgroup.model.entity.QQGroupAutoHandleAddRequestFeatureConfig;
-import com.github.winefoxbot.plugins.qqgroup.service.QQGroupService;
+import com.github.winefoxbot.core.model.enums.BotReplyTemplateType;
+import com.github.winefoxbot.core.model.enums.GroupAddRequestType;
+import com.github.winefoxbot.core.model.enums.GroupAdminChangeType;
+import com.github.winefoxbot.core.model.enums.GroupMemberDecreaseType;
 import com.github.winefoxbot.core.service.reply.TextReplyService;
 import com.github.winefoxbot.core.service.shiro.ShiroGroupMembersService;
+import com.github.winefoxbot.core.service.shiro.ShiroGroupsService;
 import com.github.winefoxbot.core.utils.BotUtils;
 import com.mikuac.shiro.annotation.*;
 import com.mikuac.shiro.annotation.common.Order;
 import com.mikuac.shiro.annotation.common.Shiro;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.core.Bot;
-import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import com.mikuac.shiro.dto.event.notice.*;
 import com.mikuac.shiro.dto.event.request.GroupAddRequestEvent;
-import com.mikuac.shiro.enums.MsgTypeEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.COMMAND_PREFIX_REGEX;
-import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.COMMAND_SUFFIX_REGEX;
 import static com.mikuac.shiro.core.BotPlugin.MESSAGE_BLOCK;
 
 /**
@@ -38,34 +35,7 @@ public class QQGroupPlugin {
 
     private final TextReplyService textReplyService;
     private final ShiroGroupMembersService shiroGroupMembersService;
-    private final QQGroupService qqGroupService;
-
-    @PluginFunction(name = "自动处理加群请求", description = "自动处理加群请求功能开关指令，指令：/开启自动处理加群 | /关闭自动处理加群，需在群内使用",
-            hidden = true,
-            permission = Permission.ADMIN, commands = {"开启自动处理加群", "关闭自动处理加群"})
-    @GroupMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(开启自动处理加群|关闭自动处理加群)" + COMMAND_SUFFIX_REGEX)
-    public void toggleAutoHandleAddRequest(Bot bot, GroupMessageEvent event) {
-        String msg = event.getMessage().replace(COMMAND_PREFIX_REGEX, "");
-        Long groupId = event.getGroupId();
-        QQGroupAutoHandleAddRequestFeatureConfig config = qqGroupService.getOrCreateAutoHandleAddRequestConfig(groupId);// 确保配置存在
-        // 功能开关指令
-        if ("开启自动处理加群".equals(msg)) {
-            if (config.getAutoHandleAddRequestEnabled()) {
-                bot.sendGroupMsg(groupId, "自动处理加群请求功能当前已经开启", false);
-                return;
-            }
-            qqGroupService.toggleAutoHandleAddRequestFeature(groupId, true, config);
-            bot.sendGroupMsg(groupId, "已开启自动处理加群请求功能", false);
-        } else if ("关闭自动处理加群".equals(msg)) {
-            if (!config.getAutoHandleAddRequestEnabled()) {
-                bot.sendGroupMsg(groupId, "自动处理加群请求功能当前已经关闭", false);
-                return;
-            }
-            qqGroupService.toggleAutoHandleAddRequestFeature(groupId, false, config);
-            bot.sendGroupMsg(groupId, "已关闭自动处理加群请求功能", false);
-        }
-    }
+    private final ShiroGroupsService groupsService;
 
     /**
      * 群成员增加事件处理器
@@ -118,6 +88,8 @@ public class QQGroupPlugin {
             }
             case GroupMemberDecreaseType.KICK_ME -> {
                 log.info("群成员 {} 主动将 Bot {} 踢出群 {}", operatorId, bot.getSelfId(), groupId);
+                // 删除群信息
+                groupsService.deleteGroupInfo(groupId, bot.getSelfId());
             }
         }
         sendReply(bot, reply, event.getGroupId());
@@ -151,20 +123,6 @@ public class QQGroupPlugin {
         return MESSAGE_BLOCK;
     }
 
-    @GroupAddRequestHandler
-    @Order(1)
-    public int handleGroupAddRequest(Bot bot, GroupAddRequestEvent event) {
-        // 处理加群请求的逻辑
-        log.info("req = {}", event);
-        Long groupId = event.getGroupId();
-        QQGroupAutoHandleAddRequestFeatureConfig config = qqGroupService.getOrCreateAutoHandleAddRequestConfig(groupId);
-        if (config.getAutoHandleAddRequestEnabled()) {
-            GroupAddRequestType groupAddRequestType = GroupAddRequestType.fromValue(event.getSubType());
-            bot.setGroupAddRequest(event.getFlag(), groupAddRequestType.getValue(), true, "");
-        }
-        // 这里可以根据需要自动批准或拒绝加群请求
-        return MESSAGE_BLOCK;
-    }
 
     @GroupCardChangeNoticeHandler
     @Order(1)
@@ -207,20 +165,7 @@ public class QQGroupPlugin {
 
     @GroupUploadNoticeHandler
     public void handleGroupFileUpload(Bot bot, GroupUploadNoticeEvent event) {
-        Long groupId = event.getGroupId();
-        GroupUploadNoticeEvent.File file = event.getFile();
-        String noticeType = event.getNoticeType();
-        Long userId = event.getUserId();
-        String postType = event.getPostType();
-        Long time = event.getTime();
-        Long selfId = event.getSelfId();
-
-        String id = file.getId();
-        String name = file.getName();
-        Long size = file.getSize();
-        Long busid = file.getBusid();
-        String url = file.getUrl();
-
+        //TODO
     }
 
 }

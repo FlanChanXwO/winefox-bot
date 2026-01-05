@@ -10,4 +10,5 @@ import com.github.winefoxbot.core.model.entity.ShiroGroup;
 */
 public interface ShiroGroupsService extends IService<ShiroGroup> {
 
+    void deleteGroupInfo(Long groupId, Long selfId);
 }

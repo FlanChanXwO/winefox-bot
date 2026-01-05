@@ -42,9 +42,9 @@ import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
  * @since 2026-01-01-16:29
  */
 @Plugin(name = "Pixiv",
-        description = "提供 Pixiv 图片获取与排行榜订阅功能",
+        description = "提供 Pixiv 图片获取与排行榜订阅等功能",
         permission = Permission.USER,
-        iconPath = "icon/pixiv.ico",
+        iconPath = "icon/pixiv.png",
         order = 13
 )
 @Shiro

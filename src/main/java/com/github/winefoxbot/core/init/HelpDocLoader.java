@@ -119,34 +119,32 @@ public class HelpDocLoader {
      * @param sourceClass      注解所在的类，用于日志记录
      */
     private void mergeGroupMetadata(HelpGroup existingGroup, Plugin pluginAnnotation, Class<?> sourceClass) {
-        // 规则1: 对于 order, 如果注解的值更低(优先级更高)，则采纳注解的值
-        // 这同时解决了多个 @Plugin 注解间的冲突
+        // 规则1: order 总是取优先级最高的（值最小的）
         if (pluginAnnotation.order() < existingGroup.getOrder()) {
             log.debug("Updating group '{}' order from {} to {} (from class {}).",
                     existingGroup.getName(), existingGroup.getOrder(), pluginAnnotation.order(), sourceClass.getSimpleName());
             existingGroup.setOrder(pluginAnnotation.order());
         }
 
-
-        // 规则2: 对于 iconPath, 如果注解提供了值，并且(现有值为空 或 优先级更高)，则采纳注解的值
-        // 这里的逻辑简化为：如果注解提供了值，就倾向于使用它，除非已有值且优先级更高
+        // 规则2 (已修复): 如果注解中定义了 icon, 就用注解的，无视 order 和现有值
         if (StringUtils.hasText(pluginAnnotation.iconPath())) {
-            if (!StringUtils.hasText(existingGroup.getIcon()) || pluginAnnotation.order() < existingGroup.getOrder()){
-                log.debug("Updating group '{}' iconPath to '{}' (from class {}).",
-                        existingGroup.getName(), pluginAnnotation.iconPath(), sourceClass.getSimpleName());
-                existingGroup.setIcon(pluginAnnotation.iconPath());
+            if (!pluginAnnotation.iconPath().equals(existingGroup.getIcon())) { // 仅在值不同时打印日志
+                log.debug("Updating group '{}' icon from '{}' to '{}' (from @Plugin on class {}).",
+                        existingGroup.getName(), existingGroup.getIcon(), pluginAnnotation.iconPath(), sourceClass.getSimpleName());
             }
+            existingGroup.setIcon(pluginAnnotation.iconPath());
         }
 
-        // 规则3: 对于 description, 逻辑同 iconPath
+        // 规则3 (已修复): 如果注解中定义了 description, 就用注解的
         if (StringUtils.hasText(pluginAnnotation.description())) {
-            if (!StringUtils.hasText(existingGroup.getDescription()) || pluginAnnotation.order() < existingGroup.getOrder()){
-                log.debug("Updating group '{}' description to '{}' (from class {}).",
-                        existingGroup.getName(), pluginAnnotation.description(), sourceClass.getSimpleName());
-                existingGroup.setDescription(pluginAnnotation.description());
+            if (!pluginAnnotation.description().equals(existingGroup.getDescription())) {
+                log.debug("Updating group '{}' description from @Plugin on class {}.",
+                        existingGroup.getName(), sourceClass.getSimpleName());
             }
+            existingGroup.setDescription(pluginAnnotation.description());
         }
     }
+
 
 
     private String getCmdRegexFromMessageHandlerAnnotation(Method method) {
@@ -166,6 +164,12 @@ public class HelpDocLoader {
     public HelpData getSortedHelpData() {
         HelpData data = new HelpData();
         List<HelpGroup> sortedGroups = helpGroups.values().stream()
+                .peek(group -> {
+                    // 在最后环节设置默认图标
+                    if (!StringUtils.hasText(group.getIcon())) {
+                        group.setIcon(data.getDefaultIcon());
+                    }
+                })
                 .sorted(Comparator.comparingInt(HelpGroup::getOrder))
                 .collect(Collectors.toList());
 

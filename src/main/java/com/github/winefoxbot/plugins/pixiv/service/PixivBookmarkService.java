@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -38,9 +39,14 @@ public interface PixivBookmarkService extends IService<PixivBookmark> {
      */
     @Scheduled(cron = "${pixiv.bookmark.tracker.light-cron}")
     void scheduleSyncLatestBookmarks();
+
+    List<Long> getAllBookmarkIds();
+
     /**
-     * 从数据库中随机获取一条收藏记录。
-     * @return 如果表中存在记录，则返回一个包含 PixivBookmark 的 Optional；否则返回 Optional.empty()。
+     * 根据用户和群组的配置，随机获取一个收藏作品。
+     * @param userId 用户ID
+     * @param groupId 群组ID
+     * @return 随机作品的 Optional
      */
-    Optional<PixivBookmark> getRandomBookmark();
+    Optional<PixivBookmark> getRandomBookmark(Long userId, Long groupId);
 }

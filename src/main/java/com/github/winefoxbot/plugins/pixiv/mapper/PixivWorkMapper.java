@@ -1,7 +1,7 @@
 package com.github.winefoxbot.plugins.pixiv.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.github.winefoxbot.plugins.pixiv.model.entity.PixivWork;
+import com.github.winefoxbot.plugins.pixiv.model.entity.PixivArtwork;
 
 /**
 * @author FlanChan
@@ -9,7 +9,7 @@ import com.github.winefoxbot.plugins.pixiv.model.entity.PixivWork;
 * @createDate 2025-12-26 15:45:48
 * @Entity com.github.winefoxbot.model.entity.PixivWork
 */
-public interface PixivWorkMapper extends BaseMapper<PixivWork> {
+public interface PixivWorkMapper extends BaseMapper<PixivArtwork> {
 
 }
 

@@ -21,7 +21,7 @@ public class HelpGroup {
     /**
      * 插件图标
      */
-    private String icon = "icon/默认图标.png";
+    private String icon;
     /**
      * 插件功能文档列表
      */

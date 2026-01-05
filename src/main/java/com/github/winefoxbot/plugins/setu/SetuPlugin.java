@@ -4,21 +4,20 @@ import cn.hutool.core.util.URLUtil;
 import com.github.winefoxbot.core.annotation.Plugin;
 import com.github.winefoxbot.core.annotation.PluginFunction;
 import com.github.winefoxbot.core.config.file.FileStorageProperties;
-import com.github.winefoxbot.plugins.setu.config.SetuApiConfig;
+import com.github.winefoxbot.core.constants.ConfigConstants;
 import com.github.winefoxbot.core.exception.bot.NetworkException;
 import com.github.winefoxbot.core.exception.bot.ResourceNotFoundException;
 import com.github.winefoxbot.core.exception.bot.SendMessageException;
-import com.github.winefoxbot.core.manager.SemaphoreManager;
+import com.github.winefoxbot.core.manager.ConfigManager;
 import com.github.winefoxbot.core.model.dto.SendMsgResult;
 import com.github.winefoxbot.core.model.enums.Permission;
-import com.github.winefoxbot.core.model.enums.SessionType;
 import com.github.winefoxbot.core.service.file.FileStorageService;
-import com.github.winefoxbot.plugins.setu.model.entity.SetuConfig;
-import com.github.winefoxbot.plugins.setu.service.SetuConfigService;
 import com.github.winefoxbot.core.service.shiro.ShiroSessionStateService;
 import com.github.winefoxbot.core.utils.BotUtils;
 import com.github.winefoxbot.core.utils.FileUtil;
 import com.github.winefoxbot.core.utils.PdfUtil;
+import com.github.winefoxbot.plugins.setu.config.SetuApiConfig;
+import com.github.winefoxbot.plugins.setu.model.dto.SetuApiResponse;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.PathNotFoundException;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
@@ -39,29 +38,23 @@ import okhttp3.Response;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 
-import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
-
-/**
- * @author FlanChan (badapple495@outlook.com)
- * @since 2025-12-09-1:44
- */
 @Plugin(
-        name = "瑟瑟",
-        description = "提供随机色图获取功能，支持R18和自动撤回等设置",
+        name = "娱乐功能",
+        description = "提供娱乐方式",
         permission = Permission.USER,
-        iconPath = "icon/瑟瑟功能.ico",
-        order = 12
+        iconPath = "icon/娱乐功能.png",
+        order = 7
 )
 @Component
 @Shiro
@@ -70,170 +63,73 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
 public class SetuPlugin {
     private final OkHttpClient httpClient;
     private final SetuApiConfig setuApiConfig;
-    private final SetuConfigService setuConfigService;
-    private final SemaphoreManager semaphoreManager;
     private final FileStorageService fileStorageService;
     private final FileStorageProperties fileStorageProperties;
     private final ShiroSessionStateService shiroSessionStateService;
-    // 常量
+    private final ConfigManager configManager;
+
     private static final int MAX_RETRIES = 3;
-    private static final Duration IMAGE_CACHE_DURATION = Duration.ofHours(1); // 图片缓存1h
-
-    @PluginFunction( name = "解除限制开关", description = "解除限制", permission = Permission.ADMIN, autoGenerateHelp = true)
-    @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd =  COMMAND_PREFIX_REGEX + "(解除瑟瑟限制|开启瑟瑟限制)" + COMMAND_SUFFIX_REGEX)
-    public void toggleR18(Bot bot, AnyMessageEvent event) {
-        String msg = event.getMessage();
-        Long sessionId = BotUtils.getSessionId(event);
-        SetuConfig config = setuConfigService.getOrCreateSetuConfig(sessionId, SessionType.fromValue(event.getMessageType()));
-        Boolean r18Enabled = config.getR18Enabled();
-        // 功能开关指令
-        if (msg.contains("解除") && r18Enabled) {
-            bot.sendMsg(event, "R18已经开启了", false);
-            return;
-        } else if (msg.contains("开启") && !r18Enabled) {
-            bot.sendMsg(event, "R18已经关闭了", false);
-            return;
-        }
-        boolean updated = setuConfigService.toggleR18Setting(config);
-        bot.sendMsg(event, updated ? "设置已更新，当前R18状态：" + (config.getR18Enabled() ? "开启" : "关闭") : "设置更新失败，请重试", false);
-    }
-
-    @PluginFunction( name = "自动撤回奇怪图片开关", description = "开启或者关闭自动撤回在奇怪分级", permission = Permission.ADMIN, autoGenerateHelp = true)
-    @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd =  COMMAND_PREFIX_REGEX + "(开启|关闭)瑟瑟自动撤回" + COMMAND_SUFFIX_REGEX)
-    public void toggleAutoRevoke(Bot bot, AnyMessageEvent event) {
-        String msg = event.getMessage().replace(COMMAND_PREFIX_REGEX, "");
-        Long sessionId = BotUtils.getSessionId(event);
-        SetuConfig config = setuConfigService.getOrCreateSetuConfig(sessionId, SessionType.fromValue(event.getMessageType()));
-        Boolean autoRevoke = config.getAutoRevoke();
-        // 功能开关指令
-        if ("开启自动撤回".equals(msg) && autoRevoke) {
-            bot.sendMsg(event, "自动撤回已经开启了", false);
-            return;
-        } else if ("关闭自动撤回".equals(msg) && !autoRevoke) {
-            bot.sendMsg(event, "自动撤回关闭了", false);
-            return;
-        }
-        boolean updated = setuConfigService.toggleAutoRevokeSetting(config);
-        bot.sendMsg(event, updated ? "设置已更新，当前自动撤回状态：" + (config.getAutoRevoke() ? "开启" : "关闭") : "设置更新失败，请重试", false);
-    }
-
-    @PluginFunction(
-            name = "设置并发请求数",
-            description = "设置当前会话（群/私聊）允许同时获取图片的最大数量",
-            permission = Permission.ADMIN, // 仅管理员可用
-            commands = {COMMAND_PREFIX + "设置瑟瑟并发数 [数字]" + COMMAND_SUFFIX, COMMAND_PREFIX + "设置色色并发数 [数字]" + COMMAND_SUFFIX}
-    )
-    @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "设置(瑟瑟|色色)并发数\\s+(\\d+)" + COMMAND_SUFFIX_REGEX)
-    public void setMaxRequests(Bot bot, AnyMessageEvent event, Matcher matcher) {
-        String numStr = matcher.group(2);
-        int newMaxRequests;
-        try {
-            newMaxRequests = Integer.parseInt(numStr);
-            // 设定一个合理的范围，比如 1 到 10
-            if (newMaxRequests < 1 || newMaxRequests > 10) {
-                bot.sendMsg(event, "设置失败，数量必须在 1 到 10 之间。", false);
-                return;
-            }
-        } catch (NumberFormatException e) {
-            bot.sendMsg(event, "设置失败，请输入一个有效的数字。", false);
-            return;
-        }
-
-        Long sessionId = BotUtils.getSessionId(event);
-        SessionType sessionType = SessionType.fromValue(event.getMessageType());
-        SetuConfig config = setuConfigService.getOrCreateSetuConfig(sessionId, sessionType);
-
-        // 调用 Service 方法更新配置
-        boolean success = setuConfigService.updateMaxRequests(config, newMaxRequests);
-
-        if (success) {
-            bot.sendMsg(event, "设置成功！当前会话的最大并发请求数已更新为：" + newMaxRequests, false);
-            log.info("Session [{}] max requests updated to {}", sessionId, newMaxRequests);
-        } else {
-            bot.sendMsg(event, "设置失败，请稍后重试或联系管理员。", false);
-        }
-    }
-
+    private static final Duration IMAGE_CACHE_DURATION = Duration.ofHours(1);
 
     @Async
     @PluginFunction(
             name = "随机福利图片获取",
-            description = "使用命令获取随机色图，可附加标签，如：来份碧蓝档案色图",
-            commands = {"来份色图", "来个色图", "来份涩图", "来个涩图", "来份瑟图", "来个瑟图", "来份塞图", "来个塞图", "来份[标签]色图", "来个[标签]色图",
-                    "来份[标签]涩图", "来个[标签]涩图", "来份[标签]瑟图", "来个[标签]瑟图", "来份[标签]塞图", "来个[标签]塞图"
-            }
+            description = "使用命令获取随机福利图片，可附加标签，如：来份碧蓝档案福利图",
+            commands = {"来份福利图", "来个福利图", "来份[标签]福利图", "来个[标签]福利图"}
     )
     @Order(10)
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd =  "^(来(份|个|张))(\\S*?)(色|瑟|涩|塞|)图$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^(来(份|个|张))(\\S*?)(福利|色|瑟|涩|塞|)图$")
     public void getRandomPicture(Bot bot, AnyMessageEvent event, Matcher matcher) {
-        String sessionKey = shiroSessionStateService.getSessionKey(event);
-        shiroSessionStateService.enterCommandMode(sessionKey);
-        Long sessionId = BotUtils.getSessionId(event);
-        SessionType sessionType = SessionType.fromValue(event.getMessageType());
-        SetuConfig config = setuConfigService.getOrCreateSetuConfig(sessionId, sessionType);
-        String key = BotUtils.getSessionIdWithPrefix(event);
-        Semaphore semaphore = semaphoreManager.getSemaphore(key, config.getMaxRequestInSession());
-        try {
-            if (semaphore.tryAcquire()) {
-                try {
-                    String tag = matcher.group(3); // 获取标签
-                    executeImageFetchingTask(bot, event, tag, config);
-                } finally {
-                    semaphore.release();
-                }
-            } else {
-                bot.sendMsg(event, "命令使用太频繁，请稍后再试~", false);
-            }
-        } finally {
-            shiroSessionStateService.exitCommandMode(sessionKey);
+        // 仅在私聊时进入命令模式，避免影响群聊体验
+        if (event.getGroupId() == null) {
+            String sessionKey = shiroSessionStateService.getSessionKey(event);
+            shiroSessionStateService.enterCommandMode(sessionKey);
         }
+        String tag = matcher.group(3); // 获取标签
+        executeImageFetchingTask(bot, event, tag);
     }
 
     /**
-     * 主任务执行逻辑：构建URL、获取图片、处理并发送
+     * 主任务执行逻辑：获取配置、构建URL、请求API、发送图片
      */
-    private void executeImageFetchingTask(Bot bot, AnyMessageEvent event, String tag, SetuConfig sessionConfig) {
-        log.info("开始获取图片任务，标签: '{}', R18: {}", tag, sessionConfig.getR18Enabled());
+    private void executeImageFetchingTask(Bot bot, AnyMessageEvent event, String tag) {
+        Long groupId = event.getGroupId();
+        Long userId = event.getUserId();
+        // 使用 ConfigManager.get 自动处理私聊/群聊/全局配置
+        String contentMode = configManager.getOrDefault(ConfigConstants.AdultContent.SETU_CONTENT_MODE, String.valueOf(userId), String.valueOf(groupId), ConfigConstants.AdultContent.MODE_SFW);
+        log.info("开始获取图片任务，标签: '{}', 内容模式: {}", tag, contentMode);
 
         for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
-                // 1. 构建请求URL
-                String apiUrl = buildApiUrl(tag, sessionConfig.getR18Enabled());
+                String apiUrl = buildApiUrl(tag, contentMode);
                 if (apiUrl == null) {
                     bot.sendMsg(event, "API配置不完整，无法构建请求。", false);
                     return;
                 }
                 log.info("第 {}/{} 次尝试, 请求URL: {}", attempt, MAX_RETRIES, apiUrl);
 
-                // 2. 获取图片URL
-                String imageUrl = fetchImageUrlFromApi(apiUrl);
-                if (imageUrl == null || imageUrl.isBlank()) {
+                SetuApiResponse imageUrl = fetchImageUrlFromApi(apiUrl);
+                if (imageUrl == null) {
                     log.warn("第 {} 次尝试失败：未能从API获取到有效的图片URL。", attempt);
-                    continue; // 进入下一次重试
+                    continue;
                 }
                 log.info("成功获取到图片URL: {}", imageUrl);
 
-                // 3. 下载或从缓存获取图片，并发送
-                handleAndSendImage(bot, event, imageUrl, sessionConfig);
-
-                return; // 成功获取并发送后，直接退出循环和方法
+                // 将 contentMode 传递下去，用于决定发送方式
+                sendImage(bot, event, imageUrl);
+                return; // 成功后立即返回
             } catch (Exception e) {
                 log.error("第 {}/{} 次尝试时发生异常", attempt, MAX_RETRIES, e);
             }
         }
-
-        // 所有重试都失败后
-        throw new NetworkException(bot,event,"尝试多次后仍未能获取到图片，请稍后再试~",null);
+        throw new NetworkException(bot, event, "尝试多次后仍未能获取到图片，请稍后再试~", null);
     }
 
     /**
-     * 使用新的 SetuApiConfig 构建请求 URL
+     * 根据内容模式（sfw, r18, mix）构建请求API的URL
      */
-    private String buildApiUrl(String tag, boolean enableR18) {
+    private String buildApiUrl(String tag, String contentMode) {
         HttpUrl.Builder urlBuilder = HttpUrl.parse(setuApiConfig.getUrl()).newBuilder();
         SetuApiConfig.Params params = setuApiConfig.getParams();
 
@@ -243,16 +139,27 @@ public class SetuPlugin {
         if (params.getExcludeAI() != null && params.getExcludeAI().getKey() != null) {
             urlBuilder.addQueryParameter(params.getExcludeAI().getKey(), params.getExcludeAI().getValue());
         }
-
-        SetuApiConfig.R18Config r18Config = params.getR18();
+        SetuApiConfig.ContentMode r18Config = params.getMode();
         if (r18Config != null && r18Config.getKey() != null) {
-            if (enableR18) {
-                urlBuilder.addQueryParameter(r18Config.getKey(), r18Config.getTrueValue());
-            } else if (r18Config.getFalseValue() != null) {
-                urlBuilder.addQueryParameter(r18Config.getKey(), r18Config.getFalseValue());
+            switch (contentMode) {
+                case ConfigConstants.AdultContent.MODE_R18: // 仅r18模式
+                    if (r18Config.getR18ModeValue() != null) {
+                        urlBuilder.addQueryParameter(r18Config.getKey(), r18Config.getR18ModeValue());
+                    }
+                    break;
+                case ConfigConstants.AdultContent.MODE_SFW: // 仅sfw模式
+                    if (r18Config.getSafeModeValue() != null) {
+                        urlBuilder.addQueryParameter(r18Config.getKey(), r18Config.getSafeModeValue());
+                    }
+                    break;
+                case ConfigConstants.AdultContent.MODE_MIX: // 混合模式
+                default:
+                    if (r18Config.getMixModeValue() != null) {
+                        urlBuilder.addQueryParameter(r18Config.getKey(), r18Config.getMixModeValue());
+                    }
+                    break;
             }
         }
-
         if (tag != null && !tag.isBlank() && params.getTag() != null && params.getTag().getKey() != null) {
             urlBuilder.addQueryParameter(params.getTag().getKey(), tag);
         }
@@ -261,195 +168,167 @@ public class SetuPlugin {
     }
 
     /**
-     * 根据API配置，从接口获取图片最终的URL。
-     * (已使用 com.jayway.jsonpath 库进行重构)
-     *
-     * @param apiUrl 构造好的API请求地址
-     * @return 图片的URL，如果失败则返回null
-     * @throws IOException 网络请求异常
+     * 从API获取图片URL，支持直接图片响应和JSON响应
      */
-    private String fetchImageUrlFromApi(String apiUrl) throws IOException {
-        Request request = new Request.Builder().url(apiUrl).build();
+    private SetuApiResponse fetchImageUrlFromApi(String url) throws IOException {
+        Request request = new Request.Builder().url(url).build();
 
-        // 检查配置，如果响应类型是 "image"，API URL 本身就是图片 URL
         if (SetuApiConfig.ResponseType.IMAGE.equals(setuApiConfig.getResponseType())) {
-            return apiUrl;
+            return new SetuApiResponse(url, true);
         }
 
-        // 仅当响应类型为 "json" 时执行以下逻辑
         if (SetuApiConfig.ResponseType.JSON.equals(setuApiConfig.getResponseType())) {
             try (Response response = httpClient.newCall(request).execute()) {
                 if (!response.isSuccessful() || response.body() == null) {
-                    log.error("请求API失败, Code: {}, URL: {}", response.code(), apiUrl);
+                    log.error("请求API失败, Code: {}, URL: {}", response.code(), url);
                     return null;
                 }
                 String jsonBody = response.body().string();
-
                 try {
-                    // 使用 Jayway JsonPath 库来读取 JSON
-                    // read 方法会根据 JSONPath 表达式精确查找
-                    // 它能正确处理 $.data[0].urls.original 这样的复杂路径
                     String imageUrl = JsonPath.read(jsonBody, setuApiConfig.getJsonPath());
-                    // 校验获取到的URL是否有效
+                    Boolean enabledR18 = JsonPath.read(jsonBody, setuApiConfig.getResponse().getR18().getJsonPath());
                     if (imageUrl == null || imageUrl.isBlank()) {
                         log.warn("JsonPath '{}' 解析结果为空. 响应体: {}", setuApiConfig.getJsonPath(), jsonBody);
                         return null;
                     }
-                    return imageUrl;
-
+                    return new SetuApiResponse(imageUrl, enabledR18);
                 } catch (PathNotFoundException e) {
-                    // 当 JsonPath 找不到对应的路径时，会抛出此异常，这是最常见的错误
-                    log.error("根据 JsonPath '{}' 未找到图片URL. 请检查路径配置是否正确. 响应体: {}", setuApiConfig.getJsonPath(), jsonBody, e);
+                    log.error("根据 JsonPath '{}' 未找到图片URL. 请检查路径配置. 响应体: {}", setuApiConfig.getJsonPath(), jsonBody, e);
                     return null;
                 } catch (Exception e) {
-                    // 捕获其他可能的解析异常，例如JSON格式本身有问题
                     log.error("解析API响应JSON时发生错误. 响应体: {}", jsonBody, e);
                     return null;
                 }
             }
         }
-
-        // 如果 responseType 配置既不是 "json" 也不是 "image"，则返回 null
         log.warn("未知的 response-type: '{}', 无法处理API响应.", setuApiConfig.getResponseType());
         return null;
     }
 
-
-    private void handleAndSendImage(Bot bot, AnyMessageEvent event, String imageUrl, SetuConfig sessionConfig) throws IOException {
-        // 1. 生成基于图片URL的唯一缓存键
-        String cacheKey = generateCacheKeyFromUrl(imageUrl);
-
-        // 2. 优先尝试从缓存获取文件路径 (这部分逻辑不变，缓存命中时速度最快)
+    /**
+     * 统一处理图片发送逻辑，包括缓存检查、下载和根据模式选择发送方式
+     */
+    private void sendImage(Bot bot, AnyMessageEvent event, SetuApiResponse imageUrl) throws IOException {
+        String cacheKey = generateCacheKeyFromUrl(imageUrl.getImgUrl());
         Path imagePath = fileStorageService.getFilePathByCacheKey(cacheKey);
+        // R18模式下，总是作为PDF文件发送
+        boolean sendAsPdf = imageUrl.getEnabledR18();
+
+        // 缓存命中
         if (imagePath != null) {
             log.info("缓存命中！从本地文件加载图片: {}", imagePath);
-            sendImage(bot, event, imagePath, sessionConfig); // 封装发送逻辑
+            if (sendAsPdf) {
+                sendAsPdfFile(bot, event, imagePath);
+            } else {
+                bot.sendMsg(event, MsgUtils.builder().img(imagePath.toUri().toString()).build(), false);
+            }
             return;
         }
 
-        // 3. 缓存未命中，流式下载、发送并异步缓存
-        log.info("缓存未命中，开始流式处理图片: {}", imageUrl);
-        Request imageRequest = new Request.Builder().url(imageUrl).build();
+        // 缓存未命中，下载
+        log.info("缓存未命中，开始下载图片: {}", imageUrl);
+        Request imageRequest = new Request.Builder().url(imageUrl.getImgUrl()).build();
         try (Response imageResponse = httpClient.newCall(imageRequest).execute()) {
             if (!imageResponse.isSuccessful() || imageResponse.body() == null) {
-                bot.sendMsg(event, "图片获取失败了 >_< (" + imageResponse.code() + ")", false);
-                return;
+                throw new NetworkException(bot, event, "图片获取失败 (" + imageResponse.code() + ")", null);
             }
+            byte[] imageBytes = imageResponse.body().bytes();
 
-            try (InputStream imageStream = imageResponse.body().byteStream()) {
-                // 为了能同时发送和缓存，我们需要先将流读入内存。
-                // 这是因为大部分机器人SDK的发送接口和我们的文件存储接口都需要一个完整的流，
-                // 而一个流不能被同时消费两次。
-                // ByteArrayOutputStream 是一个在内存中的输出流。
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                imageStream.transferTo(baos); // 将网络流的所有字节复制到内存中
-                byte[] imageBytes = baos.toByteArray();
-
-                // 立即使用内存中的字节数组发送图片
-                log.info("图片已下载到内存，立即发送...");
-                // 注意：这里的发送方法需要支持字节数组或其输入流
-                // 假设 MsgUtils.builder().img() 支持从 InputStream 发送
-                sendImageFromBytes(bot, event, imageBytes, sessionConfig);
-                log.info("图片发送成功！");
-
-
-                // 【异步】将图片存入缓存，这步不阻塞用户
-                CompletableFuture.runAsync(() -> {
-                    log.info("开始异步缓存图片...");
-                    fileStorageService.saveFileByCacheKey(cacheKey, imageBytes, IMAGE_CACHE_DURATION);
-                    log.info("图片异步缓存成功！CacheKey: {}", cacheKey);
-                });
+            // 发送
+            if (sendAsPdf) {
+                sendImageBytesAsPdf(bot, event, imageBytes);
+            } else {
+                bot.sendMsg(event, MsgUtils.builder().img(imageBytes).build(), false);
             }
-        } catch (IOException e) {
-            log.error("处理图片时发生IO异常: {}", imageUrl, e);
-            bot.sendMsg(event, "图片处理出错了 T_T", false);
-        }
-    }
+            log.info("图片发送成功！");
 
-    // 封装一个私有方法用于从字节发送，提高代码复用性
-    private void sendImageFromBytes(Bot bot, AnyMessageEvent event, byte[] imageBytes, SetuConfig sessionConfig) {
-        if (sessionConfig.getR18Enabled()) {
-            try {
-                Path tempFile = Files.createTempFile("temp_image_", ".jpg");
-                Files.write(tempFile, imageBytes);
-                sendAsPdfFile(bot, event, tempFile);
-                Files.deleteIfExists(tempFile);
-            } catch(IOException e) {
-                log.error("创建临时文件发送PDF失败", e);
-            }
-        } else {
-            // 假设框架支持从InputStream发送
-            try (ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(imageBytes)) {
-                bot.sendMsg(event, MsgUtils.builder().img(byteArrayInputStream.readAllBytes()).build(), false);
-            }  catch (IOException e) {
-                throw new SendMessageException(bot,event,"发送图片时发生错误",e);
-            }
-        }
-    }
-
-    // 封装原有的从路径发送图片的逻辑
-    private void sendImage(Bot bot, AnyMessageEvent event, Path imagePath, SetuConfig sessionConfig) {
-        if (sessionConfig.getR18Enabled()) {
-            try {
-                sendAsPdfFile(bot, event, imagePath);
-            } catch (IOException e) {
-                throw new SendMessageException(bot,event,"发送PDF文件时发生错误",e);
-            }
-        } else {
-            bot.sendMsg(event, MsgUtils.builder().img(imagePath.toUri().toString()).build(), false);
+            // 异步缓存
+            CompletableFuture.runAsync(() -> {
+                log.info("开始异步缓存图片...");
+                fileStorageService.saveFileByCacheKey(cacheKey, imageBytes, IMAGE_CACHE_DURATION);
+                log.info("图片异步缓存成功！CacheKey: {}", cacheKey);
+            });
         }
     }
 
     /**
-     * 将图片文件包装成PDF文件发送，并处理临时文件
-     * (已优化为接收文件路径)
+     * 将给定的图片字节数组包装成PDF发送（用于处理下载后的R18图片）
+     */
+    private void sendImageBytesAsPdf(Bot bot, AnyMessageEvent event, byte[] imageBytes) {
+        Path tempFile = null;
+        try {
+            tempFile = Files.createTempFile("temp_image_", ".jpg");
+            Files.write(tempFile, imageBytes);
+            sendAsPdfFile(bot, event, tempFile);
+        } catch (IOException e) {
+            log.error("创建临时文件以发送PDF时失败", e);
+            throw new SendMessageException(bot, event, "处理R18图片时出错", e);
+        } finally {
+            if (tempFile != null) {
+                try {
+                    Files.deleteIfExists(tempFile);
+                } catch (IOException e) {
+                    log.warn("删除临时图片文件失败: {}", tempFile, e);
+                }
+            }
+        }
+    }
+
+    /**
+     * 将给定的图片文件路径包装成PDF发送，并处理撤回逻辑
      */
     private void sendAsPdfFile(Bot bot, AnyMessageEvent event, Path imagePath) throws IOException {
-        Path pdfPath = null;
-        // 使用PdfUtil将图片文件转换为PDF文件路径
-        // 注意：这里需要确保你的 PdfUtil 支持从文件路径创建PDF
-        pdfPath = PdfUtil.wrapImageIntoPdf(List.of(imagePath), fileStorageProperties.getLocal().getBasePath() + File.separator + "setu_tmp");
-
+        final Path pdfPath = PdfUtil.wrapImageIntoPdf(List.of(imagePath), fileStorageProperties.getLocal().getBasePath() + File.separator + "setu_tmp");
         if (pdfPath == null) {
-            throw new ResourceNotFoundException(bot,event,"PDF文件生成失败，请稍后再试~",null);
+            throw new ResourceNotFoundException(bot, event, "PDF文件生成失败", null);
         }
-
         String fileName = pdfPath.getFileName().toString();
         log.info("准备上传PDF文件: {}", pdfPath);
+        Long groupId = event.getGroupId();
+        Long userId = event.getUserId();
         CompletableFuture<SendMsgResult> sendFuture = BotUtils.uploadFileAsync(bot, event, pdfPath, fileName);
-        Path finalPdfPath = pdfPath;
         sendFuture.whenCompleteAsync((result, throwable) -> {
-            // 无论成功与否，都删除本地临时生成的PDF文件
-            FileUtil.deleteFileWithRetry(finalPdfPath.toAbsolutePath().toString());
-            if (result.isSuccess()) {
-                deleteGroupFile(bot, event, fileName);
+            // 仅在群聊中且配置开启时，才进行撤回操作
+            if (event instanceof GroupMessageEvent groupEvent && event.getGroupId() != null) {
+                boolean autoRevoke = configManager.getOrDefault(ConfigConstants.AdultContent.ADULT_AUTO_REVOKE_ENABLED, String.valueOf(userId), String.valueOf(groupId), true);
+                if (result != null && result.isSuccess() && autoRevoke) {
+                    deleteGroupFile(bot, groupEvent, fileName);
+                }
             }
+            FileUtil.deleteFileWithRetry(pdfPath.toAbsolutePath().toString());
         });
     }
 
-
-    private void deleteGroupFile(Bot bot, GroupMessageEvent groupMessageEvent, String fileName) {
+    /**
+     * 在指定延迟后，删除群文件
+     */
+    private void deleteGroupFile(Bot bot, GroupMessageEvent groupEvent, String fileName) {
         try {
-            TimeUnit.SECONDS.sleep(30);
-            BotUtils.deleteGroupFile(bot, groupMessageEvent, fileName);
+            // 撤回延迟时间也可以通过ConfigManager配置
+            Long groupId = groupEvent.getGroupId();
+            Long userId = groupEvent.getUserId();
+            int delay = configManager.getOrDefault(ConfigConstants.AdultContent.ADULT_REVOKE_DELAY_SECONDS, String.valueOf(userId), String.valueOf(groupId), 30);
+            TimeUnit.SECONDS.sleep(delay);
+            BotUtils.deleteGroupFile(bot, groupEvent, fileName);
+            log.info("群组 {} 已根据配置自动撤回文件: {}", groupEvent.getGroupId(), fileName);
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            log.error("撤回群文件时线程被中断", e);
+            Thread.currentThread().interrupt();
         }
     }
 
     /**
-     * 从图片URL生成一个安全的文件名作为缓存键。
+     * 从图片URL生成一个安全的文件名作为缓存键
      */
     private String generateCacheKeyFromUrl(String imageUrl) {
         try {
             URL url = URLUtil.url(imageUrl);
-            // 提取路径部分，并替换掉所有非字母数字的字符
             String path = url.getPath();
+            // 替换所有非字母、数字、点、和连字符的字符为下划线，以创建安全的文件名
             return "setu/" + path.replaceAll("[^a-zA-Z0-9.-]", "_");
         } catch (Exception e) {
-            // 如果URL无效，使用其哈希码作为后备
+            // 如果URL无效或解析失败，使用其哈希码作为后备方案
             return "setu/" + imageUrl.hashCode();
         }
     }
-
 }

@@ -669,20 +669,10 @@ public final class BotUtils {
         return new SendMsgResult(true, "File uploaded successfully");
     }
 
-    private static SendMsgResult handlePrivateFileUpload(Bot bot, PrivateMessageEvent event, Path filePath, String fileName) {
+    private static SendMsgResult handlePrivateFileUpload(Bot bot, MessageEvent event, Path filePath, String fileName) {
         log.info("Uploading private file: {} as {}", filePath.toString(), fileName);
-        ActionRaw actionRaw = bot.uploadPrivateFile(event.getUserId(), filePath.toAbsolutePath().toString(), fileName);
-        Integer retCode = actionRaw.getRetCode();
-        if (retCode != 0) {
-            throw new BusinessException("无法上传私聊文件", null);
-        }
-        log.info("File uploaded: {} with retCode: {}, status: {}", fileName, retCode, actionRaw.getStatus());
-        return new SendMsgResult(true, "File uploaded successfully");
-    }
-
-    private static SendMsgResult handlePrivateFileUpload(Bot bot, AnyMessageEvent event, Path filePath, String fileName) {
-        log.info("Uploading private file: {} as {}", filePath.toString(), fileName);
-        ActionRaw actionRaw = bot.uploadPrivateFile(event.getUserId(), filePath.toAbsolutePath().toString(), fileName);
+        Long userId = event.getUserId();
+        ActionRaw actionRaw = bot.uploadPrivateFile(userId, filePath.toAbsolutePath().toString(), fileName);
         Integer retCode = actionRaw.getRetCode();
         if (retCode != 0) {
             throw new BusinessException("无法上传私聊文件", null);

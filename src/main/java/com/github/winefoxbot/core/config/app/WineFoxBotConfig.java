@@ -19,5 +19,5 @@ public class WineFoxBotConfig {
 
     public final static String COMMAND_SUFFIX = "";
 
-    public final static String COMMAND_SUFFIX_REGEX = COMMAND_SUFFIX + "$";
+    public final static String COMMAND_SUFFIX_REGEX = COMMAND_SUFFIX;
 }

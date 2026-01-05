@@ -19,6 +19,5 @@ public interface ShiroGroupMembersService extends IService<ShiroGroupMember> {
 
     void saveOrUpdateGroupMemberInfo(GroupCardChangeNoticeEvent event);
     ShiroGroupMember getGroupMemberInfo(Long groupId, Long userId);
-
     void deleteGroupMemberInfo(Long groupId, Long userId);
 }

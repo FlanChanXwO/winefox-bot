@@ -1,5 +1,8 @@
 package com.github.winefoxbot;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mikuac.shiro.common.utils.JsonObjectWrapper;
 import com.mikuac.shiro.constant.ActionParams;
 import com.mikuac.shiro.core.Bot;
@@ -35,8 +38,12 @@ public class CommandTest {
         }
     }
 
-    public static void main(String[] args) {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        System.out.println(formatter.format(LocalDateTime.now()));
+    public static void main(String[] args) throws JsonProcessingException {
+        String json = "\"r18\"";
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode node = objectMapper.readTree(json);
+        if (node.isTextual()) {
+            System.out.println(node.asText()); // 输出: r18
+        }
     }
 }

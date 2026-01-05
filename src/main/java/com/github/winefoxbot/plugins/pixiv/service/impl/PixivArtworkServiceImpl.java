@@ -1,5 +1,7 @@
 package com.github.winefoxbot.plugins.pixiv.service.impl;
 
+import com.github.winefoxbot.core.constants.ConfigConstants;
+import com.github.winefoxbot.core.manager.ConfigManager;
 import com.github.winefoxbot.plugins.pixiv.model.dto.common.PixivArtworkInfo;
 import com.github.winefoxbot.core.model.dto.SendMsgResult;
 import com.github.winefoxbot.plugins.pixiv.model.enums.PixivArtworkType;
@@ -34,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @RequiredArgsConstructor
 public class PixivArtworkServiceImpl implements PixivArtworkService {
+    private final ConfigManager configManager;
 
     private static final String FILE_OUTPUT_DIR = "data/files/pixiv/wrappers";
     private static final long R18_ZIP_THRESHOLD = 100 * 1024 * 1024; // 100MB
@@ -142,7 +145,6 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
                 log.error("上传文件 {} 失败", fileName, throwable);
                 BotUtils.sendMsgByEvent(bot, event, "文件上传失败，可能是网络或权限问题。", false);
             } else if (result != null && result.isSuccess()) {
-                log.info("文件 {} 上传成功，准备30秒后删除。", fileName);
                 deleteGroupFileAfterDelay(bot, event, fileName);
             } else {
                 log.warn("文件 {} 上传失败，返回结果: {}", fileName, result);
@@ -176,8 +178,13 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
      */
     private void deleteGroupFileAfterDelay(Bot bot, AnyMessageEvent event, String fileName) {
         if (event.getGroupId() == null) return;
+        Long userId = event.getUserId();
+        Long groupId = event.getGroupId();
+        boolean autoRevoke = configManager.getOrDefault(ConfigConstants.AdultContent.ADULT_AUTO_REVOKE_ENABLED, String.valueOf(userId),String.valueOf(groupId),true);
+        if (!autoRevoke) return;
         try {
-            CompletableFuture.delayedExecutor(30, TimeUnit.SECONDS).execute(() -> {
+            int delay = configManager.getOrDefault(ConfigConstants.AdultContent.ADULT_REVOKE_DELAY_SECONDS,String.valueOf(userId), String.valueOf(groupId), 30);
+            CompletableFuture.delayedExecutor(delay, TimeUnit.SECONDS).execute(() -> {
                 BotUtils.deleteGroupFile(bot, event, fileName);
             });
         } catch (Exception e) {

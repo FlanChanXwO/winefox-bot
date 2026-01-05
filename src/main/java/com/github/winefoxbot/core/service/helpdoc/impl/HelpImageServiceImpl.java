@@ -14,15 +14,19 @@ import com.microsoft.playwright.options.WaitForSelectorState;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.tika.Tika;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Service;
+import org.springframework.util.FileCopyUtils;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 帮助图片生成服务的实现类。
@@ -39,6 +43,7 @@ public class HelpImageServiceImpl implements HelpImageService {
     private final ResourcePatternResolver resourceResolver;
     private final Browser browser;
     private final FileStorageService fileStorageService;
+    private static final Tika TIKA_INSTANCE = new Tika();
     private static final String HTML_TEMPLATE = "help_report/main";
     private static final String RESOURCE_BASE_PATH = "templates/help_report/res";
 
@@ -142,7 +147,7 @@ public class HelpImageServiceImpl implements HelpImageService {
                 int viewportHeight = (int) container.evaluate("element => element.scrollHeight");
                 // 2. 设置视口大小以容纳整个元素
                 page.setViewportSize(800, viewportHeight + 10);
-                container.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.ATTACHED));
+                container.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE));
                 return container.screenshot(new Locator.ScreenshotOptions().setType(ScreenshotType.PNG));
             }
         }
@@ -195,26 +200,18 @@ public class HelpImageServiceImpl implements HelpImageService {
     }
 
     private String loadResourceAsDataUri(Resource resource) throws IOException {
-        byte[] fileBytes = resource.getInputStream().readAllBytes();
-        String mimeType = "application/octet-stream"; // 默认MIME类型
-        String filename = resource.getFilename();
-
-        if (filename != null) {
-            String lowerCaseFilename = filename.toLowerCase(); // 转换为小写以进行不区分大小写的比较
-            if (lowerCaseFilename.endsWith(".png")) {
-                mimeType = "image/png";
-            } else if (lowerCaseFilename.endsWith(".jpg") || lowerCaseFilename.endsWith(".jpeg")) {
-                mimeType = "image/jpeg";
-            } else if (lowerCaseFilename.endsWith(".ico")) { // 【增加】对 .ico 的支持
-                mimeType = "image/x-icon";
-            } else if (lowerCaseFilename.endsWith(".gif")) { // 【可选增加】对 .gif 的支持
-                mimeType = "image/gif";
-            } else if (lowerCaseFilename.endsWith(".svg")) { // 【可选增加】对 .svg 的支持
-                mimeType = "image/svg+xml";
-            } else if (lowerCaseFilename.endsWith(".webp")) { // 【可选增加】对 .webp 的支持
-                mimeType = "image/webp";
-            }
+        if (resource == null || !resource.exists()) {
+            throw new IOException("Resource does not exist or is null.");
         }
-        return "data:" + mimeType + ";base64," + Base64.getEncoder().encodeToString(fileBytes);
+        byte[] fileContent;
+        String mimeType;
+        // Tika可以直接从InputStream检测，避免将整个文件读入内存两次
+        try (InputStream inputStream = resource.getInputStream()) {
+            fileContent = FileCopyUtils.copyToByteArray(inputStream);
+            // 从字节数组检测MIME类型，更准确
+            mimeType = TIKA_INSTANCE.detect(fileContent);
+        }
+        String encodedString = Base64.getEncoder().encodeToString(fileContent);
+        return "data:" + mimeType + ";base64," + encodedString;
     }
 }

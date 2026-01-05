@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.core.config.app.WineFoxBotProperties;
 import com.github.winefoxbot.core.model.dto.RestartInfo;
 import com.github.winefoxbot.core.model.enums.MessageType;
+import com.github.winefoxbot.core.service.schedule.ScheduleTaskService;
 import com.github.winefoxbot.core.service.update.GitHubUpdateService;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.CoreEvent;
@@ -26,12 +27,13 @@ public class BotStatusEventListener extends CoreEvent {
 
 
     private final WineFoxBotProperties wineFoxBotProperties;
+//    private final ScheduleTaskService scheduleTaskService;
     private final ObjectMapper objectMapper;
     private final GitHubUpdateService updateService;
+    private final AtomicBoolean restartNoticeSent = new AtomicBoolean(false);
 
     private static final String RESTART_INFO_FILE = "restart-info.json";
     // 添加一个标志位，确保重启通知只被发送一次
-    private final AtomicBoolean restartNoticeSent = new AtomicBoolean(false);
     @Override
     public void online(Bot bot) {
         // 1. 首先，执行原来的上线通知逻辑

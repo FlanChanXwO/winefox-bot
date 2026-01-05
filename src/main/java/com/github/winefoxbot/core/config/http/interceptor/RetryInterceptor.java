@@ -25,56 +25,64 @@ public class RetryInterceptor implements Interceptor {
     public Response intercept(Chain chain) throws IOException {
         Request request = chain.request();
         Response response = null;
-        IOException exception = null;
+        IOException lastException = null;
 
-        int attempt = 0;
-        // 使用 <= 是因为我们总共要尝试 maxRetries 次
-        while (attempt < maxRetries) {
-            attempt++;
+        for (int attempt = 0; attempt < maxRetries; attempt++) {
             try {
-                // 如果 response 已存在 (来自上一次失败的循环)，先关闭它
-                if (response != null) {
-                    response.close();
-                }
-
                 response = chain.proceed(request);
 
-                // 如果请求成功，或者这是最后一次尝试，就跳出循环
-                if (response.isSuccessful() || attempt == maxRetries) {
-                    break;
+                // 如果请求成功，直接返回响应，让调用者处理
+                if (response.isSuccessful()) {
+                    return response;
                 }
 
-                log.debug("Attempt {} for {} failed with code {}. Retrying in {} ms...",
-                        attempt, request.url(), response.code(), retryDelayMs);
+                // 如果是客户端错误 (4xx)，这种错误重试也无用，直接返回
+                if (isClientError(response.code())) {
+                    log.warn("Request to {} failed with client error code {}. No retries will be performed.", request.url(), response.code());
+                    return response; // 直接返回这个失败的响应
+                }
+
+                // 请求失败（例如 404, 500），关闭当前响应体准备重试
+                // 注意：这里必须关闭，因为我们要进行下一次循环，这个response没用了
+                response.close();
+
+                log.warn("Request to {} failed with code {}. Attempt {}/{}. Retrying...",
+                        request.url(), response.code(), attempt + 1, maxRetries);
 
             } catch (IOException e) {
-                exception = e;
-                log.debug("Request failed on attempt {}: {}", attempt, e.getMessage());
+                lastException = e;
+                log.warn("Request to {} failed with IOException. Attempt {}/{}. Retrying... Error: {}",
+                        request.url(), attempt + 1, maxRetries, e.getMessage());
+            }
 
-                // 如果这是最后一次尝试，就跳出循环，让外部抛出异常
-                if (attempt == maxRetries) {
-                    break;
+            // 如果还不是最后一次尝试，就等待一段时间
+            if (attempt < maxRetries - 1) {
+                try {
+                    TimeUnit.MILLISECONDS.sleep(retryDelayMs);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    // 提前因中断而抛出异常，附加上一次的网络异常信息
+                    throw new IOException("Retry was interrupted", lastException != null ? lastException : e);
                 }
-                log.debug("Retrying in {} ms...", retryDelayMs);
-            }
-
-            // 如果不是最后一次尝试，就等待
-            try {
-                TimeUnit.MILLISECONDS.sleep(retryDelayMs);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IOException("Retry was interrupted", e);
             }
         }
 
-        // 循环结束后，处理最终结果
-        if (exception != null) {
-            // 如果最后是以IO异常结束，抛出它
-            throw new IOException("Failed to execute request for " + request.url() + " after " + maxRetries + " attempts.", exception);
+        // 如果循环结束仍然没有成功，抛出最后的异常
+        if (lastException != null) {
+            throw new IOException("Failed to execute request for " + request.url() + " after " + maxRetries + " attempts.", lastException);
         }
 
-        // 无论是成功的响应，还是最后一次失败的响应，都原样返回
-        // 此时的 response Body 是未被读取和关闭的，调用方可以安全使用
+        // 如果循环结束是因为最后一次尝试返回了失败的HTTP代码，则返回这个失败的response
+        // 注意：此时response不能关闭，需要由最终的调用者关闭
         return response;
+    }
+
+    /**
+     * 判断HTTP状态码是否为客户端错误 (4xx).
+     * @param code The HTTP status code.
+     * @return true if the code is between 400 and 499, false otherwise.
+     */
+    private boolean isClientError(int code) {
+        return code >= 400 && code < 500;
     }
 }

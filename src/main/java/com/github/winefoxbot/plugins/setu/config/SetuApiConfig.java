@@ -8,112 +8,78 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.validation.annotation.Validated;
 
-/**
- * @author FlanChan (badapple495@outlook.com)
- * @since 2025-12-10-16:21 (Modified)
- * <p>
- * Setu API 配置类，从 application.yaml 加载单个可替换的 API 配置。
- * 包含了动态参数配置，以适应不同 API 的要求。
- */
 @Data
 @Configuration
 @ConfigurationProperties(prefix = "setu.api")
+// @EnableConfigurationProperties(...)  <-- 移除这一行
 @Slf4j
 @Validated
 public class SetuApiConfig {
 
-    /**
-     * API 的基础请求地址 (不含查询参数)。
-     * 例如: "https://api.lolicon.app/setu/v2"
-     */
     @NotBlank(message = "API URL (setu.api.url) 不能为空")
     private String url;
 
-    /**
-     * 期望的响应类型。
-     * 可选值: "json", "image"
-     */
     @NotNull(message = "API 响应类型 (setu.api.response-type) 不能为空")
     private ResponseType responseType;
 
-    /**
-     * JSON 路径表达式。
-     * 仅当 responseType 为 "json" 时使用，用于从 JSON 响应中提取图片 URL。
-     */
     private String jsonPath;
 
-    /**
-     * API 查询参数的配置。
-     * 可以在 YAML 中灵活定义参数的 key 和 value。
-     */
-    private Params params = new Params(); // 初始化以避免空指针
+    private Params params = new Params();
+
+    private Response response = new Response();
 
     public enum ResponseType {
         JSON,
+        /**
+         * 使用IMAGE模式，可能会导致无法正常处理R18模式
+         */
         IMAGE
     }
 
-
     /**
-     * 内部类，用于组织和映射所有动态参数。
+     * API 查询参数的配置。
      */
     @Data
     public static class Params {
-        /**
-         * 获取图片数量的参数。
-         */
-        private ParamConfig num;
+        private SimpleParamConfig num;
+        private SimpleParamConfig excludeAI;
+        private SimpleParamConfig tag;
+        private ContentMode mode;
+    }
 
-        /**
-         * 排除 AI 生成作品的参数。
-         * 如果 API 支持，可以配置此项。
-         */
-        private ParamConfig excludeAI;
+    @Data
+    public static class Response extends ParamConfig {
+        private R18 r18;
+    }
 
-        /**
-         * 按标签搜索的参数。
-         */
-        private ParamConfig tag;
-
-        /**
-         * R18 (成人内容) 切换的参数。
-         */
-        private R18Config r18;
+    @Data
+    public static class R18 extends ParamConfig {
+        private String jsonPath;
     }
 
     /**
-     * 通用参数配置模型。
+     * 通用参数配置模型 (抽象基类)。
      */
     @Data
-    public static class ParamConfig {
-        /**
-         * 此参数在 URL 中的查询名称 (key)。
-         * 例如: "num", "tag", "excludeAI"
-         */
+    public abstract static class ParamConfig {
         private String key;
-
-        /**
-         * 此参数的默认值 (可选)。
-         * 对于开关型参数，这通常是 "true" 或 "1"。
-         */
         private String value;
     }
 
     /**
-     * 专门为 R18 配置的类，因为它有 true/false 两种状态值。
+     * 新增：用于 num, excludeAI, tag 的具体参数配置类
      */
     @Data
-    public static class R18Config extends ParamConfig {
-        /**
-         * R18 开启时的值。
-         * 例如: "1"
-         */
-        private String trueValue;
+    public static class SimpleParamConfig extends ParamConfig {}
 
-        /**
-         * R18 关闭时的值。
-         * 例如: "0"
-         */
-        private String falseValue;
+    /**
+     * 专门为 R18 配置的类。
+     */
+    @Data
+    // @ConfigurationProperties(prefix = "setu.api.params.mode") <-- 移除这一行
+    public static class ContentMode extends ParamConfig {
+        private String safeModeValue;
+        private String r18ModeValue;
+        private String mixModeValue;
     }
 }

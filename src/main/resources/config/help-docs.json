@@ -3,6 +3,7 @@
     {
       "name": "核心功能",
       "order": 1,
+      "icon": "icon/core.png",
       "documentation": [
         {
           "name": "查询运行状态",
@@ -94,7 +95,7 @@
     {
       "name": "steam",
       "order": 3,
-      "icon": "icon/steam.ico",
+      "icon": "icon/steam.png",
       "documentation": [
         {
           "name": "绑定Steam",
@@ -174,7 +175,7 @@
     {
       "name": "实用功能",
       "order": 4,
-      "icon": "icon/实用工具.ico",
+      "icon": "icon/实用工具.png",
       "documentation": [
         {
           "name": "搜图",
