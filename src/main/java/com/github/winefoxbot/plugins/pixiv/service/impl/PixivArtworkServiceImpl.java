@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 public class PixivArtworkServiceImpl implements PixivArtworkService {
 
     private static final String FILE_OUTPUT_DIR = "data/files/pixiv/wrappers";
-    private static final long R18_ZIP_THRESHOLD = 20 * 1024 * 1024; // 20MB
+    private static final long R18_ZIP_THRESHOLD = 100 * 1024 * 1024; // 100MB
 
     /**
      * 统一处理并发送Pixiv作品的核心方法
