@@ -1,23 +1,6 @@
 {
   "groups": [
     {
-      "name": "核心功能",
-      "order": 1,
-      "icon": "icon/core.png",
-      "documentation": [
-        {
-          "name": "查询运行状态",
-          "description": "查询系统的当前运行状态。",
-          "permission": "超级管理员",
-          "commands": [
-            "/status",
-            "/状态",
-            "/运行状态"
-          ]
-        }
-      ]
-    },
-    {
       "name": "游戏信息查询功能",
       "order": 2,
       "icon": "icon/游戏功能.png",
