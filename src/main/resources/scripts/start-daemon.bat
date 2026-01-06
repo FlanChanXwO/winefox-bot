@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 
 :: ===================== 配置区 =====================
 :: Java 启动参数
-set "JAVA_OPTS=-Xms2048m -Xmx2048m"
+set "JAVA_OPTS=-Xms400m -Xmx800m"
 set "JAVA_OPTS=%JAVA_OPTS% -XX:+UseG1GC"
 set "JAVA_OPTS=%JAVA_OPTS% -XX:MaxGCPauseMillis=200"
 set "JAVA_OPTS=%JAVA_OPTS% -XX:+HeapDumpOnOutOfMemoryError"

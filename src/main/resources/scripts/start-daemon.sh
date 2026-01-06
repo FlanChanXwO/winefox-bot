@@ -3,7 +3,7 @@
 # ===================== 配置区 =====================
 # Java 启动参数
 # 推荐在8G内存服务器上设置为2G
-JAVA_OPTS="-Xms2048m -Xmx2048m"
+JAVA_OPTS="-Xms400m -Xmx800m"
 # 使用G1垃圾收集器
 JAVA_OPTS="${JAVA_OPTS} -XX:+UseG1GC"
 # 期望GC最大停顿时间为200毫秒

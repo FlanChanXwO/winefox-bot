@@ -101,7 +101,7 @@
                 </div>
                 <div class="info">
                     <div class="label">PAYLOAD</div>
-                    <div class="value-large" th:text="|${#numbers.formatDecimal(loadPercentage, 1, 1)}%|">15.5%</div>
+                    <div class="value-large" th:text="|${#numbers.formatDecimal(loadPercentage, 1, 1)}% + ' / 100%'|">15.5% / 100%</div>
                 </div>
             </div>
         </div>
