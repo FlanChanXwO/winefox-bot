@@ -65,6 +65,7 @@ public class OpenAiServiceImpl implements OpenAiService {
                     // 如果历史记录里有图片，也需要添加
                     // 前提是图片分析功能开启
                     if (wineFoxBotChatProperties.getEnableImageAnalysis() && historyInput.getImageUrls() != null && !historyInput.getImageUrls().isEmpty()) {
+                        log.debug("History message {} contains {} images.", shiroMsg.getId(), historyInput.getImageUrls().size());
                         List<Media> mediaList = convertUrlsToMedia(historyInput.getImageUrls());
                         messages.add(UserMessage.builder()
                                 .text(historyMessage)
@@ -82,6 +83,7 @@ public class OpenAiServiceImpl implements OpenAiService {
             }
         }
 
+        log.debug("Loaded {} historical messages for AI context.", history.size());
         // 2. 处理当前用户消息
         if (currentMessage != null) {
             try {

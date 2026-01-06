@@ -116,6 +116,7 @@ okhttp:
       - api.lolicon.app
       - i.pixiv.re
       - q2.qlogo.cn
+      - multimedia.nt.qq.com.cn
 # 日志级别
 logging:
   level:

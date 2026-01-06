@@ -171,7 +171,6 @@ public class ChatPlugin {
         handlePokeWithPity(bot, event, false);
     }
 
-    // ... handlePokeWithPity 和 decideAndExecutePokeAction 方法保持不变 ...
 
     /**
      * 处理带保底机制的戳一戳逻辑，包含完整的响应决策。
