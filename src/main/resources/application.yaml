@@ -43,17 +43,10 @@ spring:
       auto-commit: true
       connection-timeout: 30000
       maximum-pool-size: 20
-
   ai:
     openai:
       chat:
         completions-path: /v1/chat/completions
-        options:
-          # 限制 AI 回复的最大 Token 数
-          # 注意：这不会限制输入，只会截断 AI 的回答
-          max-tokens: 4096
-          # 设置温度，越低回答越简短直接
-          temperature: 0.7
 
 setu:
   api:

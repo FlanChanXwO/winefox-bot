@@ -1,12 +1,12 @@
 package com.github.winefoxbot.plugins.pixiv.service.impl;
 
 import cn.hutool.core.util.URLUtil;
+import com.github.winefoxbot.core.utils.FileUtil;
 import com.github.winefoxbot.plugins.pixiv.config.PixivConfig;
 import com.github.winefoxbot.plugins.pixiv.model.dto.common.PixivArtworkInfo;
 import com.github.winefoxbot.plugins.pixiv.model.enums.PixivRankPushMode;
 import com.github.winefoxbot.plugins.pixiv.service.PixivRankService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivService;
-import com.github.winefoxbot.core.utils.FileUtil;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;

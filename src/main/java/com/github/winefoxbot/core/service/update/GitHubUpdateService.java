@@ -1,7 +1,7 @@
 package com.github.winefoxbot.core.service.update;
 
-import com.github.winefoxbot.core.model.dto.RestartInfo;
 import com.github.winefoxbot.core.model.dto.GitHubRelease;
+import com.github.winefoxbot.core.model.dto.RestartInfo;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import lombok.Data;

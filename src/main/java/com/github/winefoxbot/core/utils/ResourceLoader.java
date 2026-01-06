@@ -1,11 +1,6 @@
 package com.github.winefoxbot.core.utils;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
+import java.io.*;
 
 /**
  * 资源加载工具类

@@ -1,8 +1,7 @@
 package com.github.winefoxbot.core.service.config;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.github.winefoxbot.core.model.entity.WinefoxBotAppConfig;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.github.winefoxbot.core.model.entity.WinefoxBotAppConfig;
 
 import java.util.Optional;
 

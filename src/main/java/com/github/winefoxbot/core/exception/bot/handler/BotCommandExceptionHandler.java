@@ -1,8 +1,8 @@
 package com.github.winefoxbot.core.exception.bot.handler;
 
 import cn.hutool.core.lang.Pair;
-import com.github.winefoxbot.core.exception.common.BusinessException;
 import com.github.winefoxbot.core.exception.bot.*;
+import com.github.winefoxbot.core.exception.common.BusinessException;
 import com.github.winefoxbot.core.utils.BotUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.Event;

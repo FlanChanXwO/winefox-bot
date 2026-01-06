@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.core.config.app.WineFoxBotProperties;
 import com.github.winefoxbot.core.model.dto.RestartInfo;
 import com.github.winefoxbot.core.model.enums.MessageType;
-import com.github.winefoxbot.core.service.schedule.ScheduleTaskService;
 import com.github.winefoxbot.core.service.update.GitHubUpdateService;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.CoreEvent;

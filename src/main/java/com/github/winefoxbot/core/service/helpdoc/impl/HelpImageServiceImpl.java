@@ -3,8 +3,8 @@ package com.github.winefoxbot.core.service.helpdoc.impl;
 import com.github.winefoxbot.core.init.HelpDocLoader;
 import com.github.winefoxbot.core.model.dto.HelpData;
 import com.github.winefoxbot.core.model.dto.HelpGroup;
-import com.github.winefoxbot.core.service.helpdoc.HelpImageService;
 import com.github.winefoxbot.core.service.file.FileStorageService;
+import com.github.winefoxbot.core.service.helpdoc.HelpImageService;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Locator;
@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 帮助图片生成服务的实现类。

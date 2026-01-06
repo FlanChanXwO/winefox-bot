@@ -1,15 +1,14 @@
 package com.github.winefoxbot.core.manager;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.github.winefoxbot.core.model.entity.WinefoxBotAppConfig;
 import com.github.winefoxbot.core.service.config.WinefoxBotAppConfigService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
 

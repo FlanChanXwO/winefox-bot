@@ -2,15 +2,14 @@ package com.github.winefoxbot.plugins.pixiv;
 
 import com.github.winefoxbot.core.annotation.Plugin;
 import com.github.winefoxbot.core.annotation.PluginFunction;
-import com.github.winefoxbot.core.exception.bot.NetworkException;
 import com.github.winefoxbot.core.exception.bot.PluginExecutionException;
+import com.github.winefoxbot.core.model.enums.Permission;
+import com.github.winefoxbot.core.service.shiro.ShiroSessionStateService;
 import com.github.winefoxbot.plugins.pixiv.model.dto.common.PixivArtworkInfo;
 import com.github.winefoxbot.plugins.pixiv.model.entity.PixivBookmark;
-import com.github.winefoxbot.core.model.enums.Permission;
 import com.github.winefoxbot.plugins.pixiv.service.PixivArtworkService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivBookmarkService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivService;
-import com.github.winefoxbot.core.service.shiro.ShiroSessionStateService;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Order;
@@ -24,11 +23,11 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
-import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
+import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.COMMAND_PREFIX_REGEX;
+import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.COMMAND_SUFFIX_REGEX;
 
 
 @Plugin(name = "Pixiv",

@@ -6,7 +6,8 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
+import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.COMMAND_PREFIX;
+import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.COMMAND_SUFFIX;
 
 public class CommandRegexParser {
 

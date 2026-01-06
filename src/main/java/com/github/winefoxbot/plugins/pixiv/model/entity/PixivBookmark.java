@@ -1,9 +1,9 @@
 package com.github.winefoxbot.plugins.pixiv.model.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
-import com.github.winefoxbot.plugins.pixiv.model.enums.PixivRatingLevel;
 import com.github.winefoxbot.core.model.type.GenericEnumTypeHandler;
 import com.github.winefoxbot.core.model.type.PGJsonbListTypeHandler;
+import com.github.winefoxbot.plugins.pixiv.model.enums.PixivRatingLevel;
 import lombok.Data;
 
 import java.io.Serializable;

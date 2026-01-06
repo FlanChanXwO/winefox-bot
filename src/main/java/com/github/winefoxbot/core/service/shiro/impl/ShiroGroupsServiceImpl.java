@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.github.winefoxbot.core.mapper.ShiroGroupsMapper;
 import com.github.winefoxbot.core.model.entity.ShiroGroup;
-import com.github.winefoxbot.core.model.entity.ShiroGroupMember;
 import com.github.winefoxbot.core.service.shiro.ShiroGroupsService;
 import org.springframework.stereotype.Service;
 

@@ -2,7 +2,7 @@ package com.github.winefoxbot.plugins.pixiv.model.enums;
 
 import com.baomidou.mybatisplus.annotation.EnumValue;
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.github.winefoxbot.core.model.type.BaseEnum; // 引入你的 BaseEnum 接口
+import com.github.winefoxbot.core.model.type.BaseEnum;
 import lombok.Getter;
 
 @Getter

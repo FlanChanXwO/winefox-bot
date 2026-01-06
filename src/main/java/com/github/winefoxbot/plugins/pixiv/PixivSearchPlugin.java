@@ -3,14 +3,14 @@ package com.github.winefoxbot.plugins.pixiv;
 import com.github.winefoxbot.core.annotation.Plugin;
 import com.github.winefoxbot.core.annotation.PluginFunction;
 import com.github.winefoxbot.core.model.enums.MessageType;
+import com.github.winefoxbot.core.model.enums.Permission;
+import com.github.winefoxbot.core.service.shiro.ShiroSessionStateService;
 import com.github.winefoxbot.plugins.pixiv.model.dto.common.PixivArtworkInfo;
 import com.github.winefoxbot.plugins.pixiv.model.dto.search.PixivSearchParams;
 import com.github.winefoxbot.plugins.pixiv.model.dto.search.PixivSearchResult;
-import com.github.winefoxbot.core.model.enums.Permission;
 import com.github.winefoxbot.plugins.pixiv.service.PixivArtworkService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivSearchService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivService;
-import com.github.winefoxbot.core.service.shiro.ShiroSessionStateService;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Order;
@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
@@ -33,7 +34,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
-import static com.github.winefoxbot.core.utils.BotUtils.checkStrictSessionIdType;
 import static com.mikuac.shiro.core.BotPlugin.MESSAGE_BLOCK;
 import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
 

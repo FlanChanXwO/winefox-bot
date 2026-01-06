@@ -2,15 +2,15 @@ package com.github.winefoxbot.plugins.pixiv;
 
 import com.github.winefoxbot.core.annotation.Plugin;
 import com.github.winefoxbot.core.annotation.PluginFunction;
+import com.github.winefoxbot.core.model.enums.Permission;
+import com.github.winefoxbot.core.utils.FileUtil;
 import com.github.winefoxbot.plugins.pixiv.model.dto.common.PixivArtworkInfo;
 import com.github.winefoxbot.plugins.pixiv.model.entity.PixivRankPushSchedule;
-import com.github.winefoxbot.core.model.enums.Permission;
 import com.github.winefoxbot.plugins.pixiv.model.enums.PixivRankPushMode;
 import com.github.winefoxbot.plugins.pixiv.service.PixivArtworkService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivRankPushScheduleService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivRankService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivService;
-import com.github.winefoxbot.core.utils.FileUtil;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Shiro;

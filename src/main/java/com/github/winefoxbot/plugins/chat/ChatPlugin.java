@@ -1,15 +1,19 @@
 package com.github.winefoxbot.plugins.chat;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.github.winefoxbot.core.annotation.*;
+import com.github.winefoxbot.core.annotation.Block;
+import com.github.winefoxbot.core.annotation.Limit;
+import com.github.winefoxbot.core.annotation.Plugin;
+import com.github.winefoxbot.core.annotation.PluginFunction;
 import com.github.winefoxbot.core.model.enums.MessageType;
 import com.github.winefoxbot.core.model.enums.Permission;
-import com.github.winefoxbot.plugins.chat.service.AiInteractionHelper;
-import com.github.winefoxbot.plugins.chat.service.OpenAiService;
 import com.github.winefoxbot.core.service.reply.VoiceReplyService;
 import com.github.winefoxbot.core.service.shiro.ShiroMessagesService;
 import com.github.winefoxbot.core.service.shiro.ShiroSessionStateService;
 import com.github.winefoxbot.core.utils.BotUtils;
+import com.github.winefoxbot.core.utils.MessageConverter;
+import com.github.winefoxbot.plugins.chat.service.AiInteractionHelper;
+import com.github.winefoxbot.plugins.chat.service.AiInteractionHelper.AiMessageInput;
+import com.github.winefoxbot.plugins.chat.service.OpenAiService;
 import com.mikuac.shiro.annotation.*;
 import com.mikuac.shiro.annotation.common.Order;
 import com.mikuac.shiro.annotation.common.Shiro;
@@ -34,7 +38,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
-import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
+import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.COMMAND_PREFIX;
+import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.COMMAND_SUFFIX;
 import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
 
 @Plugin(
@@ -56,26 +61,15 @@ public class ChatPlugin {
     // 辅助类，用于构建AI输入
     private final AiInteractionHelper aiInteractionHelper;
     private final ShiroSessionStateService shiroSessionStateService;
-    /**
-     * 用户戳一戳保底计数器
-     */
+
+    // ... (戳一戳相关的字段保持不变)
     private final Map<Long, Integer> pokePityCounter = new ConcurrentHashMap<>();
-    private static final int PITY_THRESHOLD = 30; // 保底阈值
-
-    /**
-     * 戳一戳后，机器人“主动反戳”的概率 (0.0 to 1.0)
-     */
-    private static final double PROACTIVE_POKE_BACK_CHANCE = 0.3; // 30%
-
-    /**
-     * 在“被动回应”模式下，尝试播放语音的概率 (0.0 to 1.0)
-     */
-    private static final double PASSIVE_VOICE_REPLY_CHANCE = 0.05; // 5%
+    private static final int PITY_THRESHOLD = 30;
+    private static final double PROACTIVE_POKE_BACK_CHANCE = 0.3;
+    private static final double PASSIVE_VOICE_REPLY_CHANCE = 0.05;
 
 
-    /**
-     * 此方法仅用于生成帮助文档，实际消息处理由专门的处理器完成。
-     */
+    // ... (chatDoc 和 clearConversation 方法保持不变)
     @PluginFunction(
             name = "聊天回复",
             description = "艾特酒狐或者直接在私聊中给酒狐发消息也许会有回应哦，戳一戳也有。也许如果你提到她的名字也可能会有回应呢~",
@@ -107,24 +101,22 @@ public class ChatPlugin {
     @Order(100)
     @Block
     public void handlePrivateChatMessage(Bot bot, PrivateMessageEvent event) {
-        // 检查用户是否处于命令模式
         String sessionKey = shiroSessionStateService.getSessionKey(event);
         if (shiroSessionStateService.isInCommandMode(sessionKey)) {
-            // 用户刚刚执行了一个命令，或者正在执行一个需要后续输入的命令
-            // 此时AI不应该响应，直接返回
             return;
         }
 
-
-        String plainMessage = BotUtils.getPlainTextMessage(event.getMessage());
-        if (plainMessage.isEmpty() || plainMessage.startsWith("/")) {
+        // 注意：这里不再单纯检查 plainMessage 是否为空，因为消息可能只包含图片
+        // 但是通常需要过滤掉纯命令
+        String plainMessage = MessageConverter.getPlainTextMessage(event.getMessage());
+        if (plainMessage.startsWith("/")) {
             return;
         }
 
         Long userId = event.getUserId();
 
-        // 使用Helper构建userMsg
-        ObjectNode userMsg = aiInteractionHelper.createChatMessageNode(bot, userId, null, plainMessage);
+        // 关键修改：传递原始的 JSONArray (event.getMessage())
+        AiMessageInput userMsg = aiInteractionHelper.createChatMessageInput(bot, userId, null, MessageConverter.parseCQToJSONArray(event.getMessage()));
         String resp = openAiService.complete(userId, MessageType.PRIVATE, userMsg);
 
         if (resp != null && !resp.isEmpty()) {
@@ -140,16 +132,16 @@ public class ChatPlugin {
     @Block
     @Limit(userPermits = 1, timeInSeconds = 10, notificationIntervalSeconds = 30, message = "说话太快了，酒狐需要思考一会儿哦~")
     public void handleGroupChatMessage(Bot bot, GroupMessageEvent event) {
-        String plainMessage = BotUtils.getPlainTextMessage(event.getMessage());
-        if (plainMessage.isEmpty() || plainMessage.startsWith("/")) {
+        String plainMessage = MessageConverter.getPlainTextMessage(event.getMessage());
+        if (plainMessage.startsWith("/")) {
             return;
         }
 
         Long groupId = event.getGroupId();
         Long userId = event.getUserId();
 
-        // 使用Helper构建userMsg
-        ObjectNode userMsg = aiInteractionHelper.createChatMessageNode(bot, userId, groupId, plainMessage);
+        // 关键修改：传递原始的 JSONArray
+        AiMessageInput userMsg = aiInteractionHelper.createChatMessageInput(bot, userId, groupId, MessageConverter.parseCQToJSONArray(event.getMessage()));
         String resp = openAiService.complete(groupId, MessageType.GROUP, userMsg);
 
         if (resp != null && !resp.isEmpty()) {
@@ -158,6 +150,7 @@ public class ChatPlugin {
         }
     }
 
+    // ... (PokeNoticeHandler 相关方法保持不变，但 handlePokeWithAI 需要微调)
     @GroupPokeNoticeHandler
     @Limit(userPermits = 1, timeInSeconds = 10, notificationIntervalSeconds = 30, message = "戳得太快了，酒狐需要休息一下哦~")
     @Async
@@ -177,6 +170,8 @@ public class ChatPlugin {
         }
         handlePokeWithPity(bot, event, false);
     }
+
+    // ... handlePokeWithPity 和 decideAndExecutePokeAction 方法保持不变 ...
 
     /**
      * 处理带保底机制的戳一戳逻辑，包含完整的响应决策。
@@ -204,7 +199,6 @@ public class ChatPlugin {
 
     /**
      * 决策并执行戳一戳的响应动作。
-     * @return boolean 返回 true 表示播放了语音，false 表示没有。
      */
     private boolean decideAndExecutePokeAction(Bot bot, PokeNoticeEvent event, boolean isGroup, boolean pityTriggered) {
         long userId = event.getUserId();
@@ -255,9 +249,10 @@ public class ChatPlugin {
         long groupId = isGroup ? event.getGroupId() : 0L;
         Long sessionId = isGroup ? groupId : userId;
         MessageType messageType = isGroup ? MessageType.GROUP : MessageType.PRIVATE;
-        // 使用Helper构建pokeJson
-        ObjectNode pokeJson = aiInteractionHelper.createPokeMessageNode(bot, userId, isGroup ? groupId : null, isPokingBack);
-        String aiReply = openAiService.complete(sessionId, messageType, pokeJson);
+
+        // 关键修改：使用 createPokeMessageInput
+        AiMessageInput pokeInput = aiInteractionHelper.createPokeMessageInput(bot, userId, isGroup ? groupId : null, isPokingBack);
+        String aiReply = openAiService.complete(sessionId, messageType, pokeInput);
 
         if (aiReply != null && !aiReply.isEmpty()) {
             if (isGroup) {
@@ -268,10 +263,8 @@ public class ChatPlugin {
         }
     }
 
-
     private void pokeBack(Bot bot, boolean isGroup, long groupId, long userId) {
         try {
-            // 随机延迟，让反戳更自然
             TimeUnit.MILLISECONDS.sleep(ThreadLocalRandom.current().nextLong(500, 1500));
             if (isGroup) {
                 bot.sendGroupPoke(groupId, userId);

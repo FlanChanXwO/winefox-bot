@@ -6,7 +6,7 @@ import com.github.winefoxbot.core.model.entity.ShiroMessage;
 import com.github.winefoxbot.core.model.enums.MessageDirection;
 import com.github.winefoxbot.core.model.enums.MessageType;
 import com.github.winefoxbot.core.service.shiro.ShiroMessagesService;
-import com.github.winefoxbot.core.utils.BotUtils;
+import com.github.winefoxbot.core.utils.MessageConverter;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.action.common.ActionData;
 import com.mikuac.shiro.dto.action.common.MsgId;
@@ -102,6 +102,12 @@ public class BotSendMsgHandler {
      * @param sessionId 会话ID (群号或用户QQ号)
      */
     private void createAndSaveMessage(long selfId, long messageId, MessageType messageType, String messageContent, long sessionId) {
+        // 处理非法 sessionId 的情况
+        if (sessionId < 0 || messageId < 0) {
+            log.warn("Invalid sessionId or messageId. sessionId: {}, messageId: {}", sessionId, messageId);
+            return;
+        }
+
         ShiroMessage message = new ShiroMessage();
         message.setSelfId(selfId);
         message.setMessageId(messageId);
@@ -114,8 +120,8 @@ public class BotSendMsgHandler {
 
         // 解析消息内容
         if (messageContent != null) {
-            message.setMessage(JSONUtil.parseArray(BotUtils.parseCQtoJsonStr(messageContent, true)));
-            message.setPlainText(BotUtils.getPlainTextMessage(messageContent));
+            message.setMessage(MessageConverter.parseCQToJSONArray(messageContent));
+            message.setPlainText(MessageConverter.getPlainTextMessage(messageContent));
         } else {
             // 如果内容为空，提供默认值防止空指针
             message.setMessage(JSONUtil.createArray());

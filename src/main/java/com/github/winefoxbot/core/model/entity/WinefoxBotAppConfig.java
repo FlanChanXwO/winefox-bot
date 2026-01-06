@@ -1,14 +1,11 @@
 package com.github.winefoxbot.core.model.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.github.winefoxbot.core.model.type.PGJsonbTypeHandler;
+import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
-import java.util.Date;
-
-import com.github.winefoxbot.core.model.type.PGJsonbListTypeHandler;
-import com.github.winefoxbot.core.model.type.PGJsonbTypeHandler;
-import lombok.Data;
 
 /**
  * @TableName winefox_bot_app_config

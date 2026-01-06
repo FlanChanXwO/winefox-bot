@@ -3,7 +3,10 @@ package com.github.winefoxbot.core.utils;
 import com.itextpdf.text.Document;
 import com.itextpdf.text.DocumentException;
 import com.itextpdf.text.Image;
-import com.itextpdf.text.pdf.*;
+import com.itextpdf.text.pdf.PdfDate;
+import com.itextpdf.text.pdf.PdfReader;
+import com.itextpdf.text.pdf.PdfStamper;
+import com.itextpdf.text.pdf.PdfWriter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayOutputStream;

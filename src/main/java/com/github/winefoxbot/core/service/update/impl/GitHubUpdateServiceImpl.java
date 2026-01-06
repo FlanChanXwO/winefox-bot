@@ -2,8 +2,8 @@ package com.github.winefoxbot.core.service.update.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.core.config.app.WineFoxBotAppUpdateProperties;
-import com.github.winefoxbot.core.model.dto.RestartInfo;
 import com.github.winefoxbot.core.model.dto.GitHubRelease;
+import com.github.winefoxbot.core.model.dto.RestartInfo;
 import com.github.winefoxbot.core.service.update.GitHubUpdateService;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;

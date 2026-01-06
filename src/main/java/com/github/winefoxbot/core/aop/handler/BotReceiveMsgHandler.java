@@ -1,7 +1,6 @@
 package com.github.winefoxbot.core.aop.handler;
 
 import cn.hutool.core.util.RandomUtil;
-import cn.hutool.json.JSONUtil;
 import com.github.winefoxbot.core.model.entity.ShiroGroup;
 import com.github.winefoxbot.core.model.entity.ShiroMessage;
 import com.github.winefoxbot.core.model.entity.ShiroUser;
@@ -12,6 +11,7 @@ import com.github.winefoxbot.core.service.shiro.ShiroGroupsService;
 import com.github.winefoxbot.core.service.shiro.ShiroMessagesService;
 import com.github.winefoxbot.core.service.shiro.ShiroUsersService;
 import com.github.winefoxbot.core.utils.BotUtils;
+import com.github.winefoxbot.core.utils.MessageConverter;
 import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
@@ -55,10 +55,15 @@ public class BotReceiveMsgHandler {
                 message.setSessionId(event.getUserId());
             }
 
+            // 处理非法 sessionId 的情况
+            if (message.getSessionId() < 0 || message.getMessageId() < 0) {
+                log.warn("Invalid sessionId or messageId. sessionId: {}, messageId: {}", message.getSessionId(), message.getMessageId());
+                return;
+            }
+
             // 4. Save Message
             shiroMessagesService.save(message);
             log.info("Saved message ID: {}, Content: {}", message.getMessageId(), message.getPlainText());
-
         } catch (Exception e) {
             log.error("Error handling received message. event: {}", event, e);
         }
@@ -80,8 +85,8 @@ public class BotReceiveMsgHandler {
         message.setSelfId(bot.getSelfId());
         message.setMessageType(MessageType.fromValue(event.getMessageType()));
         message.setUserId(event.getUserId());
-        message.setMessage(JSONUtil.parseArray(BotUtils.parseCQtoJsonStr(event.getRawMessage(), true)));
-        message.setPlainText(BotUtils.getPlainTextMessage(event.getMessage()));
+        message.setMessage(MessageConverter.parseCQToJSONArray(event.getRawMessage()));
+        message.setPlainText(MessageConverter.getPlainTextMessage(event.getMessage()));
         message.setDirection(MessageDirection.MESSAGE_RECEIVE);
         return message;
     }

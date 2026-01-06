@@ -1,7 +1,7 @@
 package com.github.winefoxbot.plugins.pixiv.service;
 
-import com.github.winefoxbot.plugins.pixiv.model.entity.PixivBookmark;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.github.winefoxbot.plugins.pixiv.model.entity.PixivBookmark;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.transaction.annotation.Transactional;
 

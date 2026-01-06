@@ -21,7 +21,12 @@ public class WineFoxBotChatProperties {
      * 使用的角色形象
      */
     private String avatar = "winefox";
-
-
+    /**
+     * 上下文消息数量
+     */
     private Integer contextSize = 20;
+    /**
+     * 是否启用图片分析功能
+     */
+    private Boolean enableImageAnalysis = true;
 }

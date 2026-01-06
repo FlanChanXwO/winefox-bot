@@ -2,12 +2,12 @@ package com.github.winefoxbot.plugins.pixiv.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.github.winefoxbot.core.service.schedule.ScheduleTaskService;
 import com.github.winefoxbot.plugins.pixiv.mapper.PixivRankPushScheduleMapper;
 import com.github.winefoxbot.plugins.pixiv.model.entity.PixivRankPushSchedule;
 import com.github.winefoxbot.plugins.pixiv.model.enums.PixivRankPushMode;
 import com.github.winefoxbot.plugins.pixiv.service.PixivRankPushScheduleService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivRankService;
-import com.github.winefoxbot.core.service.schedule.ScheduleTaskService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

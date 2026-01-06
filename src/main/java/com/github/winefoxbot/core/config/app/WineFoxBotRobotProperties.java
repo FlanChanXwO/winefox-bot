@@ -20,4 +20,7 @@ public class WineFoxBotRobotProperties {
      * 机器人昵称
      */
     private String nickname = "酒狐";
+
+
+    private String masterName = "雾理魔雨莎";
 }

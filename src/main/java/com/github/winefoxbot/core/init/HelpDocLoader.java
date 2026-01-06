@@ -5,6 +5,7 @@ import com.github.winefoxbot.core.annotation.PluginFunction;
 import com.github.winefoxbot.core.config.helpdoc.HelpDocConfiguration;
 import com.github.winefoxbot.core.model.dto.HelpData;
 import com.github.winefoxbot.core.model.dto.HelpDoc;
+import com.github.winefoxbot.core.model.dto.HelpGroup;
 import com.github.winefoxbot.core.model.enums.Permission;
 import com.github.winefoxbot.core.utils.CommandRegexParser;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
@@ -19,7 +20,7 @@ import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-import com.github.winefoxbot.core.model.dto.HelpGroup;
+
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

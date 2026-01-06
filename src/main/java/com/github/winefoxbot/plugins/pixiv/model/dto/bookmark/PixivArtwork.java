@@ -3,8 +3,7 @@ package com.github.winefoxbot.plugins.pixiv.model.dto.bookmark;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
-import java.time.Instant;
-import java.time.LocalDateTime;
+
 import java.time.OffsetDateTime;
 import java.util.List;
 
