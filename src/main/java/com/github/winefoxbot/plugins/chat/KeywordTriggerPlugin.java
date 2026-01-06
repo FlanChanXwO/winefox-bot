@@ -2,7 +2,8 @@ package com.github.winefoxbot.plugins.chat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.github.winefoxbot.plugins.chat.service.DeepSeekService;
+import com.github.winefoxbot.core.model.enums.MessageType;
+import com.github.winefoxbot.plugins.chat.service.OpenAiService;
 import com.mikuac.shiro.annotation.GroupMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Shiro;
@@ -24,7 +25,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @RequiredArgsConstructor
 public class KeywordTriggerPlugin {
-    private final DeepSeekService deepSeekService;
+    private final OpenAiService openAiService;
     private final ObjectMapper objectMapper;
 
 
@@ -39,7 +40,7 @@ public class KeywordTriggerPlugin {
         systemMessage.put("nickname", "系统事件");
         systemMessage.put("message", "你被提到了，请根据聊天上下文进行回复，注意你是主动说话的，不要说自己是被提到的");
 
-        String resp = deepSeekService.complete(groupId, "group", systemMessage);
+        String resp = openAiService.complete(groupId, MessageType.GROUP, systemMessage);
 
         // 7. Send the response to the group
         if (resp != null && !resp.isEmpty()) {

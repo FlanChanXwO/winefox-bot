@@ -47,11 +47,13 @@ spring:
   ai:
     openai:
       chat:
-        options:
-          # AI模型名称可以在这里定义，如果API Key和URL是外部的
-          model: deepseek-chat-search
         completions-path: /v1/chat/completions
-
+        options:
+          # 限制 AI 回复的最大 Token 数
+          # 注意：这不会限制输入，只会截断 AI 的回答
+          max-tokens: 4096
+          # 设置温度，越低回答越简短直接
+          temperature: 0.7
 
 setu:
   api:

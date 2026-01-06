@@ -13,7 +13,7 @@
         <result property="messageType" column="sm_message_type"/>
         <result property="direction" column="sm_direction"/>
         <result property="userId" column="sm_user_id"/>
-        <result property="groupId" column="sm_group_id"/>
+        <result property="sessionId" column="sm_ss_id"/>
         <result property="message" column="sm_message" typeHandler="com.github.winefoxbot.core.model.type.PGJsonTypeHandler"/>
         <result property="plainText" column="sm_plain_text"/>
         <result property="nickname" column="su_nickname"/>
@@ -23,7 +23,6 @@
     <!-- 實現 selectUserMessages 方法 -->
     <select id="selectUserMessages" resultMap="ShiroUserMessageResultMap">
         SELECT
-        -- shiro_messages 表的字段 (使用別名避免衝突)
         sm.id AS sm_id,
         sm.message_id AS sm_message_id,
         sm.time AS sm_time,
@@ -31,32 +30,15 @@
         sm.message_type AS sm_message_type,
         sm.direction AS sm_direction,
         sm.user_id AS sm_user_id,
-        sm.group_id AS sm_group_id,
+        sm.session_id AS sm_ss_id,
         sm.message AS sm_message,
         sm.plain_text AS sm_plain_text,
-
-        -- shiro_users 表的字段
         su.nickname AS su_nickname,
-
-        -- group_members 表的字段
         gm.member_nickname AS gm_card
-        FROM
-        shiro_messages sm
-        LEFT JOIN
-        shiro_users su ON sm.user_id = su.user_id
-        LEFT JOIN
-        -- 假設羣成員表名為 group_members
-        shiro_group_members gm ON sm.user_id = gm.user_id AND sm.group_id = gm.group_id
-        <where>
-            <choose>
-                <when test="sessionType == 'group'">
-                    sm.group_id = #{sessionId}
-                </when>
-                <otherwise>
-                    sm.user_id = #{sessionId} AND sm.group_id IS NULL
-                </otherwise>
-            </choose>
-        </where>
+        FROM shiro_messages sm
+        LEFT JOIN shiro_users su ON sm.user_id = su.user_id
+        LEFT JOIN shiro_group_members gm ON sm.user_id = gm.user_id AND sm.group_id = gm.group_id
+        WHERE  sm.session_id = #{sessionId} AND sm.message_type = #{messageType}
         ORDER BY sm.time DESC -- 按時間降序排序
         LIMIT #{limit}
     </select>

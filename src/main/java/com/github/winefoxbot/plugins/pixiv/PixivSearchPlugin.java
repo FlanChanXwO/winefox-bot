@@ -2,11 +2,11 @@ package com.github.winefoxbot.plugins.pixiv;
 
 import com.github.winefoxbot.core.annotation.Plugin;
 import com.github.winefoxbot.core.annotation.PluginFunction;
+import com.github.winefoxbot.core.model.enums.MessageType;
 import com.github.winefoxbot.plugins.pixiv.model.dto.common.PixivArtworkInfo;
 import com.github.winefoxbot.plugins.pixiv.model.dto.search.PixivSearchParams;
 import com.github.winefoxbot.plugins.pixiv.model.dto.search.PixivSearchResult;
 import com.github.winefoxbot.core.model.enums.Permission;
-import com.github.winefoxbot.core.model.enums.SessionType;
 import com.github.winefoxbot.plugins.pixiv.service.PixivArtworkService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivSearchService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivService;
@@ -172,8 +172,8 @@ public class PixivSearchPlugin {
             clearSession(sessionId);
             sessionStateService.exitCommandMode(sessionId);
             String tipMessage = "已退出当前搜索会话";
-            SessionType sessionType = checkStrictSessionIdType(sessionId);
-            String quitMessage = switch (sessionType) {
+            MessageType messageType = MessageType.fromValue(event.getMessageType());
+            String quitMessage = switch (messageType) {
                 case GROUP -> MsgUtils.builder().at(event.getUserId()).text(" " + tipMessage).build();
                 case PRIVATE -> MsgUtils.builder().text(tipMessage).build();
             };

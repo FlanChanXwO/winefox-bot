@@ -2,6 +2,8 @@ package com.github.winefoxbot.core.model.entity;
 
 import cn.hutool.json.JSONArray;
 import com.baomidou.mybatisplus.annotation.*;
+import com.github.winefoxbot.core.model.enums.MessageDirection;
+import com.github.winefoxbot.core.model.enums.MessageType;
 import com.github.winefoxbot.core.model.type.PGJsonTypeHandler;
 import lombok.Data;
 
@@ -39,12 +41,12 @@ public class ShiroMessage {
     /**
      * 訊息類型 (private/group)
      */
-    private String messageType;
+    private MessageType messageType;
 
     /**
      * 訊息方向 (message/message_sent)
      */
-    private String direction;
+    private MessageDirection direction;
 
     /**
      * 發送者 ID
@@ -52,15 +54,15 @@ public class ShiroMessage {
     private Long userId;
 
     /**
-     * 羣組 ID (如果是羣組訊息)
+     * 会话 ID (如果是羣組訊息)
      */
-    private Long groupId;
+    private Long sessionId;
 
     /**
      * 原始訊息內容 (JSON 格式)
      * 注意：需要配置MyBatis Plus的JacksonTypeHandler来自动处理JSON字符串和对象之间的转换
      */
-    @TableField(typeHandler = PGJsonTypeHandler.class) // 用于 PostgreSQL 的 JSONB 类型
+    @TableField(typeHandler = PGJsonTypeHandler.class)
     private JSONArray message;
 
     /**

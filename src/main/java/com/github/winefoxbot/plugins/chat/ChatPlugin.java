@@ -5,9 +5,10 @@ import com.github.winefoxbot.core.annotation.Block;
 import com.github.winefoxbot.core.annotation.Limit;
 import com.github.winefoxbot.core.annotation.Plugin;
 import com.github.winefoxbot.core.annotation.PluginFunction;
+import com.github.winefoxbot.core.model.enums.MessageType;
 import com.github.winefoxbot.core.model.enums.Permission;
 import com.github.winefoxbot.plugins.chat.service.AiInteractionHelper;
-import com.github.winefoxbot.plugins.chat.service.DeepSeekService;
+import com.github.winefoxbot.plugins.chat.service.OpenAiService;
 import com.github.winefoxbot.core.service.reply.VoiceReplyService;
 import com.github.winefoxbot.core.service.shiro.ShiroMessagesService;
 import com.github.winefoxbot.core.service.shiro.ShiroSessionStateService;
@@ -45,14 +46,14 @@ import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
         permission = Permission.USER,
         order = 6)
 @Shiro
-@ConditionalOnClass(DeepSeekService.class)
+@ConditionalOnClass(OpenAiService.class)
 @Component
 @Slf4j
 @RequiredArgsConstructor
 public class ChatPlugin {
 
     // 核心服务
-    private final DeepSeekService deepSeekService;
+    private final OpenAiService openAiService;
     private final ShiroMessagesService shiroMessagesService;
     private final VoiceReplyService voiceReplyService;
     // 辅助类，用于构建AI输入
@@ -98,10 +99,9 @@ public class ChatPlugin {
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "清空会话" + COMMAND_SUFFIX_REGEX)
     public void clearConversation(Bot bot, AnyMessageEvent event) {
-        Long groupId = event.getGroupId();
-        Long sessionId = (groupId != null) ? groupId : event.getUserId();
-        String sessionType = (groupId != null) ? "group" : "private";
-        shiroMessagesService.clearConversation(sessionId, sessionType);
+        Long sessionId = BotUtils.getSessionId(event);
+        MessageType messageType = MessageType.fromValue(event.getMessageType());
+        shiroMessagesService.clearConversation(sessionId, messageType);
         bot.sendMsg(event, "当前会话的消息记录已经被酒狐忘掉啦，可以开始新的聊天咯！", false);
     }
 
@@ -128,7 +128,7 @@ public class ChatPlugin {
 
         // 使用Helper构建userMsg
         ObjectNode userMsg = aiInteractionHelper.createChatMessageNode(bot, userId, null, plainMessage);
-        String resp = deepSeekService.complete(userId, "private", userMsg);
+        String resp = openAiService.complete(userId, MessageType.PRIVATE, userMsg);
 
         if (resp != null && !resp.isEmpty()) {
             bot.sendPrivateMsg(userId, resp, false);
@@ -153,7 +153,7 @@ public class ChatPlugin {
 
         // 使用Helper构建userMsg
         ObjectNode userMsg = aiInteractionHelper.createChatMessageNode(bot, userId, groupId, plainMessage);
-        String resp = deepSeekService.complete(groupId, "group", userMsg);
+        String resp = openAiService.complete(groupId, MessageType.GROUP, userMsg);
 
         if (resp != null && !resp.isEmpty()) {
             MsgUtils msgBuilder = MsgUtils.builder().at(userId).text(" ").text(resp);
@@ -257,11 +257,10 @@ public class ChatPlugin {
         long userId = event.getUserId();
         long groupId = isGroup ? event.getGroupId() : 0L;
         Long sessionId = isGroup ? groupId : userId;
-        String sessionType = isGroup ? "group" : "private";
-
+        MessageType messageType = isGroup ? MessageType.GROUP : MessageType.PRIVATE;
         // 使用Helper构建pokeJson
         ObjectNode pokeJson = aiInteractionHelper.createPokeMessageNode(bot, userId, isGroup ? groupId : null, isPokingBack);
-        String aiReply = deepSeekService.complete(sessionId, sessionType, pokeJson);
+        String aiReply = openAiService.complete(sessionId, messageType, pokeJson);
 
         if (aiReply != null && !aiReply.isEmpty()) {
             if (isGroup) {

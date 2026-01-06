@@ -7,7 +7,7 @@ import com.github.winefoxbot.core.model.dto.GroupMemberInfo;
 import com.github.winefoxbot.core.model.dto.SendMsgResult;
 import com.github.winefoxbot.core.model.enums.GroupMemberRole;
 import com.github.winefoxbot.core.model.enums.MessageType;
-import com.github.winefoxbot.core.model.enums.SessionType;
+import com.github.winefoxbot.core.model.enums.MessageType;
 import com.google.gson.*;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.BotContainer;
@@ -442,7 +442,7 @@ public final class BotUtils {
     public static String getSessionIdWithPrefix(AnyMessageEvent event) {
         Long groupId = event.getGroupId();
         Long userId = event.getUserId();
-        switch (SessionType.fromValue(event.getGroupId() != null ? "group" : "private")) {
+        switch (MessageType.fromValue(event.getGroupId() != null ? "group" : "private")) {
             case GROUP -> {
                 // 群聊场景的 Key
                 return "group_" + groupId + "_" + userId;
@@ -455,21 +455,21 @@ public final class BotUtils {
         }
     }
 
-    public static SessionType checkStrictSessionIdType(String sessionIdWithPrefix) {
+    public static MessageType checkStrictSessionIdType(String sessionIdWithPrefix) {
         if (sessionIdWithPrefix == null || sessionIdWithPrefix.isEmpty()) {
             throw new IllegalArgumentException("Session ID cannot be null or empty");
         }
         if (sessionIdWithPrefix.startsWith("group_")) {
-            return SessionType.GROUP;
+            return MessageType.GROUP;
         } else if (sessionIdWithPrefix.startsWith("private_")) {
-            return SessionType.PRIVATE;
+            return MessageType.PRIVATE;
         } else {
             throw new IllegalArgumentException("Invalid Session ID format: " + sessionIdWithPrefix);
         }
     }
 
     public static Long removeSessionIdPrefix(String sessionIdWithPrefix) {
-        SessionType type = checkStrictSessionIdType(sessionIdWithPrefix);
+        MessageType type = checkStrictSessionIdType(sessionIdWithPrefix);
         switch (type) {
             case GROUP -> {
                 String[] parts = sessionIdWithPrefix.split("_");
@@ -489,7 +489,6 @@ public final class BotUtils {
             }
             default -> throw new IllegalArgumentException("Unsupported session type: " + type);
         }
-
     }
 
 

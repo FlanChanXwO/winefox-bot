@@ -5,6 +5,8 @@ import cn.hutool.json.JSONUtil;
 import com.github.winefoxbot.core.model.entity.ShiroGroup;
 import com.github.winefoxbot.core.model.entity.ShiroMessage;
 import com.github.winefoxbot.core.model.entity.ShiroUser;
+import com.github.winefoxbot.core.model.enums.MessageDirection;
+import com.github.winefoxbot.core.model.enums.MessageType;
 import com.github.winefoxbot.core.service.shiro.ShiroGroupMembersService;
 import com.github.winefoxbot.core.service.shiro.ShiroGroupsService;
 import com.github.winefoxbot.core.service.shiro.ShiroMessagesService;
@@ -12,7 +14,6 @@ import com.github.winefoxbot.core.service.shiro.ShiroUsersService;
 import com.github.winefoxbot.core.utils.BotUtils;
 import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
-import com.mikuac.shiro.core.BotContainer;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import com.mikuac.shiro.dto.event.message.MessageEvent;
@@ -21,8 +22,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-
-import java.util.Optional;
 
 @Slf4j
 @Component
@@ -33,72 +32,89 @@ public class BotReceiveMsgHandler {
     private final ShiroGroupsService shiroGroupsService;
     private final ShiroGroupMembersService shiroGroupMembersService;
     private final ShiroMessagesService shiroMessagesService;
-    private final BotContainer botContainer;
 
     @Async
     public void handle(Bot bot, MessageEvent event) {
-        // 1. Save or Update User
-        ShiroUser user = extractUserFromEvent(event);
-        shiroUsersService.saveOrUpdate(user);
+        try {
+            // 1. Save or Update User (直接使用传入的 bot 实例)
+            ShiroUser user = extractUserFromEvent(bot, event);
+            shiroUsersService.saveOrUpdate(user);
 
-        // 2. Save Message
-        ShiroMessage message = new ShiroMessage();
-        switch (event) {
-            case AnyMessageEvent e -> message.setMessageId(Long.valueOf(e.getMessageId()));
-            case GroupMessageEvent e -> message.setMessageId(Long.valueOf(e.getMessageId()));
-            case PrivateMessageEvent e -> message.setMessageId(Long.valueOf(e.getMessageId()));
-            default -> message.setMessageId(RandomUtil.randomLong());
+            // 2. Build Message
+            ShiroMessage message = buildShiroMessage(bot, event);
+
+            // 3. Handle Group Specific Logic
+            if (event instanceof GroupMessageEvent groupEvent) {
+                // 处理群组信息
+                ShiroGroup group = extractGroupFromEvent(bot, groupEvent);
+                shiroGroupsService.saveOrUpdate(group);
+                shiroGroupMembersService.saveOrUpdateGroupMemberInfo(groupEvent);
+
+                message.setSessionId(groupEvent.getGroupId());
+            } else {
+                message.setSessionId(event.getUserId());
+            }
+
+            // 4. Save Message
+            shiroMessagesService.save(message);
+            log.info("Saved message ID: {}, Content: {}", message.getMessageId(), message.getPlainText());
+
+        } catch (Exception e) {
+            log.error("Error handling received message. event: {}", event, e);
         }
-        message.setSelfId(bot.getSelfId());
-        message.setMessageType(event.getMessageType());
-        message.setUserId(event.getUserId());
-        message.setMessage(JSONUtil.parseArray(BotUtils.parseCQtoJsonStr(event.getRawMessage(),true)));
-
-        log.info("Received message: {}", message.getMessage());
-        message.setPlainText(BotUtils.getPlainTextMessage(event.getMessage()));
-        message.setDirection("message");
-
-        // 3. Handle Group-specific data if it's a group message
-        if (event instanceof GroupMessageEvent groupEvent) {
-            message.setGroupId(groupEvent.getGroupId());
-            ShiroGroup group = extractGroupFromEvent(groupEvent);
-            shiroGroupsService.saveOrUpdate(group);
-            shiroGroupMembersService.saveOrUpdateGroupMemberInfo(groupEvent);
-        }
-
-        shiroMessagesService.save(message);
     }
 
+    private ShiroMessage buildShiroMessage(Bot bot, MessageEvent event) {
+        ShiroMessage message = new ShiroMessage();
 
-    private ShiroUser extractUserFromEvent(MessageEvent event) {
+        // 提取 Message ID
+        long msgId = switch (event) {
+            case AnyMessageEvent e -> e.getMessageId().longValue();
+            case GroupMessageEvent e -> e.getMessageId().longValue();
+            case PrivateMessageEvent e -> e.getMessageId().longValue();
+            case null, default -> RandomUtil.randomLong();
+        };
+
+        message.setMessageId(msgId);
+        message.setSelfId(bot.getSelfId());
+        message.setMessageType(MessageType.fromValue(event.getMessageType()));
+        message.setUserId(event.getUserId());
+        message.setMessage(JSONUtil.parseArray(BotUtils.parseCQtoJsonStr(event.getRawMessage(), true)));
+        message.setPlainText(BotUtils.getPlainTextMessage(event.getMessage()));
+        message.setDirection(MessageDirection.MESSAGE_RECEIVE);
+        return message;
+    }
+
+    private ShiroUser extractUserFromEvent(Bot bot, MessageEvent event) {
         ShiroUser user = new ShiroUser();
         user.setUserId(event.getUserId());
-        Optional<Bot> bot = botContainer.robots.values().stream().findFirst();
-        if (bot.isPresent()) {
-            Bot firstBot = bot.get();
-            String userNickname = BotUtils.getUserNickname(firstBot, event.getUserId());
-            user.setNickname(userNickname);
-        } else {
-            throw new RuntimeException("No bot available to fetch user nickname");
-        }
         user.setAvatarUrl(ShiroUtils.getUserAvatar(event.getUserId(), 0));
+
+        // 直接使用传入的 bot 获取信息，无需从容器查找
+        try {
+            String userNickname = BotUtils.getUserNickname(bot, event.getUserId());
+            user.setNickname(userNickname);
+        } catch (Exception e) {
+            log.warn("Failed to fetch user nickname for userId: {}", event.getUserId());
+            user.setNickname("Unknown User"); // 降级处理
+        }
         return user;
     }
 
-    private ShiroGroup extractGroupFromEvent(GroupMessageEvent event) {
+    private ShiroGroup extractGroupFromEvent(Bot bot, GroupMessageEvent event) {
         ShiroGroup group = new ShiroGroup();
         Long groupId = event.getGroupId();
         group.setGroupId(groupId);
         group.setSelfId(event.getSelfId());
-        Optional<Bot> bot = botContainer.robots.values().stream().findFirst();
-        if (bot.isPresent()) {
-            Bot firstBot = bot.get();
-            String groupNickname = BotUtils.getGroupName(firstBot, event.getGroupId());
-            group.setGroupName(groupNickname);
-        } else {
-            throw new RuntimeException("No bot available to fetch user nickname");
-        }
         group.setGroupAvatarUrl(ShiroUtils.getGroupAvatar(groupId, 0));
+
+        try {
+            String groupName = BotUtils.getGroupName(bot, groupId);
+            group.setGroupName(groupName);
+        } catch (Exception e) {
+            log.warn("Failed to fetch group name for groupId: {}", groupId);
+            group.setGroupName("Unknown Group");
+        }
         return group;
     }
 }

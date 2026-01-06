@@ -4,13 +4,14 @@ import cn.hutool.json.JSONUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.winefoxbot.core.model.enums.MessageType;
 import com.github.winefoxbot.plugins.chat.config.WineFoxBotChatConfig;
 import com.github.winefoxbot.core.model.entity.ShiroUserMessage;
+import com.github.winefoxbot.plugins.chat.config.WineFoxBotChatProperties;
 import com.github.winefoxbot.plugins.chat.service.AiInteractionHelper;
-import com.github.winefoxbot.plugins.chat.service.DeepSeekService;
+import com.github.winefoxbot.plugins.chat.service.OpenAiService;
 import com.github.winefoxbot.core.service.shiro.ShiroMessagesService;
 import com.github.winefoxbot.core.utils.BotUtils;
-import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -26,26 +27,27 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * @author FlanChan
+ */
 @Service
 @Slf4j
 @RequiredArgsConstructor
-@ConditionalOnBean(name = "deepSeekChatClient")
-public class DeepSeekiServiceImpl implements DeepSeekService {
-    @Resource(name = "deepSeekChatClient")
-    private ChatClient chatClient;
+@ConditionalOnBean(ChatClient.class)
+public class OpenAiServiceImpl implements OpenAiService {
+    private final ChatClient chatClient;
     private final WineFoxBotChatConfig botChatConfig;
     private final ShiroMessagesService shiroMessagesService;
     private final AiInteractionHelper aiInteractionHelper;
     private final ObjectMapper objectMapper;
-    private static final int CONTEXT_READ_LIMIT = 200;
+    private final WineFoxBotChatProperties wineFoxBotChatProperties;
 
     @Override
-    public String complete(Long sessionId, String sessionType, ObjectNode userMsg) {
+    public String complete(Long sessionId, MessageType messageType, ObjectNode userMsg) {
         List<Message> messages = new ArrayList<>();
         messages.add(new SystemMessage(botChatConfig.getSystemPrompt()));
 
-        // --- 核心优化点：使用 Helper 构建历史消息 ---
-        List<ShiroUserMessage> history = shiroMessagesService.findLatestMessagesForContext(sessionId, sessionType, CONTEXT_READ_LIMIT);
+        List<ShiroUserMessage> history = shiroMessagesService.findLatestMessagesForContext(sessionId, messageType, wineFoxBotChatProperties.getContextSize());
         for (int i = history.size() - 1; i >= 0; i--) {
             ShiroUserMessage shiroMsg = history.get(i);
             try {

@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS shiro_messages
     direction    VARCHAR(20) NOT NULL,
     message_type VARCHAR(32) NOT NULL,
     user_id      BIGINT      NOT NULL,
-    group_id     BIGINT,
+    session_id   BIGINT NOT NULL ,
     message      JSON        NOT NULL, -- PostgreSQL has native JSON support
     plain_text   TEXT        NOT NULL
 );

@@ -3,6 +3,7 @@ package com.github.winefoxbot.core.service.shiro;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.github.winefoxbot.core.model.entity.ShiroMessage;
 import com.github.winefoxbot.core.model.entity.ShiroUserMessage;
+import com.github.winefoxbot.core.model.enums.MessageType;
 
 import java.util.List;
 
@@ -17,17 +18,17 @@ public interface ShiroMessagesService extends IService<ShiroMessage> {
      * 清空指定会话的消息记录
      *
      * @param sessionId   会话ID
-     * @param sessionType 会话类型
+     * @param messageType 会话类型
      */
-    void clearConversation(Long sessionId, String sessionType);
+    void clearConversation(Long sessionId, MessageType messageType);
 
     /**
      * 为AI上下文获取最新的消息列表
      *
      * @param sessionId 会话ID
-     * @param sessionType 会话类型
+     * @param messageType 会话类型
      * @param limit      消息数量限制
      * @return 消息列表
      */
-    List<ShiroUserMessage> findLatestMessagesForContext(Long sessionId, String sessionType, int limit);
+    List<ShiroUserMessage> findLatestMessagesForContext(Long sessionId, MessageType messageType, int limit);
 }

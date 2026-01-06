@@ -3,6 +3,7 @@ package com.github.winefoxbot.plugins.chat.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.winefoxbot.core.model.entity.ShiroUserMessage;
+import com.github.winefoxbot.core.model.enums.MessageDirection;
 import com.github.winefoxbot.core.utils.BotUtils;
 import com.mikuac.shiro.core.Bot;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +26,7 @@ public class AiInteractionHelper {
      * @return 构建好的 ObjectNode
      */
     public ObjectNode createHistoryMessageNode(ShiroUserMessage shiroMsg, String filteredText) {
-        boolean isBotMessage = "message_sent".equals(shiroMsg.getDirection());
+        boolean isBotMessage = MessageDirection.MESSAGE_SENT.equals(shiroMsg.getDirection());
         String nickname = isBotMessage
                 ? "酒狐"
                 : (shiroMsg.getCard() != null ? shiroMsg.getCard() : shiroMsg.getNickname());
