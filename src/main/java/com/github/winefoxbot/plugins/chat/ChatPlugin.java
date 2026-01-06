@@ -77,7 +77,7 @@ public class ChatPlugin {
             autoGenerateHelp = false
     )
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text)
+    @MessageHandlerFilter(types = {MsgTypeEnum.unknown})
     public int chatDoc() {
         return MESSAGE_IGNORE;
     }
@@ -96,10 +96,11 @@ public class ChatPlugin {
         bot.sendMsg(event, "当前会话的消息记录已经被酒狐忘掉啦，可以开始新的聊天咯！", false);
     }
 
-    @PrivateMessageHandler
     @Async
     @Order(100)
     @Block
+    @PrivateMessageHandler
+    @MessageHandlerFilter(types = {MsgTypeEnum.text, MsgTypeEnum.image})
     public void handlePrivateChatMessage(Bot bot, PrivateMessageEvent event) {
         String sessionKey = shiroSessionStateService.getSessionKey(event);
         if (shiroSessionStateService.isInCommandMode(sessionKey)) {
@@ -116,7 +117,7 @@ public class ChatPlugin {
         Long userId = event.getUserId();
 
         // 关键修改：传递原始的 JSONArray (event.getMessage())
-        AiMessageInput userMsg = aiInteractionHelper.createChatMessageInput(bot, userId, null, MessageConverter.parseCQToJSONArray(event.getMessage()));
+        AiMessageInput userMsg = aiInteractionHelper.createChatMessageInput(bot, userId, null, MessageConverter.parseCQToJSONArray(event.getRawMessage()));
         String resp = openAiService.complete(userId, MessageType.PRIVATE, userMsg);
 
         if (resp != null && !resp.isEmpty()) {
@@ -126,11 +127,11 @@ public class ChatPlugin {
 
 
     @GroupMessageHandler
-    @MessageHandlerFilter(at = AtEnum.NEED)
     @Async
     @Order(100)
     @Block
     @Limit(userPermits = 1, timeInSeconds = 10, notificationIntervalSeconds = 30, message = "说话太快了，酒狐需要思考一会儿哦~")
+    @MessageHandlerFilter(types = {MsgTypeEnum.text, MsgTypeEnum.image},at = AtEnum.NEED)
     public void handleGroupChatMessage(Bot bot, GroupMessageEvent event) {
         String plainMessage = MessageConverter.getPlainTextMessage(event.getMessage());
         if (plainMessage.startsWith("/")) {
@@ -141,7 +142,7 @@ public class ChatPlugin {
         Long userId = event.getUserId();
 
         // 关键修改：传递原始的 JSONArray
-        AiMessageInput userMsg = aiInteractionHelper.createChatMessageInput(bot, userId, groupId, MessageConverter.parseCQToJSONArray(event.getMessage()));
+        AiMessageInput userMsg = aiInteractionHelper.createChatMessageInput(bot, userId, groupId, MessageConverter.parseCQToJSONArray(event.getRawMessage()));
         String resp = openAiService.complete(groupId, MessageType.GROUP, userMsg);
 
         if (resp != null && !resp.isEmpty()) {
@@ -150,7 +151,6 @@ public class ChatPlugin {
         }
     }
 
-    // ... (PokeNoticeHandler 相关方法保持不变，但 handlePokeWithAI 需要微调)
     @GroupPokeNoticeHandler
     @Limit(userPermits = 1, timeInSeconds = 10, notificationIntervalSeconds = 30, message = "戳得太快了，酒狐需要休息一下哦~")
     @Async
