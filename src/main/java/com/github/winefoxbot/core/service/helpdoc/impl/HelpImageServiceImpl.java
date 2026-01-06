@@ -173,16 +173,12 @@ public class HelpImageServiceImpl implements HelpImageService {
             for (Resource resource : resources) {
                 if (resource.isReadable()) {
                     try {
-                        String filename = resource.getFilename();
-                        if (filename != null) {
-                            String dataUri = loadResourceAsDataUri(resource);
-                            String fullPath = resource.getURI().toString();
-                            // 找到 basePath 在完整路径中的位置，然后取其后的部分
-                            String relativePath = fullPath.substring(fullPath.indexOf(basePath) + basePath.length() + 1);
-                            String key = relativePath;
-                            resourceMap.put(key, dataUri);
-                            log.debug("Loaded resource: {} as key: {}", resource.getURI(), key);
-                        }
+                        String dataUri = loadResourceAsDataUri(resource);
+                        String fullPath = resource.getURI().toString();
+                        // 找到 basePath 在完整路径中的位置，然后取其后的部分
+                        String key = fullPath.substring(fullPath.indexOf(basePath) + basePath.length() + 1);
+                        resourceMap.put(key, dataUri);
+                        log.debug("Loaded resource: {} as key: {}", resource.getURI(), key);
                     } catch (IOException e) {
                         log.error("Failed to load resource as data URI: {}", resource.getDescription(), e);
                     }

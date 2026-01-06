@@ -11,7 +11,7 @@
 
     <groupId>com.github</groupId>
     <artifactId>winefox-bot</artifactId>
-    <version>1.6.2</version>
+    <version>1.7.0</version>
 
     <name>winefox-bot</name>
 
@@ -38,6 +38,8 @@
         <docx4j.version>11.5.9</docx4j.version>
         <playwright.version>1.43.0</playwright.version>
         <commons-compress.version>1.28.0</commons-compress.version>
+        <oshi.version>6.9.2</oshi.version>
+        <ognl.version>3.1.15</ognl.version>
     </properties>
 
     <dependencies>
@@ -60,11 +62,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.github.ben-manes.caffeine</groupId>
-            <artifactId>caffeine</artifactId>
-            <!-- 使用 Spring Boot Parent 管理版本，或自行指定最新版本 -->
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>com.github.ben-manes.caffeine</groupId>-->
+<!--            <artifactId>caffeine</artifactId>-->
+<!--            &lt;!&ndash; 使用 Spring Boot Parent 管理版本，或自行指定最新版本 &ndash;&gt;-->
+<!--        </dependency>-->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-model-openai</artifactId>
@@ -171,11 +173,13 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
+        <!-- okhttp请求库 -->
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>okhttp</artifactId>
             <version>${okhttp.version}</version>
         </dependency>
+        <!-- lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -222,6 +226,17 @@
             <artifactId>playwright</artifactId>
             <version>${playwright.version}</version> <!-- 建议使用最新版本 -->
         </dependency>
+        <!-- 获取操作系统信息 -->
+        <dependency>
+            <groupId>com.github.oshi</groupId>
+            <artifactId>oshi-core</artifactId>
+            <version>${oshi.version}</version> <!-- 建议使用最新版本 -->
+        </dependency>
+        <dependency>
+            <groupId>ognl</groupId>
+            <artifactId>ognl</artifactId>
+            <version>${ognl.version}</version> <!-- 这个版本与 Thymeleaf 3 兼容良好 -->
+        </dependency>
         <!-- test -->
         <dependency>
             <groupId>org.junit.platform</groupId>
@@ -259,6 +274,7 @@
                 <executions>
                     <execution>
                         <goals>
+                            <goal>build-info</goal>
                             <goal>repackage</goal>
                         </goals>
                     </execution>

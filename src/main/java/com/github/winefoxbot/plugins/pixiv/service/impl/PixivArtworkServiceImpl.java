@@ -12,6 +12,7 @@ import com.github.winefoxbot.core.utils.FileUtil;
 import com.github.winefoxbot.core.utils.PdfUtil;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.core.Bot;
+import com.mikuac.shiro.core.PluginManager;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -191,7 +192,7 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
             log.error("设置延迟删除群文件 {} 失败。", fileName, e);
         }
     }
-    
+
     /**
      * 创建ZIP压缩包
      */
@@ -200,7 +201,6 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
         if (!dir.exists()) {
             dir.mkdirs();
         }
-        
         String zipFileName = baseName + "_" + UUID.randomUUID().toString().substring(0, 8) + ".zip";
         Path zipFilePath = Paths.get(outputDir, zipFileName);
 

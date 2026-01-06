@@ -3,11 +3,13 @@ package com.github.winefoxbot.core.plugins;
 import com.github.winefoxbot.core.annotation.Plugin;
 import com.github.winefoxbot.core.annotation.PluginFunction;
 import com.github.winefoxbot.core.config.app.WineFoxBotProperties;
+import com.github.winefoxbot.core.exception.bot.PluginExecutionException;
 import com.github.winefoxbot.core.model.dto.RestartInfo;
 import com.github.winefoxbot.core.model.dto.GitHubRelease;
 import com.github.winefoxbot.core.model.enums.MessageType;
 import com.github.winefoxbot.core.model.enums.Permission;
 import com.github.winefoxbot.core.service.helpdoc.HelpImageService;
+import com.github.winefoxbot.core.service.status.StatusImageService;
 import com.github.winefoxbot.core.service.update.GitHubUpdateService;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
@@ -21,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.util.regex.Matcher;
 
 import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
@@ -45,6 +48,7 @@ public class CorePlugin {
     private final GitHubUpdateService updateService;
     private final WineFoxBotProperties wineFoxBotProperties;
     private final HelpImageService helpImageService;
+    private final StatusImageService statusImageService;
 
     /**
      * 应用重启
@@ -149,7 +153,7 @@ public class CorePlugin {
                     COMMAND_PREFIX + "帮助" + COMMAND_SUFFIX})
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(help|h|wf帮助|帮助)(?:\\s+(.+))?" + COMMAND_SUFFIX_REGEX)
-    public void helpCommand(Bot bot, AnyMessageEvent event, Matcher matcher) {
+    public void fetchHelpImage(Bot bot, AnyMessageEvent event, Matcher matcher) {
         try {
             log.info("正在生成帮助图片...");
             String param = matcher.group(2);
@@ -166,6 +170,25 @@ public class CorePlugin {
         } catch (Exception e) {
             log.error("生成帮助图片时发生未知错误", e);
             bot.sendMsg(event, "抱歉，生成帮助图片时发生未知错误，请稍后再试。", false);
+        }
+    }
+
+
+    @PluginFunction(
+            name = "状态查询",
+            description = "查询酒狐的状态", permission = Permission.USER,
+            commands = {
+                    COMMAND_PREFIX + "status" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX +  "状态" + COMMAND_SUFFIX
+            })
+    @AnyMessageHandler
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(status|状态)(?:\\s+(.+))?" + COMMAND_SUFFIX_REGEX)
+    public void fetchBotStatus(Bot bot, AnyMessageEvent event, Matcher matcher) {
+        try {
+            byte[] bytes = statusImageService.generateStatusImage();
+            bot.sendMsg(event, MsgUtils.builder().img(bytes).build(), false);
+        } catch (IOException | InterruptedException e) {
+            throw new PluginExecutionException(bot,event, "状态丢失了...", e);
         }
     }
 }
