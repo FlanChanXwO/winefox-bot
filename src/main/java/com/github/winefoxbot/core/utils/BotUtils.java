@@ -414,8 +414,8 @@ public final class BotUtils {
         return resp.getRetCode() == 0 ? resp.getData().getNickname() : userId.toString();
     }
 
-    public static boolean isAdmin(Bot bot, Long groupId, Long botId) {
-        ActionData<GroupMemberInfoResp> groupMemberInfoResp = bot.getGroupMemberInfo(groupId, botId, true);
+    public static boolean isAdmin(Bot bot, Long groupId) {
+        ActionData<GroupMemberInfoResp> groupMemberInfoResp = bot.getGroupMemberInfo(groupId, bot.getSelfId(), true);
         if (groupMemberInfoResp.getRetCode() == 0) {
             String role = groupMemberInfoResp.getData().getRole();
             return "admin".equals(role);

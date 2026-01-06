@@ -2,7 +2,7 @@ package com.github.winefoxbot.core.aop;
 
 import com.github.winefoxbot.core.annotation.PluginFunction;
 import com.github.winefoxbot.core.config.app.WineFoxBotProperties;
-import com.github.winefoxbot.core.config.app.WineFoxBotRebotProperties;
+import com.github.winefoxbot.core.config.app.WineFoxBotRobotProperties;
 import com.github.winefoxbot.core.model.entity.ShiroGroupMember;
 import com.github.winefoxbot.core.model.enums.GroupMemberRole;
 import com.github.winefoxbot.core.model.enums.Permission;
@@ -77,7 +77,7 @@ public class PermissionCheckAspect {
      * @return 用户的权限
      */
     private Permission getUserPermission(MessageEventWrapper wrapper) {
-        WineFoxBotRebotProperties robotProp = wineFoxBotProperties.getRobot();
+        WineFoxBotRobotProperties robotProp = wineFoxBotProperties.getRobot();
         List<Long> superUsers = robotProp.getSuperUsers();
         // 任何场景下，超级管理员都拥有最高权限
         if (superUsers != null && superUsers.contains(wrapper.getUserId())) {

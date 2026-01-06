@@ -37,7 +37,7 @@
         gm.member_nickname AS gm_card
         FROM shiro_messages sm
         LEFT JOIN shiro_users su ON sm.user_id = su.user_id
-        LEFT JOIN shiro_group_members gm ON sm.user_id = gm.user_id AND sm.group_id = gm.group_id
+        LEFT JOIN shiro_group_members gm ON sm.user_id = gm.user_id AND sm.session_id = gm.group_id
         WHERE  sm.session_id = #{sessionId} AND sm.message_type = #{messageType}
         ORDER BY sm.time DESC -- 按時間降序排序
         LIMIT #{limit}

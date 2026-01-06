@@ -2,7 +2,7 @@ package com.github.winefoxbot.plugins.chat.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.core.config.app.WineFoxBotProperties;
-import com.github.winefoxbot.core.config.app.WineFoxBotRebotProperties;
+import com.github.winefoxbot.core.config.app.WineFoxBotRobotProperties;
 import com.github.winefoxbot.core.config.helpdoc.HelpDocConfiguration;
 import com.github.winefoxbot.core.model.dto.HelpData;
 import com.github.winefoxbot.core.utils.ResourceLoader;
@@ -54,7 +54,7 @@ public class WineFoxBotChatConfig {
     }
 
     private void loadAvatarInfo() {
-        WineFoxBotRebotProperties robotProps = wineFoxBotProperties.getRobot();
+        WineFoxBotRobotProperties robotProps = wineFoxBotProperties.getRobot();
 
         this.systemPrompt = systemPrompt
                 .replace("{bot_self_id}", botContainer.robots.values().stream().map(id -> "\"" + id + "\"").collect(Collectors.joining(",")))

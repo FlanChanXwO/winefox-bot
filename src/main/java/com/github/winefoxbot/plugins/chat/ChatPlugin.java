@@ -1,10 +1,7 @@
 package com.github.winefoxbot.plugins.chat;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.github.winefoxbot.core.annotation.Block;
-import com.github.winefoxbot.core.annotation.Limit;
-import com.github.winefoxbot.core.annotation.Plugin;
-import com.github.winefoxbot.core.annotation.PluginFunction;
+import com.github.winefoxbot.core.annotation.*;
 import com.github.winefoxbot.core.model.enums.MessageType;
 import com.github.winefoxbot.core.model.enums.Permission;
 import com.github.winefoxbot.plugins.chat.service.AiInteractionHelper;
@@ -97,7 +94,7 @@ public class ChatPlugin {
             hidden = true,
             commands = {COMMAND_PREFIX + "清空会话" + COMMAND_SUFFIX})
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "清空会话" + COMMAND_SUFFIX_REGEX)
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/清空会话$")
     public void clearConversation(Bot bot, AnyMessageEvent event) {
         Long sessionId = BotUtils.getSessionId(event);
         MessageType messageType = MessageType.fromValue(event.getMessageType());

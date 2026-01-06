@@ -10,7 +10,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Data
 @ConfigurationProperties(prefix = "winefox")
 public class WineFoxBotProperties {
-    private WineFoxBotRebotProperties robot;
+    private WineFoxBotRobotProperties robot;
 
     private WineFoxBotAppProperties app;
 

@@ -35,11 +35,11 @@ public class BotReceiveMsgHandler {
 
     @Async
     public void handle(Bot bot, MessageEvent event) {
+
         try {
             // 1. Save or Update User (直接使用传入的 bot 实例)
             ShiroUser user = extractUserFromEvent(bot, event);
             shiroUsersService.saveOrUpdate(user);
-
             // 2. Build Message
             ShiroMessage message = buildShiroMessage(bot, event);
 
@@ -63,6 +63,7 @@ public class BotReceiveMsgHandler {
             log.error("Error handling received message. event: {}", event, e);
         }
     }
+
 
     private ShiroMessage buildShiroMessage(Bot bot, MessageEvent event) {
         ShiroMessage message = new ShiroMessage();

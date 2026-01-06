@@ -3,7 +3,6 @@ package com.github.winefoxbot.core.config.app;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -12,7 +11,7 @@ import java.util.List;
  */
 @Data
 @ConfigurationProperties(prefix = "winefox.robot")
-public class WineFoxBotRebotProperties {
+public class WineFoxBotRobotProperties {
     /**
      * 机器人主人QQ号
      */
