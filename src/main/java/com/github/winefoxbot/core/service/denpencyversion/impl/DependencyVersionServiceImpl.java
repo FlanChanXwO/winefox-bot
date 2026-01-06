@@ -1,6 +1,7 @@
 package com.github.winefoxbot.core.service.denpencyversion.impl;
 
 import com.github.winefoxbot.core.service.denpencyversion.DependencyVersionService;
+import com.mikuac.shiro.core.Bot;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -34,5 +35,11 @@ public class DependencyVersionServiceImpl implements DependencyVersionService {
             }
         }
         return Optional.empty();
+    }
+
+    @Override
+    public String getShiroBotVersion() {
+        Optional<String> shiroBotVersionOpt = this.getVersion(Bot.class);
+        return shiroBotVersionOpt.orElse("2.5.0");
     }
 }

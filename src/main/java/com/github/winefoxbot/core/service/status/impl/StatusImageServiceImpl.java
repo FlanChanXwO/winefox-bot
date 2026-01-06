@@ -137,8 +137,7 @@ public class StatusImageServiceImpl implements StatusImageService {
         // 从配置中获取
         dataModel.put("botName", toNickNameEllipsis(config.getBotName()));
         dataModel.put("dashboardName", toNickNameEllipsis(config.getDashboardName()));
-        Optional<String> shiroBotVersionOpt = dependencyVersionService.getVersion(Bot.class);
-        String shiroBotVersion = shiroBotVersionOpt.orElse("2.5.0");
+        String shiroBotVersion = dependencyVersionService.getShiroBotVersion();
         dataModel.put("projectVersion", String.format("ShiroBot %s x %s %s", shiroBotVersion, config.getProjectName(), config.getProjectVersion()));
         return dataModel;
     }

@@ -5,4 +5,6 @@ import java.util.Optional;
 public interface DependencyVersionService {
 
     Optional<String> getVersion(Class<?> aClass);
+
+    String getShiroBotVersion();
 }
