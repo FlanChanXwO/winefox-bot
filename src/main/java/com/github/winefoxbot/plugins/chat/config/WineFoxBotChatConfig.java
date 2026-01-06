@@ -59,6 +59,7 @@ public class WineFoxBotChatConfig {
         this.systemPrompt = systemPrompt
                 .replace("{bot_self_id}", botContainer.robots.values().stream().map(id -> "\"" + id + "\"").collect(Collectors.joining(",")))
                 .replace("{nickname}", robotProps.getNickname())
+                .replace("{masterName}",robotProps.getMasterName())
                 .replace("{masters}", robotProps.getSuperUsers().stream().map(Object::toString).collect(Collectors.joining(",")));
     }
 
