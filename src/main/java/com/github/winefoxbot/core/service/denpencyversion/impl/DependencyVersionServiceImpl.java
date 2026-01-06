@@ -35,21 +35,4 @@ public class DependencyVersionServiceImpl implements DependencyVersionService {
         }
         return Optional.empty();
     }
-
-    /**
-     * 获取 com.mikuac:shiro 的版本号示例
-     * @return 版本号
-     */
-    public String getShiroBotVersion() {
-        try {
-            // 假设 'com.mikuac.shiro.Bot' 是该依赖中的一个真实存在的类
-            // 你需要替换成实际的类名
-            Class<?> shiroBotClass = Class.forName("com.mikuac.shiro.core.Bot"); // <-- 替换为实际的类名
-            return getVersion(shiroBotClass);
-        } catch (ClassNotFoundException e) {
-            System.err.println("无法找到指定的类，请确认类名和依赖是否正确。");
-            e.printStackTrace();
-            return "dependency class not found";
-        }
-    }
 }
