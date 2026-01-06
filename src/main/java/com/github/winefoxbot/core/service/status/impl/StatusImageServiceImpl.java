@@ -1,12 +1,14 @@
 package com.github.winefoxbot.core.service.status.impl;
 
 import com.github.winefoxbot.core.config.status.StatusImageGeneratorConfig;
+import com.github.winefoxbot.core.service.denpencyversion.DependencyVersionService;
 import com.github.winefoxbot.core.service.status.StatusImageService;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.ScreenshotType;
 import com.microsoft.playwright.options.WaitForSelectorState;
+import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.PluginManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,10 +33,7 @@ import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.text.DecimalFormat;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -53,6 +52,8 @@ public class StatusImageServiceImpl implements StatusImageService {
     private final PluginManager pluginManager;
     // 用于获取运行时间
     private final ApplicationContext applicationContext;
+    // 用户获取shirobot版本号
+    private final DependencyVersionService dependencyVersionService;
 
     @Override
     public byte[] generateStatusImage() throws IOException, InterruptedException {
@@ -136,7 +137,9 @@ public class StatusImageServiceImpl implements StatusImageService {
         // 从配置中获取
         dataModel.put("botName", toNickNameEllipsis(config.getBotName()));
         dataModel.put("dashboardName", toNickNameEllipsis(config.getDashboardName()));
-        dataModel.put("projectVersion", config.getProjectName() + " " + config.getProjectVersion());
+        Optional<String> shiroBotVersionOpt = dependencyVersionService.getVersion(Bot.class);
+        String shiroBotVersion = shiroBotVersionOpt.orElse("2.5.0");
+        dataModel.put("projectVersion", String.format("ShiroBot %s x %s %s", shiroBotVersion, config.getProjectName(), config.getProjectVersion()));
         return dataModel;
     }
 
