@@ -42,7 +42,6 @@ public class BotReceiveMsgHandler {
             shiroUsersService.saveOrUpdate(user);
             // 2. Build Message
             ShiroMessage message = buildShiroMessage(bot, event);
-
             // 3. Handle Group Specific Logic
             if (event instanceof GroupMessageEvent groupEvent) {
                 // 处理群组信息

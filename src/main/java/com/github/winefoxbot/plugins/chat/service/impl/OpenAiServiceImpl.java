@@ -13,6 +13,13 @@ import com.github.winefoxbot.plugins.chat.config.WineFoxBotChatProperties;
 import com.github.winefoxbot.plugins.chat.service.AiInteractionHelper;
 import com.github.winefoxbot.plugins.chat.service.AiInteractionHelper.AiMessageInput;
 import com.github.winefoxbot.plugins.chat.service.OpenAiService;
+import com.mikuac.shiro.common.utils.MessageConverser;
+import com.mikuac.shiro.common.utils.ShiroUtils;
+import com.mikuac.shiro.core.Bot;
+import com.mikuac.shiro.core.BotContainer;
+import com.mikuac.shiro.dto.action.common.ActionData;
+import com.mikuac.shiro.dto.action.response.MsgResp;
+import com.mikuac.shiro.model.ArrayMsg;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
@@ -33,7 +40,9 @@ import org.springframework.util.MimeTypeUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * @author FlanChan
@@ -49,16 +58,19 @@ public class OpenAiServiceImpl implements OpenAiService {
     private final AiInteractionHelper aiInteractionHelper;
     private final ObjectMapper objectMapper;
     private final WineFoxBotChatProperties wineFoxBotChatProperties;
-    private final OkHttpClient okHttpClient; // Using OkHttpClient as requested
+    private final OkHttpClient okHttpClient;
+    private final BotContainer botContainer;
 
     @Override
     public String complete(Long sessionId, MessageType messageType, AiMessageInput currentMessage) {
         List<Message> messages = new ArrayList<>();
+        Optional<Bot> botOpt = botContainer.robots.values().stream().findFirst();
         messages.add(new SystemMessage(botChatConfig.getSystemPrompt()));
         // 1. 处理历史记录
         List<ShiroUserMessage> history = shiroMessagesService.findLatestMessagesForContext(sessionId, messageType, wineFoxBotChatProperties.getContextSize());
         for (int i = history.size() - 1; i >= 0; i--) {
             ShiroUserMessage shiroMsg = history.get(i);
+
             try {
                 // 使用 Helper 解析历史消息（包含图片提取）
                 AiMessageInput historyInput = aiInteractionHelper.createHistoryMessageInput(shiroMsg);
@@ -70,8 +82,32 @@ public class OpenAiServiceImpl implements OpenAiService {
                     // 如果历史记录里有图片，也需要添加
                     // 前提是图片分析功能开启
                     if (wineFoxBotChatProperties.getEnableImageAnalysis() && historyInput.getImageUrls() != null && !historyInput.getImageUrls().isEmpty()) {
-                        log.debug("History message {} contains {} images.", shiroMsg.getId(), historyInput.getImageUrls().size());
-                        List<Media> mediaList = convertUrlsToMedia(historyInput.getImageUrls());
+                        log.debug("History message {} contains images. Re-fetching URLs to prevent expiration.", shiroMsg.getId());
+
+                        List<String> freshImageUrls = new ArrayList<>();
+                        // Re-fetch message from API to get non-expired image URLs
+                        if (botOpt.isPresent()) {
+                            try {
+                                Bot bot = botOpt.get();
+                                ActionData<MsgResp> msgResp = bot.getMsg(shiroMsg.getMessageId().intValue());
+                                MsgResp msgData = Optional.ofNullable(msgResp).map(ActionData::getData).orElse(null);
+                                if (msgData != null && msgData.getMessage() != null) {
+                                    List<ArrayMsg> arrayMsgs = MessageConverser.stringToArray(msgData.getMessage());
+                                    freshImageUrls = ShiroUtils.getMsgImgUrlList(arrayMsgs);
+                                    log.debug("Successfully re-fetched {} fresh image URLs for message {}.", freshImageUrls.size(), shiroMsg.getId());
+                                } else {
+                                    log.warn("Could not re-fetch message data for message ID: {}. Response was null or empty.", shiroMsg.getMessageId());
+                                }
+                            } catch (Exception e) {
+                                log.error("Failed to re-fetch image URLs for historical message {}", shiroMsg.getMessageId(), e);
+                            }
+                        } else {
+                            log.warn("Bot not available, cannot re-fetch image URLs. The old URLs might be expired.");
+                            // Fallback to old URLs, though they might fail
+                            freshImageUrls = historyInput.getImageUrls();
+                        }
+
+                        List<Media> mediaList = convertUrlsToMedia(freshImageUrls);
                         messages.add(UserMessage.builder()
                                 .text(historyMessage)
                                 .media(mediaList)
@@ -124,11 +160,11 @@ public class OpenAiServiceImpl implements OpenAiService {
      * Uses OkHttpClient to download the image and wraps it in a ByteArrayResource.
      */
     private List<Media> convertUrlsToMedia(List<String> imageUrls) {
-        List<Media> mediaList = new ArrayList<>();
-        if (imageUrls == null) {
-            return mediaList;
+        if (imageUrls == null || imageUrls.isEmpty()) {
+            return Collections.emptyList();
         }
 
+        List<Media> mediaList = new ArrayList<>();
         for (String url : imageUrls) {
             Request request = new Request.Builder()
                     .url(url)
