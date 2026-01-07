@@ -1,4 +1,4 @@
-package com.github.winefoxbot.plugins.qqgroup;
+package com.github.winefoxbot.core.plugins;
 
 import com.github.winefoxbot.core.model.dto.TextReply;
 import com.github.winefoxbot.core.model.dto.TextReplyParams;
@@ -8,6 +8,7 @@ import com.github.winefoxbot.core.model.enums.GroupMemberDecreaseType;
 import com.github.winefoxbot.core.service.reply.TextReplyService;
 import com.github.winefoxbot.core.service.shiro.ShiroGroupMembersService;
 import com.github.winefoxbot.core.service.shiro.ShiroGroupsService;
+import com.github.winefoxbot.core.service.shiro.ShiroMessagesService;
 import com.github.winefoxbot.core.utils.BotUtils;
 import com.mikuac.shiro.annotation.*;
 import com.mikuac.shiro.annotation.common.Order;
@@ -23,13 +24,23 @@ import static com.mikuac.shiro.core.BotPlugin.MESSAGE_BLOCK;
 
 /**
  * @author FlanChan (badapple495@outlook.com)
- * @since 2025-12-04-11:57
+ * @since 2026-01-07-18:14
  */
+@Slf4j
 @Shiro
 @Component
-@Slf4j
 @RequiredArgsConstructor
-public class QQGroupPlugin {
+public class GroupEventListenerPlugin {
+    private final ShiroMessagesService shiroMessagesService;
+
+
+    @GroupMsgDeleteNoticeHandler
+    @Order(1)
+    public void handleGroupMessageDelete(GroupMsgDeleteNoticeEvent event) {
+        Integer messageId = event.getMessageId();
+        shiroMessagesService.removeByMessageId(messageId);
+    }
+
 
     private final TextReplyService textReplyService;
     private final ShiroGroupMembersService shiroGroupMembersService;
@@ -43,19 +54,18 @@ public class QQGroupPlugin {
      */
     @GroupIncreaseHandler
     @Order(1)
-    public int handleGroupIncrease(Bot bot, GroupIncreaseNoticeEvent event) {
+    public void handleGroupIncrease(Bot bot, GroupIncreaseNoticeEvent event) {
         Long groupId = event.getGroupId();
         Long userId = event.getUserId();
         Long botId = bot.getSelfId();
         if (userId.equals(botId)) {
             log.info("Bot {} 被添加到群 {}", botId, groupId);
-            return MESSAGE_BLOCK;
+            return;
         }
         String username = BotUtils.getGroupMemberNickname(bot, groupId, userId);
         // 获取模板
         TextReply reply = textReplyService.getReply(new TextReplyParams(username, BotReplyTemplateType.WELCOME));
         sendReply(bot, reply, event.getGroupId(), userId);
-        return MESSAGE_BLOCK;
     }
 
     /**
@@ -66,7 +76,7 @@ public class QQGroupPlugin {
      */
     @GroupDecreaseHandler
     @Order(1)
-    public int handleGroupDecrease(Bot bot, GroupDecreaseNoticeEvent event) {
+    public void handleGroupDecrease(Bot bot, GroupDecreaseNoticeEvent event) {
         Long groupId = event.getGroupId();
         Long userId = event.getUserId();
         Long operatorId = event.getOperatorId();
@@ -93,12 +103,11 @@ public class QQGroupPlugin {
         sendReply(bot, reply, event.getGroupId());
         // 删除成员信息
         shiroGroupMembersService.deleteGroupMemberInfo(groupId, userId);
-        return MESSAGE_BLOCK;
     }
 
     @GroupAdminHandler
     @Order(1)
-    public int handleGroupAdmin(Bot bot, GroupAdminNoticeEvent event) {
+    public void handleGroupAdmin(Bot bot, GroupAdminNoticeEvent event) {
         Long groupId = event.getGroupId();
         Long userId = event.getUserId();
         Long botId = bot.getSelfId();
@@ -118,13 +127,13 @@ public class QQGroupPlugin {
         }
         sendReply(bot, reply, event.getGroupId());
         shiroGroupMembersService.saveOrUpdateGroupMemberInfo(event);
-        return MESSAGE_BLOCK;
     }
+
 
 
     @GroupCardChangeNoticeHandler
     @Order(1)
-    public int handleGroupCardChange(GroupCardChangeNoticeEvent event) {
+    public void handleGroupCardChange(GroupCardChangeNoticeEvent event) {
         Long groupId = event.getGroupId();
         Long userId = event.getUserId();
         String newCard = event.getCardNew();
@@ -132,7 +141,6 @@ public class QQGroupPlugin {
         log.info("群成员 {} 在群 {} 中修改了群名片: 旧名片='{}', 新名片='{}'", userId, groupId, oldCard, newCard);
         // 这里可以添加其他逻辑，例如更新数据库中的群成员信息等
         shiroGroupMembersService.saveOrUpdateGroupMemberInfo(event);
-        return MESSAGE_BLOCK;
     }
 
     private void sendReply(Bot bot, TextReply reply, Long groupId, Long userId,  boolean at) {
@@ -165,5 +173,4 @@ public class QQGroupPlugin {
     public void handleGroupFileUpload(Bot bot, GroupUploadNoticeEvent event) {
         //TODO
     }
-
 }

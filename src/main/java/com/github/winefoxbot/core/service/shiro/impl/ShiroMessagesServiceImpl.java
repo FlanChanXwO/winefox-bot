@@ -35,6 +35,13 @@ public class ShiroMessagesServiceImpl extends ServiceImpl<ShiroMessagesMapper, S
         public List<ShiroUserMessage> findLatestMessagesForContext(Long sessionId, MessageType messageType, int limit) {
         return this.baseMapper.selectUserMessages(sessionId,messageType,limit);
     }
+
+    @Override
+    public boolean removeByMessageId(Integer messageId) {
+        LambdaQueryWrapper<ShiroMessage> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(ShiroMessage::getMessageId,messageId);
+        return this.remove(queryWrapper);
+    }
 }
 
 

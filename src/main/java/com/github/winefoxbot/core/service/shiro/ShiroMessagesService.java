@@ -31,4 +31,12 @@ public interface ShiroMessagesService extends IService<ShiroMessage> {
      * @return 消息列表
      */
     List<ShiroUserMessage> findLatestMessagesForContext(Long sessionId, MessageType messageType, int limit);
+
+    /**
+     * 根据消息ID删除消息
+     *
+     * @param messageId
+     * @return
+     */
+    boolean removeByMessageId(Integer messageId);
 }

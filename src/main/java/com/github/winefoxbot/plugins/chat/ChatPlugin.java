@@ -18,6 +18,7 @@ import com.mikuac.shiro.annotation.*;
 import com.mikuac.shiro.annotation.common.Order;
 import com.mikuac.shiro.annotation.common.Shiro;
 import com.mikuac.shiro.common.utils.MsgUtils;
+import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
@@ -66,7 +67,7 @@ public class ChatPlugin {
     private final Map<Long, Integer> pokePityCounter = new ConcurrentHashMap<>();
     private static final int PITY_THRESHOLD = 30;
     private static final double PROACTIVE_POKE_BACK_CHANCE = 0.3;
-    private static final double PASSIVE_VOICE_REPLY_CHANCE = 0.05;
+    private static final double VOICE_REPLY_CHANCE = 0.2;
 
 
     // ... (chatDoc 和 clearConversation 方法保持不变)
@@ -196,6 +197,7 @@ public class ChatPlugin {
         }
     }
 
+
     /**
      * 决策并执行戳一戳的响应动作。
      */
@@ -203,36 +205,43 @@ public class ChatPlugin {
         long userId = event.getUserId();
         Long groupId = isGroup ? event.getGroupId() : -1L;
 
-        // 1. 决定是否要“反戳”（Proactive）
-        boolean shouldPokeBack = Math.random() < PROACTIVE_POKE_BACK_CHANCE;
-        if (shouldPokeBack) {
-            Optional<File> voiceFile = voiceReplyService.drawVoice("poke_proactive");
-            pokeBack(bot, isGroup, groupId, userId); // 无论如何都先反戳
-            if (voiceFile.isPresent()) {
-                sendPokeVoice(bot, isGroup, groupId, userId, voiceFile.get().getAbsolutePath());
-                return true; // 播放了语音
-            } else {
-                // 没有语音，回退到AI
-                handlePokeWithAI(bot, event, isGroup, true);
-                return false; // 未播放语音
-            }
-        }
+        // 1. ��立决策：是否要“反戳”
+        boolean shouldPokeBack = ThreadLocalRandom.current().nextDouble() < PROACTIVE_POKE_BACK_CHANCE;
 
-        // 2. 如果不反戳，进入“被动”回复逻辑 (Passive)
-        if (pityTriggered) {
+        // 2. 独立决策：是否要“播放语音” (保底触发 或 随机命中)
+        // 修复问题：反戳不再 100% 触发语音，被动戳一戳的语音概率也统一提高
+        boolean shouldPlayVoice = pityTriggered || (ThreadLocalRandom.current().nextDouble() < VOICE_REPLY_CHANCE);
+
+        if (pityTriggered && shouldPlayVoice) {
             log.info("用户 {} 触发戳一戳语音保底 (当前计数: {}/{})", userId, pokePityCounter.getOrDefault(userId, 0), PITY_THRESHOLD);
         }
 
-        // 2.1 保底触发或概率触发，尝试获取语音
-        Optional<File> voiceFile = Optional.empty();
-        if (pityTriggered || ThreadLocalRandom.current().nextDouble() < PASSIVE_VOICE_REPLY_CHANCE) {
-            voiceFile = voiceReplyService.drawVoice("poke_passive");
+        // 分支 A: 执行反戳逻辑
+        if (shouldPokeBack) {
+            pokeBack(bot, isGroup, groupId, userId); // 执行反戳
+
+            if (shouldPlayVoice) {
+                // 尝试获取主动反击的语音
+                Optional<File> voiceFile = voiceReplyService.drawVoice("poke_proactive");
+                if (voiceFile.isPresent()) {
+                    sendPokeVoice(bot, isGroup, groupId, userId, voiceFile.get().getAbsolutePath());
+                    return true; // 播放了语音
+                }
+            }
+
+            // 如果没决定播放语音，或者语音文件没找到，回退到 AI 文本
+            handlePokeWithAI(bot, event, isGroup, true);
+            return false;
         }
 
-        // 2.2 如果获取到语音则播放
-        if (voiceFile.isPresent()) {
-            sendPokeVoice(bot, isGroup, groupId, userId, voiceFile.get().getAbsolutePath());
-            return true; // 播放了语音
+        // 分支 B: 被动接受逻辑 (无反戳)
+        if (shouldPlayVoice) {
+            // 尝试获取被动接受的语音
+            Optional<File> voiceFile = voiceReplyService.drawVoice("poke_passive");
+            if (voiceFile.isPresent()) {
+                sendPokeVoice(bot, isGroup, groupId, userId, voiceFile.get().getAbsolutePath());
+                return true; // 播放了语音
+            }
         }
 
         // 3. 所有语音路径都未命中，执行最终的AI文本回复
@@ -249,7 +258,6 @@ public class ChatPlugin {
         Long sessionId = isGroup ? groupId : userId;
         MessageType messageType = isGroup ? MessageType.GROUP : MessageType.PRIVATE;
 
-        // 关键修改：使用 createPokeMessageInput
         AiMessageInput pokeInput = aiInteractionHelper.createPokeMessageInput(bot, userId, isGroup ? groupId : null, isPokingBack);
         String aiReply = openAiService.complete(sessionId, messageType, pokeInput);
 
