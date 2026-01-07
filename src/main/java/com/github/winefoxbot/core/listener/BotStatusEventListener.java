@@ -4,12 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.core.config.app.WineFoxBotProperties;
 import com.github.winefoxbot.core.model.dto.RestartInfo;
 import com.github.winefoxbot.core.model.enums.MessageType;
+import com.github.winefoxbot.core.service.shiro.ShiroBotsService;
 import com.github.winefoxbot.core.service.update.GitHubUpdateService;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.CoreEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
 
@@ -24,15 +26,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Slf4j
 public class BotStatusEventListener extends CoreEvent {
 
-
+    private final ShiroBotsService shiroBotsService;
     private final WineFoxBotProperties wineFoxBotProperties;
-//    private final ScheduleTaskService scheduleTaskService;
     private final ObjectMapper objectMapper;
     private final GitHubUpdateService updateService;
     private final AtomicBoolean restartNoticeSent = new AtomicBoolean(false);
-
     private static final String RESTART_INFO_FILE = "restart-info.json";
-    // 添加一个标志位，确保重启通知只被发送一次
+
     @Override
     public void online(Bot bot) {
         // 1. 首先，执行原来的上线通知逻辑
@@ -40,16 +40,32 @@ public class BotStatusEventListener extends CoreEvent {
         for (Long superuser : wineFoxBotProperties.getRobot().getSuperUsers()) {
             bot.sendPrivateMsg(superuser, "我上线啦～", false);
         }
-
         // 2. 接着，处理重启成功的通知逻辑
         handleRestartNotice(bot);
+        // 3. 更新或储存Bot的登录信息
+        saveOrUpdateBotInfo(bot);
+    }
+
+    /**
+     * 保存或更新 Bot 信息到数据库
+     * @param bot
+     */
+    @Async
+    protected void saveOrUpdateBotInfo(Bot bot) {
+        log.info("正在保存或更新 Bot {} 的信息...", bot.getSelfId());
+        if (shiroBotsService.saveOrUpdateBotInfo(bot)) {
+            log.info("Bot {} 的信息已保存或更新。", bot.getSelfId());
+        } else {
+            log.warn("Bot {} 的信息保存或更新失败！", bot.getSelfId());
+        }
     }
 
     /**
      * 检查并发送重启成功通知
      * @param bot 当前上线的 Bot 实例
      */
-    private void handleRestartNotice(Bot bot) {
+    @Async
+    protected void handleRestartNotice(Bot bot) {
         // 如果已经发送过通知，则直接返回
         if (!restartNoticeSent.compareAndSet(false, true)) {
             return;

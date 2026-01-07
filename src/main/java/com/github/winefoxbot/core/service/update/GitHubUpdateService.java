@@ -19,7 +19,7 @@ public interface GitHubUpdateService {
 
     void performUpdate(Bot bot, AnyMessageEvent event) throws Exception;
 
-    void restartApplication();
+    void restartApplication(AnyMessageEvent event);
 
     void saveRestartInfo(RestartInfo restartInfo);
 

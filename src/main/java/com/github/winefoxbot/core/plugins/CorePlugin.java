@@ -5,8 +5,6 @@ import com.github.winefoxbot.core.annotation.PluginFunction;
 import com.github.winefoxbot.core.config.app.WineFoxBotProperties;
 import com.github.winefoxbot.core.exception.bot.PluginExecutionException;
 import com.github.winefoxbot.core.model.dto.GitHubRelease;
-import com.github.winefoxbot.core.model.dto.RestartInfo;
-import com.github.winefoxbot.core.model.enums.MessageType;
 import com.github.winefoxbot.core.model.enums.Permission;
 import com.github.winefoxbot.core.service.helpdoc.HelpImageService;
 import com.github.winefoxbot.core.service.status.StatusImageService;
@@ -66,18 +64,9 @@ public class CorePlugin {
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(restart|重启)" + COMMAND_SUFFIX_REGEX)
     public void restartApplication(Bot bot, AnyMessageEvent event) {
-        MessageType messageType = MessageType.fromValue(event.getMessageType());
-        Long targetId = switch (messageType) {
-            case GROUP -> event.getGroupId();
-            case PRIVATE -> event.getUserId();
-        };
-        String successMsgTemplate = String.format("[CQ:at,qq=%d] 应用重启成功！\n耗时: {duration}\n当前版本: {version}", event.getUserId());
-        long startTime = System.currentTimeMillis();
-        RestartInfo restartInfo = new RestartInfo(messageType, targetId, successMsgTemplate, startTime);
-        updateService.saveRestartInfo(restartInfo);
         bot.sendMsg(event, "收到重启指令，正在保存状态并准备重启...", false);
         log.info("接收到来自 {} 的重启指令", event.getUserId());
-        updateService.restartApplication();
+        updateService.restartApplication(event);
     }
 
 

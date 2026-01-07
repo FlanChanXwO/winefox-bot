@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.core.config.app.WineFoxBotAppUpdateProperties;
 import com.github.winefoxbot.core.model.dto.GitHubRelease;
 import com.github.winefoxbot.core.model.dto.RestartInfo;
+import com.github.winefoxbot.core.model.enums.MessageType;
 import com.github.winefoxbot.core.service.update.GitHubUpdateService;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
@@ -113,7 +114,8 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
             downloadAndReplace(jarAsset);
             bot.sendMsg(event, "更新包下载完成，应用即将重启以完成更新...", false);
             log.info("文件更新完成，即将重启应用...");
-            restartApplication();
+
+            restartApplication(event);
 
         } finally {
             updateInProgress.set(false);
@@ -220,7 +222,16 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
     }
 
     @Override
-    public void restartApplication() {
+    public void restartApplication(AnyMessageEvent event) {
+        MessageType messageType = MessageType.fromValue(event.getMessageType());
+        Long targetId = switch (messageType) {
+            case GROUP -> event.getGroupId();
+            case PRIVATE -> event.getUserId();
+        };
+        String successMsgTemplate = String.format("[CQ:at,qq=%d] 应用重启成功！\n耗时: {duration}\n当前版本: {version}", event.getUserId());
+        long startTime = System.currentTimeMillis();
+        RestartInfo restartInfo = new RestartInfo(messageType, targetId, successMsgTemplate, startTime);
+        saveRestartInfo(restartInfo);
         Thread restartThread = new Thread(() -> {
             try {
                 // 等待1秒，让当前请求（比如发送"正在重启"消息）有机会完成

@@ -5,6 +5,7 @@ import com.mikuac.shiro.annotation.PrivateMsgDeleteNoticeHandler;
 import com.mikuac.shiro.annotation.common.Order;
 import com.mikuac.shiro.annotation.common.Shiro;
 import com.mikuac.shiro.dto.event.notice.GroupMsgDeleteNoticeEvent;
+import com.mikuac.shiro.dto.event.notice.PrivateMsgDeleteNoticeEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -22,7 +23,7 @@ public class PrivateEventListenerPlugin {
 
     @PrivateMsgDeleteNoticeHandler
     @Order(1)
-    public void handlePrivateMessageDelete(GroupMsgDeleteNoticeEvent event) {
+    public void handlePrivateMessageDelete(PrivateMsgDeleteNoticeEvent event) {
         Integer messageId = event.getMessageId();
         shiroMessagesService.removeByMessageId(messageId);
     }
