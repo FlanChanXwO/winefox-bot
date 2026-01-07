@@ -15,6 +15,10 @@ import com.github.winefoxbot.plugins.chat.service.AiInteractionHelper.AiMessageI
 import com.github.winefoxbot.plugins.chat.service.OpenAiService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
@@ -23,11 +27,11 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.content.Media;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-import org.springframework.core.io.UrlResource;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MimeTypeUtils;
 
-import java.net.MalformedURLException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,6 +49,7 @@ public class OpenAiServiceImpl implements OpenAiService {
     private final AiInteractionHelper aiInteractionHelper;
     private final ObjectMapper objectMapper;
     private final WineFoxBotChatProperties wineFoxBotChatProperties;
+    private final OkHttpClient okHttpClient; // Using OkHttpClient as requested
 
     @Override
     public String complete(Long sessionId, MessageType messageType, AiMessageInput currentMessage) {
@@ -116,6 +121,7 @@ public class OpenAiServiceImpl implements OpenAiService {
 
     /**
      * 将 URL 字符串列表转换为 Spring AI 的 Media 对象列表
+     * Uses OkHttpClient to download the image and wraps it in a ByteArrayResource.
      */
     private List<Media> convertUrlsToMedia(List<String> imageUrls) {
         List<Media> mediaList = new ArrayList<>();
@@ -124,12 +130,33 @@ public class OpenAiServiceImpl implements OpenAiService {
         }
 
         for (String url : imageUrls) {
-            try {
-                // 注意：这里默认图片类型。如果需要更精确的MIME类型，需要解析URL后缀或进行探测
-                // Spring AI 目前对 IMAGE_JPEG 兼容性较好
-                mediaList.add(new Media(MimeTypeUtils.IMAGE_JPEG, new UrlResource(url)));
-            } catch (MalformedURLException e) {
-                log.warn("Invalid image URL found in message: {}", url);
+            Request request = new Request.Builder()
+                    .url(url)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+                    .build();
+
+            try (Response response = okHttpClient.newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    log.warn("Failed to download image from URL: {}. Server responded with code: {} and message: {}", url, response.code(), response.message());
+                    continue;
+                }
+
+                ResponseBody body = response.body();
+                if (body == null) {
+                    log.warn("Failed to download image from URL: {}. Response body was null.", url);
+                    continue;
+                }
+
+                byte[] imageBytes = body.bytes();
+                ByteArrayResource resource = new ByteArrayResource(imageBytes);
+
+                // Use the constructor that accepts a Resource
+                mediaList.add(new Media(MimeTypeUtils.IMAGE_JPEG, resource));
+
+            } catch (IOException e) {
+                log.error("IOException while downloading image from URL: {}", url, e);
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid image URL found in message: {}", url, e);
             }
         }
         return mediaList;
