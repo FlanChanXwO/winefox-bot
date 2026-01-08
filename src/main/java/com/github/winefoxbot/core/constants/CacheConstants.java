@@ -30,7 +30,7 @@ public final class CacheConstants {
 
     /**
      * Pixiv 收藏夹作品权重有序集合键（在PixivBookmarkServiceImpl配置）
-     * TTL: 30 天
+     * TTL: 永久
      */
     public static final String ZSET_BOOKMARK_WEIGHTS_KEY_SFW = CACHE_KEY_PREFIX  +"pixiv:bookmark:weights:sfw";
     public static final String ZSET_BOOKMARK_WEIGHTS_KEY_R18 = CACHE_KEY_PREFIX  + "pixiv:bookmark:weights:r18";

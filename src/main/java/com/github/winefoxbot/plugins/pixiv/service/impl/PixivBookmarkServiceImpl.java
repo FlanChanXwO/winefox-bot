@@ -120,15 +120,12 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
         // 批量添加并设置过期时间
         if (!mixMembers.isEmpty()) {
             zSetOps.add(CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_MIX, mixMembers);
-            redisTemplate.expire(CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_MIX, 30, TimeUnit.DAYS);
         }
         if (!sfwMembers.isEmpty()) {
             zSetOps.add(CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_SFW, sfwMembers);
-            redisTemplate.expire(CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_SFW, 30, TimeUnit.DAYS);
         }
         if (!r18Members.isEmpty()) {
             zSetOps.add(CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_R18, r18Members);
-            redisTemplate.expire(CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_R18, 30, TimeUnit.DAYS);
         }
 
         log.info("成功初始化 Bookmark weights ZSETs。 MIX: {}, SFW: {}, R18: {}",
