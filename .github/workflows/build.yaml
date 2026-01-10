@@ -7,13 +7,12 @@ on:
 jobs:
   build_and_release:
     permissions:
-      contents: write # 必须有写的权限来操作 release 和 tag
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          # 获取所有历史记录，以便能找到正确的父提交
           fetch-depth: 0
 
       - name: Set up JDK 25
@@ -26,9 +25,12 @@ jobs:
       - name: Get Project Info
         id: get_project_info
         run: |
+          # 获取 Maven 版本号
           PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           FAT_JAR_NAME="winefox-bot.jar"
+          # 使用版本号命名 Jar
           RELEASE_ASSET_NAME="winefox-bot-${PROJECT_VERSION}.jar"
+          
           echo "project_version=${PROJECT_VERSION}" >> $GITHUB_OUTPUT
           echo "fat_jar_name=${FAT_JAR_NAME}" >> $GITHUB_OUTPUT
           echo "release_asset_name=${RELEASE_ASSET_NAME}" >> $GITHUB_OUTPUT
@@ -45,33 +47,23 @@ jobs:
           fi
           cd ..
 
-      # 【核心修改】强制删除旧的 'latest' Release 和 Tag
-      - name: Force delete and recreate 'latest' tag
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # 1. 删除远程的 'latest' release (如果存在)
-          # '|| true' 确保在 release 不存在时脚本不会失败
-          gh release delete latest --yes || true
-          
-          # 2. 删除远程的 'latest' tag
-          git push origin --delete latest || true
-          
-          # 3. 在本地重新创建指向当前 HEAD 的 'latest' tag
-          git tag -f latest
-          
-          # 4. 将新的 'latest' tag 推送到远程
-          git push origin latest
+      # 【已删除】Force delete and recreate 'latest' tag (不再需要)
 
-      # 【核心修改】使用新的 'latest' tag 创建一个全新的 Release
+      # 【核心修改】创建 Release
+      # 使用 v + Maven版本号作为 tag
+      # 使用 Commit Message 作为 body
       - name: Create Release and Upload Initial Asset
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest # 使用我们刚刚创建的新的 'latest' tag
-          # `make_latest: true` 确保这个新的 release 被标记为 "Latest"
+          # 例如: v1.0.0
+          tag_name: v${{ steps.get_project_info.outputs.project_version }}
           make_latest: true
-          body: "🚀 Latest development build, updated at ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          # 使用本次 Commit 的信息作为发布日志
+          body: |
+            ${{ github.event.head_commit.message }}
+            
+            Build: ${{ github.sha }}
           files: |
             target/${{ steps.get_project_info.outputs.release_asset_name }}
             target/lib.zip
@@ -82,14 +74,12 @@ jobs:
           ASSETS_JSON='${{ steps.create_release.outputs.assets }}'
           JAR_NAME="${{ steps.get_project_info.outputs.release_asset_name }}"
           LIB_NAME="lib.zip"
+          RELEASE_ID='${{ steps.create_release.outputs.id }}'
+          # 获取当前的 Tag Name
+          TAG_NAME="v${{ steps.get_project_info.outputs.project_version }}"
           
-          # 获取 Asset ID
           ASSET_ID=$(echo "$ASSETS_JSON" | jq --arg name "$JAR_NAME" -r '.[] | select(.name == $name) | .id')
           LIB_ASSET_ID=$(echo "$ASSETS_JSON" | jq --arg name "$LIB_NAME" -r '.[] | select(.name == $name) | .id')
-          RELEASE_ID='${{ steps.create_release.outputs.id }}'
-
-          # 【新增】计算 lib.zip 的 SHA256 哈希值
-          # sha256sum 输出格式为 "hash  filename"，我们只取第一部分 hash
           LIB_SHA256=$(sha256sum target/lib.zip | awk '{print $1}')
           
           if [ -z "$RELEASE_ID" ] || [ -z "$ASSET_ID" ] || [ "$ASSET_ID" == "null" ]; then
@@ -97,24 +87,19 @@ jobs:
             exit 1
           fi
 
-          echo "Final Release ID: $RELEASE_ID"
-          echo "Final Asset ID (Jar): $ASSET_ID"
-          echo "Final Asset ID (Lib): $LIB_ASSET_ID"
-          echo "Final Lib SHA256: $LIB_SHA256"
-
           PROPERTIES_FILE="release-info.properties"
           echo "github.release.id=$RELEASE_ID" > $PROPERTIES_FILE
+          # 【新增】写入 Tag Name
+          echo "github.release.tag_name=$TAG_NAME" >> $PROPERTIES_FILE
           echo "github.asset.id=$ASSET_ID" >> $PROPERTIES_FILE
           
           if [ ! -z "$LIB_ASSET_ID" ] && [ "$LIB_ASSET_ID" != "null" ]; then
              echo "github.lib.asset.id=$LIB_ASSET_ID" >> $PROPERTIES_FILE
-             # 【新增】写入哈希值到配置文件
              echo "github.lib.sha256=$LIB_SHA256" >> $PROPERTIES_FILE
           fi
           
-          echo "Generated final $PROPERTIES_FILE content:"
+          echo "Generated final properties:"
           cat $PROPERTIES_FILE
-
 
       - name: Inject properties into JAR
         run: |
@@ -122,8 +107,8 @@ jobs:
           jar uf "$JAR_PATH" -C . "release-info.properties"
           echo "Injected final release-info.properties into $JAR_PATH"
 
-      # 使用注入了正确ID的JAR，覆盖上传Release中的文件
+      # 上传注入后的 JAR (使用 tag_name 指定上传目标)
       - name: Overwrite Release Asset with final JAR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload latest "target/${{ steps.get_project_info.outputs.release_asset_name }}" --clobber
+        run: gh release upload v${{ steps.get_project_info.outputs.project_version }} "target/${{ steps.get_project_info.outputs.release_asset_name }}" --clobber

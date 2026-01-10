@@ -32,6 +32,8 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 @Service
 @Slf4j
@@ -58,13 +60,15 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
             long releaseId = Long.parseLong(props.getProperty("github.release.id", "-1"));
             long assetId = Long.parseLong(props.getProperty("github.asset.id", "-1"));
             long libAssetId = Long.parseLong(props.getProperty("github.lib.asset.id", "-1"));
+            String tagName = props.getProperty("github.release.tag_name", "");
             String libSha256 = props.getProperty("github.lib.sha256", "");
-            if (releaseId == -1 || assetId == -1) {
-                log.warn("Could not find valid release/asset ID in release-info.properties. Update checks may fail.");
+            if (releaseId == -1 && !StringUtils.hasText(tagName)) {
+                log.warn("Could not find valid release info in properties.");
             }
 
             this.currentVersionInfo = new VersionInfo();
             this.currentVersionInfo.releaseId = releaseId;
+            this.currentVersionInfo.tagName = tagName;
             this.currentVersionInfo.assetId = assetId;
             this.currentVersionInfo.libAssetId = libAssetId;
             this.currentVersionInfo.libSha256 = libSha256;
@@ -91,10 +95,12 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
             if (jarAsset == null) {
                 throw new IllegalStateException("未找到 .jar 文件。");
             }
+            String localTag = currentVersionInfo.tagName;
+            String remoteTag = latestRelease.getTagName();
+            log.info("版本比对: Local=[{}] vs Remote=[{}]", localTag, remoteTag);
 
-            // 简单的 ID 检查，决定是否需要开始流程
-            if (latestRelease.getId() == currentVersionInfo.releaseId) {
-                throw new IllegalStateException("当前已是最新版本，无需更新。");
+            if (StringUtils.hasText(localTag) && localTag.equals(remoteTag)) {
+                throw new IllegalStateException("当前已是最新版本 (" + localTag + ")，无需更新。");
             }
 
             log.info("发现新版本 {}，开始处理...", latestRelease.getTagName());
@@ -113,32 +119,40 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
             log.info("新版本信息详情: {}", newVersionInfo);
 
             // 4. 智能检测是否需要下载 lib.zip
-//            GitHubRelease.Asset libAsset = findLibAsset(latestRelease.getAssets());
-//            boolean needDownloadLib = false;
+            // 从 API 返回的 assets 列表中寻找 lib.zip
+            GitHubRelease.Asset libAsset = findLibAsset(latestRelease.getAssets());
+            boolean needDownloadLib = false;
 
-//            if (libAsset != null) {
-//                // 如果当前版本没有哈希记录（旧版本），或者哈希不匹配，则下载
-//                if (!StringUtils.hasText(currentVersionInfo.libSha256) ||
-//                        !currentVersionInfo.libSha256.equals(newVersionInfo.libSha256)) {
-//
-//                    log.info("依赖库哈希变更 (Local: {}, Remote: {})，需要下载依赖库。",
-//                            currentVersionInfo.libSha256, newVersionInfo.libSha256);
-//                    needDownloadLib = true;
-//                } else {
-//                    log.info("依赖库哈希一致 ({})，跳过下载 lib.zip。", currentVersionInfo.libSha256);
-//                }
-//            }
-//
-//            // 5. 如果需要，下载 lib.zip
-//            if (needDownloadLib) {
-//                bot.sendMsg(event, "检测到依赖库变更，正在下载 lib.zip...", false);
-//                downloadAsset(libAsset, "update-lib.zip");
-//            }
+            // 只有当远程 Release 确实包含 lib.zip 时才进行检测
+            if (libAsset != null) {
+                String localHash = currentVersionInfo.libSha256; // 当前内存中的哈希
+                String remoteHash = newVersionInfo.libSha256;    // 新下载Jar包里记录的哈希
 
-            // 6. 重命名/准备重启
-            // 注意：这里我们已经下载了 jar 到 update-temp.jar，通常你的 restart 脚本或逻辑
-            // 需要知道去哪里找这个文件。上面的 downloadAsset 方法把文件存为了 "update-temp.jar" (根据这里的传参)
-            // 你原本的代码是用 "update-temp" 无后缀，请确保和你的重启脚本兼容。
+                log.info("依赖库哈希比对: Local=[{}] vs Remote=[{}]", localHash, remoteHash);
+
+                // 核心判断逻辑：
+                // 1. 如果远程有哈希值 (说明新版确实生成了 lib 信息)
+                if (StringUtils.hasText(remoteHash)) {
+                    // 2. 如果本地哈希为空 (说明是从旧版本升级上来)，或者哈希不一致 -> 下载
+                    if (!StringUtils.hasText(localHash) || !localHash.equals(remoteHash)) {
+                        log.info("检测到依赖库变更 (或本地缺失哈希)，准备下载 lib.zip。");
+                        needDownloadLib = true;
+                    } else {
+                        log.info("依赖库哈希一致，跳过 lib.zip 下载。");
+                    }
+                } else {
+                    // 远程有文件但没哈希？(罕见情况) 为了保险起见，建议下载，或者忽略
+                    log.warn("远程 lib.zip 存在但未读取到哈希值，跳过下载以防错误。");
+                }
+            }
+
+            // 5. 如果需要，下载 lib.zip
+            if (needDownloadLib) {
+                bot.sendMsg(event, "检测到依赖库变更，正在下载 lib.zip (可能耗时较长)...", false);
+                // 下载并保存为 update-lib.zip，供重启脚本处理
+                downloadAsset(libAsset, "update-lib.zip");
+            }
+
 
             bot.sendMsg(event, "更新包准备就绪，应用即将重启...", false);
             restartApplication(event);
@@ -148,16 +162,16 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
         }
     }
 
-    // 【新增辅助方法】从 Jar 包中读取 release-info.properties
     private VersionInfo readVersionInfoFromJar(File jarFile) {
         VersionInfo info = new VersionInfo();
-        try (java.util.jar.JarFile jar = new java.util.jar.JarFile(jarFile)) {
-            java.util.jar.JarEntry entry = jar.getJarEntry("release-info.properties");
+        try (JarFile jar = new JarFile(jarFile)) {
+            JarEntry entry = jar.getJarEntry("release-info.properties");
             if (entry != null) {
                 try (InputStream is = jar.getInputStream(entry)) {
                     Properties props = new Properties();
                     props.load(is);
                     info.releaseId = Long.parseLong(props.getProperty("github.release.id", "-1"));
+                    info.tagName = props.getProperty("github.release.tag_name", "");
                     info.assetId = Long.parseLong(props.getProperty("github.asset.id", "-1"));
                     info.libAssetId = Long.parseLong(props.getProperty("github.lib.asset.id", "-1"));
                     info.libSha256 = props.getProperty("github.lib.sha256", "");
