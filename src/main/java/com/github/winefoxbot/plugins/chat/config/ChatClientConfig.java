@@ -1,8 +1,6 @@
 package com.github.winefoxbot.plugins.chat.config;
 
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.openai.OpenAiChatModel;
-import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,7 +31,7 @@ public class ChatClientConfig {
     }
 
     @Bean
-    public ChatClient openAiChatClient(ChatClient.Builder builder, OpenAiChatModel openAiChatModel, List<String> aiToolNames) {
+    public ChatClient openAiChatClient(ChatClient.Builder builder, List<String> aiToolNames) {
         // 将扫描到的所有工具名称注册为全局默认工具
         return builder
                 .defaultToolNames(aiToolNames.toArray(new String[0]))
