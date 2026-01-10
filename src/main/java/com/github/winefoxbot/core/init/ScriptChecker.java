@@ -57,7 +57,6 @@ public class ScriptChecker {
                     // 但通常 ApplicationHome 是一次性的，后续脚本生成只依赖目录路径，所以影响不大。
                     // 只是此时若继续运行可能会有问题（因为 classpath 里的 jar 名字变了），建议提示重启。
                     System.out.println("[ScriptChecker] 为了确保系统稳定，请使用新文件名重新启动或直接使用脚本管理。");
-                    System.exit(0);
                 } else {
                     // 如果重命名失败（常见于 Windows 文件被锁定），尝试复制一份
                     try {
