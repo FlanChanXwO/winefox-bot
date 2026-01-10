@@ -6,7 +6,8 @@ set "JAVA_OPTS=-Xms400m -Xmx800m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+Heap
 :: ====================================================
 
 set "JAR_PATH=winefox-bot.jar"
-set "TEMP_JAR_PATH=update-temp"
+set "TEMP_JAR_PATH=update-temp.jar"
+set "TEMP_LIB_PATH=update-lib.zip"
 set "UPDATE_EXIT_CODE=5"
 
 :: 切换目录

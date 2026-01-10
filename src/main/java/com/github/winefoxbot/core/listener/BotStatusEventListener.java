@@ -29,7 +29,6 @@ public class BotStatusEventListener extends CoreEvent {
     private final ShiroBotsService shiroBotsService;
     private final WineFoxBotProperties wineFoxBotProperties;
     private final ObjectMapper objectMapper;
-    private final GitHubUpdateService updateService;
     private final AtomicBoolean restartNoticeSent = new AtomicBoolean(false);
     private static final String RESTART_INFO_FILE = "restart-info.json";
 
@@ -89,7 +88,7 @@ public class BotStatusEventListener extends CoreEvent {
             // 格式化最终消息
             String finalMessage = restartInfo.getSuccessMessage()
                     .replace("{duration}", String.format("%.2f秒", durationSeconds))
-                    .replace("{version}",wineFoxBotProperties.getApp().getVersion());
+                    .replace("{version}" , 'v' + wineFoxBotProperties.getApp().getVersion());
 
             // 发送消息
             if (MessageType.GROUP.equals(restartInfo.getMessageType())) {

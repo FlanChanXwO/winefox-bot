@@ -7,7 +7,8 @@ JAVA_OPTS="-Xms400m -Xmx800m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDump
 # 目标 JAR 文件的相对路径
 JAR_PATH="winefox-bot.jar"
 # 更新时下载的临时 JAR 文件的相对路径
-TEMP_JAR_PATH="update-temp"
+TEMP_JAR_PATH="update-temp.jar"
+TEMP_LIB_PATH="update-lib.zip"
 # 触发更新的特定退出码
 UPDATE_EXIT_CODE=5
 # ==================================================

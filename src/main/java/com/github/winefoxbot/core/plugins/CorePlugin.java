@@ -90,7 +90,7 @@ public class CorePlugin {
             GitHubUpdateService.VersionInfo currentVersion = updateService.getCurrentVersionInfo();
             GitHubRelease latestRelease = updateService.fetchLatestRelease();
             msg = "版本信息：\n" +
-                    "当前版本: " +  wineFoxBotProperties.getApp().getVersion() + "\n" +
+                    "当前版本: " + 'v' +  wineFoxBotProperties.getApp().getVersion() + "\n" +
                     "最新版本: " + latestRelease.getTagName();
             if (latestRelease.getId() > currentVersion.releaseId) {
                 msg += "\n\n检测到新版本！可发送 '更新版本' 命令进行升级。";
