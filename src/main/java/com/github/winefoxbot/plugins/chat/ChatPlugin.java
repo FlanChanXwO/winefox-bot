@@ -131,7 +131,7 @@ public class ChatPlugin {
     @Async
     @Order(100)
     @Block
-    @Limit(userPermits = 1, timeInSeconds = 10, notificationIntervalSeconds = 30, message = "说话太快了，酒狐需要思考一会儿哦~")
+    @Limit(userPermits = 1, timeInSeconds = 5, notificationIntervalSeconds = 30, message = "说话太快了，酒狐需要思考一会儿哦~")
     @MessageHandlerFilter(types = {MsgTypeEnum.text, MsgTypeEnum.image},at = AtEnum.NEED)
     public void handleGroupChatMessage(Bot bot, GroupMessageEvent event) {
         String plainMessage = MessageConverter.getPlainTextMessage(event.getMessage());

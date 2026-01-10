@@ -62,7 +62,7 @@ public class PixivSearchPlugin {
     // 会话管理
     private final Map<String, LastSearchResult> lastSearchResultMap = new ConcurrentHashMap<>();
     private final Map<String, ScheduledFuture<?>> sessionTimeoutTasks = new ConcurrentHashMap<>();
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService scheduler;
 
     // 用户并发请求控制
     private final ConcurrentHashMap<Long, AtomicInteger> userRequestCounts = new ConcurrentHashMap<>();

@@ -7,9 +7,13 @@ import java.io.*;
  * 支持 "classpath:" 前缀加载类路径资源
  * 否则尝试加载文件系统资源
  */
-public class ResourceLoader {
+public final class ResourceLoader {
 
     public static final String CLASSPATH_PREFIX = "classpath:";
+
+    private ResourceLoader() {
+        throw new UnsupportedOperationException("工具类不允许实例化");
+    }
 
     /**
      * 获取资源流

@@ -219,3 +219,17 @@ COMMENT ON COLUMN pixiv_bookmark.x_restrict IS '作品分级 (0: ALL_AGES, 1: R1
 COMMENT ON COLUMN pixiv_bookmark.create_time IS '记录在本地数据库的创建时间';
 COMMENT ON COLUMN pixiv_bookmark.update_time IS '记录在本地数据库的更新时间';
 
+-- 创建运势表
+CREATE TABLE IF NOT EXISTS public.fortune_data (
+                                                      user_id BIGINT NOT NULL PRIMARY KEY, -- 用户QQ号/ID
+                                                      star_num INT NOT NULL DEFAULT 0,     -- 运势星级 (0-7)
+                                                      fortune_date DATE NOT NULL,          -- 运势日期 (yyyy-MM-dd)
+                                                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL ,
+                                                      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- 添加注释
+COMMENT ON TABLE public.fortune_data IS '今日运势数据表';
+COMMENT ON COLUMN public.fortune_data.user_id IS '用户ID';
+COMMENT ON COLUMN public.fortune_data.star_num IS '运势星级';
+COMMENT ON COLUMN public.fortune_data.fortune_date IS '运势归属日期';

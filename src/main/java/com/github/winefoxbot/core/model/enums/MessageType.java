@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.EnumValue;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.github.winefoxbot.core.model.type.BaseEnum;
 import lombok.Getter;
+import lombok.ToString;
 
 /**
  * @author FlanChan (badapple495@outlook.com)

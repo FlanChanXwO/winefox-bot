@@ -2,15 +2,14 @@ package com.github.winefoxbot.plugins.pixiv.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
+import com.github.winefoxbot.core.config.playwright.PlaywrightConfig;
+import com.github.winefoxbot.core.utils.Base64Utils;
 import com.github.winefoxbot.plugins.pixiv.config.PixivProperties;
 import com.github.winefoxbot.plugins.pixiv.model.dto.search.PixivSearchParams;
 import com.github.winefoxbot.plugins.pixiv.model.dto.search.PixivSearchResult;
 import com.github.winefoxbot.plugins.pixiv.service.PixivSearchService;
 import com.microsoft.playwright.*;
-import com.microsoft.playwright.options.Cookie;
-import com.microsoft.playwright.options.LoadState;
-import com.microsoft.playwright.options.ScreenshotType;
-import com.microsoft.playwright.options.WaitForSelectorState;
+import com.microsoft.playwright.options.*;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.Builder;
@@ -43,6 +42,7 @@ public class PixivSearchServiceImpl implements PixivSearchService {
 
     private final PixivProperties pixivProperties;
     private final Browser browser;
+    private final PlaywrightConfig playwrightConfig;
     private final TemplateEngine templateEngine;
     private final ResourcePatternResolver resourceResolver;
     private ExecutorService imageDownloadExecutor;
@@ -75,18 +75,6 @@ public class PixivSearchServiceImpl implements PixivSearchService {
      * 每次重试之间的间隔时间（毫秒）
      */
     private static final long RETRY_INTERVAL_MS = 500L;
-
-
-    @Data
-    @Builder
-    public static class ArtworkViewData {
-        private String pid;
-        private String uid;
-        private String title;
-        private String userName;
-        private String imageBase64; // 图片的 Base64 Data URI
-        private int itemIndex;     // 列表中的索引，用于显示序号 (从 0 开始)
-    }
 
 
     @PostConstruct
@@ -171,7 +159,7 @@ public class PixivSearchServiceImpl implements PixivSearchService {
                     String finalHtml = templateEngine.process(HTML_TEMPLATE, thymeleafContext);
 
                     byte[] finalScreenshot;
-                    try (BrowserContext screenshotContext = browser.newContext(new Browser.NewContextOptions().setDeviceScaleFactor(1))) {
+                    try (BrowserContext screenshotContext = browser.newContext(new Browser.NewContextOptions().setDeviceScaleFactor(playwrightConfig.getDeviceScaleFactor()))) {
                         Page screenshotPage = screenshotContext.newPage();
                         screenshotPage.setContent(finalHtml);
                         Locator gridImageLocator = screenshotPage.locator(".pixiv-card img");
@@ -362,16 +350,6 @@ public class PixivSearchServiceImpl implements PixivSearchService {
 
     // 【新增】将单个资源文件转换为 Data URI
     private String loadResourceAsDataUri(Resource resource) throws IOException {
-        byte[] fileBytes = resource.getInputStream().readAllBytes();
-        String mimeType = "application/octet-stream";
-        String filename = resource.getFilename();
-        if (filename != null) {
-            if (filename.endsWith(".png")) mimeType = "image/png";
-            else if (filename.endsWith(".jpg") || filename.endsWith(".jpeg")) mimeType = "image/jpeg";
-            else if (filename.endsWith(".svg")) mimeType = "image/svg+xml";
-            else if (filename.endsWith(".gif")) mimeType = "image/gif";
-            else if (filename.endsWith(".css")) mimeType = "text/css";
-        }
-        return "data:" + mimeType + ";base64," + Base64.getEncoder().encodeToString(fileBytes);
+        return Base64Utils.toBase64String(resource);
     }
 }

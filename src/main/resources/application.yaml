@@ -15,14 +15,6 @@ spring:
   threads:
     virtual:
       enabled: true
-  cache:
-#    测试使用，已不再使用
-#    type: caffeine # 指定缓存类型为 caffeine
-#    caffeine:
-#      spec: > # 使用 spec 字符串进行详细配置
-#        maximumSize=500,
-#        expireAfterWrite=10m
-    type: redis
   data:
     redis:
       timeout: 1000ms # Redis 操作超时时间
@@ -37,8 +29,8 @@ spring:
       schema-locations: classpath:db/schema-postgres.sql
   datasource:
     # 数据库驱动和连接池配置
-    type: com.zaxxer.hikari.HikariDataSource
     driver-class-name: org.postgresql.Driver
+    type: com.zaxxer.hikari.HikariDataSource
     hikari:
       auto-commit: true
       connection-timeout: 30000
@@ -47,7 +39,6 @@ spring:
     openai:
       chat:
         completions-path: /v1/chat/completions
-
 setu:
   api:
     # 1. 基础信息
@@ -55,7 +46,7 @@ setu:
     # 响应类型：有json和image两种可选
     response-type: json #建议使用 json 类型，便于后续扩展功能
     # jsonPath 表达式，用于从 API 响应中提取图片 URL
-    json-path: "$.data[0].urls.original"
+    json-path: "$.data[*].urls.original"
 
     # 2. API 查询参数配置
     params:
@@ -88,7 +79,32 @@ setu:
       r18: # 从返回的响应中获取
         key: "r18"
         value: "true"
-        json-path: "$.data[0].r18"
+        json-path: "$.data[*].r18"
+
+fortune:
+  api: "custom" # 使用自定义模式
+  # api: "lolicon" # 或者使用预设的 lolicon (代码中已剔除R18参数)
+
+  allow-refresh-jrys: false
+  auto-refresh-jrys: true
+
+  # 自定义 API 配置示例 (以 lolicon 为例，但通过 custom 配置)
+  custom-api:
+    url: "https://api.lolicon.app/setu/v2"
+    response-type: JSON
+    json-path: "$.data[0].urls.original"
+    params:
+      static-params:
+        - key: "num"
+          value: "1"
+        - key: "r18"
+          value: "0" # 强制非 R18
+        - key: "tag"
+          value: "碧蓝档案"
+        - key: "excludeAI"
+          value: "true"
+        - key: "size"
+          value: "original"
 
 # B站解析功能配置
 analysis-bilibili:
@@ -100,6 +116,9 @@ analysis-bilibili:
 # 服务器端口
 server:
   port: 5000
+
+playwright:
+  type: edge
 
 # 网络代理配置
 okhttp:
@@ -177,9 +196,10 @@ shiro:
     server:
       url: /ws/shiro
       enable: true
-    client:
-      reconnect-interval: 5
-  interceptor: com.github.winefoxbot.core.aop.interceptor.BotReceiveMsgInterceptor
+  interceptor: com.github.winefoxbot.core.aop.interceptor.ShiroBotMsgInterceptor
+  group-event-filter: true
+  group-self-bot-event-filter: false
+
 
 # JobRunr 任务调度配置
 jobrunr:

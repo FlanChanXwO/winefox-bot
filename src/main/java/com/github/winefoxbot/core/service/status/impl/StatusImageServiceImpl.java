@@ -1,8 +1,10 @@
 package com.github.winefoxbot.core.service.status.impl;
 
+import com.github.winefoxbot.core.config.playwright.PlaywrightConfig;
 import com.github.winefoxbot.core.config.status.StatusImageGeneratorConfig;
 import com.github.winefoxbot.core.service.denpencyversion.DependencyVersionService;
 import com.github.winefoxbot.core.service.status.StatusImageService;
+import com.github.winefoxbot.core.utils.Base64Utils;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
@@ -47,8 +49,9 @@ public class StatusImageServiceImpl implements StatusImageService {
     private static final DecimalFormat DF = new DecimalFormat("0.00");
 
     private final TemplateEngine templateEngine;
-    private final ResourcePatternResolver resourceResolver;
     private final Browser browser;
+    private final ResourcePatternResolver resourceResolver;
+    private final PlaywrightConfig playwrightConfig;
     private final StatusImageGeneratorConfig config;
     // 用于获取插件数量
     private final PluginManager pluginManager;
@@ -162,7 +165,7 @@ public class StatusImageServiceImpl implements StatusImageService {
     }
 
     private byte[] captureScreenshot(String htmlContent) {
-        try (Page page = browser.newPage()) {
+        try (Page page = browser.newPage(new Browser.NewPageOptions().setDeviceScaleFactor(playwrightConfig.getDeviceScaleFactor()))) {
             page.setContent(htmlContent);
             Locator cardElement = page.locator(".card");
             cardElement.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE));
@@ -186,11 +189,7 @@ public class StatusImageServiceImpl implements StatusImageService {
                     return config.getDefaultImageBase64();
                 }
 
-                try (InputStream is = resource.getInputStream()) {
-                    byte[] fileContent = is.readAllBytes();
-                    String mimeType = getMimeType(imagePath);
-                    return "data:" + mimeType + ";base64," + Base64.getEncoder().encodeToString(fileContent);
-                }
+                return Base64Utils.toBase64String(resource);
             } else {
                 File file = new File(imagePath);
                 if (!file.exists()) {
@@ -198,11 +197,7 @@ public class StatusImageServiceImpl implements StatusImageService {
                     return config.getDefaultImageBase64();
                 }
 
-                try (InputStream is = Files.newInputStream(file.toPath())) {
-                    byte[] fileContent = is.readAllBytes();
-                    String mimeType = getMimeType(imagePath);
-                    return "data:" + mimeType + ";base64," + Base64.getEncoder().encodeToString(fileContent);
-                }
+                return Base64Utils.toBase64String(file);
             }
         } catch (IOException e) {
             log.error("读取图片资源失败: {}", imagePath, e);
@@ -230,21 +225,13 @@ public class StatusImageServiceImpl implements StatusImageService {
             }
     }
 
-    
-    private String getMimeType(String path) {
-        if (path.endsWith(".png")) return "image/png";
-        if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
-        if (path.endsWith(".gif")) return "image/gif";
-        if (path.endsWith(".webp")) return "image/webp";
-        return "application/octet-stream"; // 默认MIME类型
-    }
 
     private String toNickNameEllipsis(String str) {
         return str.length() > 10 ? str.substring(0, 10) + "..." : str;
     }
 
     private String toSystemInfoEllipsis(String str) {
-        return str.length() > 30 ? str.substring(0, 30) + "..." : str;
+        return str.length() > 35 ? str.substring(0, 35) + "..." : str;
     }
 
 }

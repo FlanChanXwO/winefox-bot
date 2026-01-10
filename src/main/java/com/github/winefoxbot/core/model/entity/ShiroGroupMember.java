@@ -1,8 +1,6 @@
 package com.github.winefoxbot.core.model.entity;
 
-import com.baomidou.mybatisplus.annotation.FieldFill;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import com.github.winefoxbot.core.model.enums.GroupMemberRole;
 import com.github.winefoxbot.core.model.type.GenericEnumTypeHandler;
 import lombok.Data;
@@ -19,6 +17,7 @@ public class ShiroGroupMember {
     /**
      * 羣組 ID (複合主鍵的一部分)
      */
+    @TableId(type = IdType.INPUT)
     private Long groupId;
 
     /**

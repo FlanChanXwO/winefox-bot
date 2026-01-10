@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Fortune Card</title>
+    <style>
+        /* 参考帮助文档的字体配置 */
+        @font-face {
+            font-family: 'NotoSansSC-Regular';
+            src: local('Noto Sans SC Regular'), local('思源黑体 CN Regular'), sans-serif;
+        }
+        @font-face {
+            font-family: 'NotoSansSC-Bold';
+            src: local('Noto Sans SC Bold'), local('思源黑体 CN Bold'), sans-serif;
+        }
+        @font-face {
+            font-family: 'SSFangTangTi';
+            src: local('得意黑'), local('Smiley Sans'), local('SSFangTangTi'), sans-serif;
+        }
+
+        :root {
+            /* 默认颜色 - 参考帮助文档的粉色系 */
+            --primary-color: #d15a7c;
+            --bg-color: #fff0f5;
+            --header-bg: #ffdae5;
+            --text-main: #2d3436;
+        }
+
+        /* 动态主题色覆盖 - 保持原有逻辑并适配新样式 */
+        .theme-red { --primary-color: #d63031; --bg-color: #ffe6e6; --header-bg: #ffcccc; }
+        .theme-gold { --primary-color: #f0932b; --bg-color: #fff7e6; --header-bg: #ffeaa7; }
+        .theme-blue { --primary-color: #0984e3; --bg-color: #e6f7ff; --header-bg: #bae7ff; }
+        .theme-gray { --primary-color: #636e72; --bg-color: #f5f5f5; --header-bg: #e0e0e0; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            width: 480px; /* 固定宽度 */
+            font-family: 'NotoSansSC-Regular', sans-serif;
+            background: transparent;
+        }
+
+        .container {
+            width: 440px;
+            margin: 20px;
+            background-color: var(--bg-color);
+            border-radius: 20px;
+            padding: 20px;
+            box-sizing: border-box;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+            gap: 15px; /* 元素间距 */
+        }
+
+        /* 顶部信息栏 */
+        .info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--header-bg);
+            padding: 10px 15px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .username {
+            font-family: 'NotoSansSC-Bold', sans-serif;
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .date {
+            font-size: 12px;
+            color: #777;
+            background-color: rgba(255,255,255,0.6);
+            padding: 2px 8px;
+            border-radius: 8px;
+        }
+
+        /* 图片区域 - 完整显示 */
+        .hero-image {
+            width: 100%;
+            background-color: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            /* 去除图片底部白边 */
+            display: flex;
+        }
+
+        .hero-image img {
+            width: 100%;
+            height: auto; /* 保持比例，完整显示 */
+            display: block;
+        }
+
+        /* 底部信息卡片 */
+        .result-card {
+            background-color: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+
+        .fortune-title {
+            font-family: 'SSFangTangTi', 'NotoSansSC-Bold', sans-serif;
+            font-size: 42px;
+            color: var(--primary-color);
+            margin: 0 0 5px 0;
+            text-shadow: 1px 1px 0 rgba(0,0,0,0.05);
+        }
+
+        .stars {
+            color: #fdcb6e;
+            font-size: 24px;
+            margin-bottom: 15px;
+            letter-spacing: 2px;
+        }
+
+        .desc-box {
+            text-align: left;
+            background: #fafafa;
+            border-left: 4px solid var(--primary-color);
+            padding: 12px 15px;
+            border-radius: 4px;
+        }
+
+        .desc-text {
+            font-size: 15px;
+            line-height: 1.5;
+            color: #444;
+        }
+
+        .extra-text {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #888;
+            font-style: italic;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 10px;
+            color: #aaa;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 动态绑定 class 用于切换颜色主题 -->
+<div class="container" th:classappend="${themeColor}">
+    <!-- 头部信息 -->
+    <div class="info-header">
+        <span class="username" th:text="${username} + ' 的运势'">指挥官 的运势</span>
+        <span class="date" th:text="${dateStr}">2026-01-10</span>
+    </div>
+
+    <!-- 图片区域 -->
+    <div class="hero-image">
+        <!-- 只有当有图片时才显示 -->
+        <img th:if="${imageUrl != null}" th:src="${imageUrl}" alt="Character" crossorigin="anonymous"
+             onerror="this.style.display='none'; this.parentElement.style.display='none';"/>
+        <!-- 默认图 (可选) -->
+        <img th:unless="${imageUrl != null}" src="https://via.placeholder.com/400x300?text=No+Image" alt="Default"/>
+    </div>
+
+    <!-- 运势结果详情 -->
+    <div class="result-card">
+        <div class="fortune-title" th:text="${title}">大吉</div>
+
+        <div class="stars">
+            <span th:text="${'★'.repeat(starCount) + '☆'.repeat(7-starCount)}">★★★★★☆☆</span>
+        </div>
+
+        <div class="desc-box">
+            <div class="desc-text" th:text="${description}">
+                运势描述文案在此...
+            </div>
+            <div class="extra-text" th:if="${extraMessage != null}" th:text="${extraMessage}">
+                宜：摸鱼
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">WINEFOX BOT PROJECT</div>
+</div>
+
+</body>
+</html>

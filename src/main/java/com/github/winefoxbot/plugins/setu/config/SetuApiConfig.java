@@ -21,7 +21,9 @@ public class SetuApiConfig {
 
     @NotNull(message = "API 响应类型 (setu.api.response-type) 不能为空")
     private ResponseType responseType;
-
+    /**
+     * JSON路径，用于从API响应中提取图片URL列表
+     */
     private String jsonPath;
 
     private Params params = new Params();

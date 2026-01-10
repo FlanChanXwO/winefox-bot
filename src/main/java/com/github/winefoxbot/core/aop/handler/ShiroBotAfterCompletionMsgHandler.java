@@ -26,7 +26,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class BotReceiveMsgHandler {
+public class ShiroBotAfterCompletionMsgHandler {
 
     private final ShiroUsersService shiroUsersService;
     private final ShiroGroupsService shiroGroupsService;
@@ -35,22 +35,31 @@ public class BotReceiveMsgHandler {
 
     @Async
     public void handle(Bot bot, MessageEvent event) {
-
         try {
-            // 1. Save or Update User (直接使用传入的 bot 实例)
+            // 判断消息方向：如果发送者ID等于机器人自身ID，则是发送的消息
+            Long selfId = bot.getSelfId();
+            Long userId = event.getUserId();
+            boolean isSelf = userId != null && userId.equals(selfId);
+            MessageDirection direction = isSelf ? MessageDirection.MESSAGE_SENT : MessageDirection.MESSAGE_RECEIVE;
+
+            // 1. 保存或更新用户信息（如果是发送的消息，userId就是Bot自己）
             ShiroUser user = extractUserFromEvent(bot, event);
             shiroUsersService.saveOrUpdate(user);
-            // 2. Build Message
-            ShiroMessage message = buildShiroMessage(bot, event);
-            // 3. Handle Group Specific Logic
+
+            // 2. 构建消息实体
+            ShiroMessage message = buildShiroMessage(bot, event, direction);
+
+            // 3. 处理群组或私聊特定的逻辑
             if (event instanceof GroupMessageEvent groupEvent) {
-                // 处理群组信息
+                // 保存群组信息
                 ShiroGroup group = extractGroupFromEvent(bot, groupEvent);
                 shiroGroupsService.saveOrUpdate(group);
                 shiroGroupMembersService.saveOrUpdateGroupMemberInfo(groupEvent);
 
                 message.setSessionId(groupEvent.getGroupId());
             } else {
+                // 私聊：SessionId设为对方的UserId（若是接收，则是发送者；若是发送，理想情况下应是接收者）
+                // 注意：在OneBot标准的私聊自上报事件中，可能需要自行解析target_id，这里暂使用event.getUserId()作为会话ID
                 message.setSessionId(event.getUserId());
             }
 
@@ -60,25 +69,30 @@ public class BotReceiveMsgHandler {
                 return;
             }
 
-            // 4. Save Message
+            // 4. 保存消息
             shiroMessagesService.save(message);
-            log.info("Saved message ID: {}, Content: {}", message.getMessageId(), message.getPlainText());
+            // 调整日志级别，避免刷屏，仅记录
+            log.debug("Saved {} message ID: {}, Session: {}", direction, message.getMessageId(), message.getSessionId());
         } catch (Exception e) {
-            log.error("Error handling received message. event: {}", event, e);
+            log.error("Error handling message event. event: {}", event, e);
         }
     }
 
 
-    private ShiroMessage buildShiroMessage(Bot bot, MessageEvent event) {
+    private ShiroMessage buildShiroMessage(Bot bot, MessageEvent event, MessageDirection direction) {
         ShiroMessage message = new ShiroMessage();
 
-        // 提取 Message ID
+        // 安全提取 Message ID
         long msgId = switch (event) {
-            case AnyMessageEvent e -> e.getMessageId().longValue();
-            case GroupMessageEvent e -> e.getMessageId().longValue();
-            case PrivateMessageEvent e -> e.getMessageId().longValue();
-            case null, default -> RandomUtil.randomLong();
+            case AnyMessageEvent e -> e.getMessageId() != null ? e.getMessageId().longValue() : -1L;
+            case GroupMessageEvent e -> e.getMessageId() != null ? e.getMessageId().longValue() : -1L;
+            case PrivateMessageEvent e -> e.getMessageId() != null ? e.getMessageId().longValue() : -1L;
+            case null, default -> -1L;
         };
+
+        if (msgId == -1L) {
+            msgId = RandomUtil.randomLong();
+        }
 
         message.setMessageId(msgId);
         message.setSelfId(bot.getSelfId());
@@ -86,7 +100,7 @@ public class BotReceiveMsgHandler {
         message.setUserId(event.getUserId());
         message.setMessage(MessageConverter.parseCQToJSONArray(event.getRawMessage()));
         message.setPlainText(MessageConverter.getPlainTextMessage(event.getMessage()));
-        message.setDirection(MessageDirection.MESSAGE_RECEIVE);
+        message.setDirection(direction);
         return message;
     }
 
@@ -95,13 +109,12 @@ public class BotReceiveMsgHandler {
         user.setUserId(event.getUserId());
         user.setAvatarUrl(ShiroUtils.getUserAvatar(event.getUserId(), 0));
 
-        // 直接使用传入的 bot 获取信息，无需从容器查找
         try {
             String userNickname = BotUtils.getUserNickname(bot, event.getUserId());
             user.setNickname(userNickname);
         } catch (Exception e) {
-            log.warn("Failed to fetch user nickname for userId: {}", event.getUserId());
-            user.setNickname("Unknown User"); // 降级处理
+            log.debug("Failed to fetch user nickname for userId: {}", event.getUserId());
+            user.setNickname("Unknown User");
         }
         return user;
     }
@@ -117,7 +130,7 @@ public class BotReceiveMsgHandler {
             String groupName = BotUtils.getGroupName(bot, groupId);
             group.setGroupName(groupName);
         } catch (Exception e) {
-            log.warn("Failed to fetch group name for groupId: {}", groupId);
+            log.debug("Failed to fetch group name for groupId: {}", groupId);
             group.setGroupName("Unknown Group");
         }
         return group;

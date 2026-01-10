@@ -5,29 +5,29 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.8</version>
+        <version>4.0.1</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
 
     <groupId>com.github</groupId>
     <artifactId>winefox-bot</artifactId>
-    <version>1.7.16</version>
+    <version>1.8.0</version>
 
     <name>winefox-bot</name>
 
     <properties>
         <skipTests>true</skipTests>
-        <java.version>21</java.version>
-        <target.version>21</target.version>
-        <source.version>21</source.version>
-        <spring-ai.version>1.1.0</spring-ai.version>
-        <qq.bot.framework.version>2.5.0</qq.bot.framework.version>
+        <java.version>25</java.version>
+        <target.version>25</target.version>
+        <source.version>25</source.version>
+        <spring-ai.version>2.0.0-M1</spring-ai.version>
+        <qq.bot.framework.version>2.5.2</qq.bot.framework.version>
         <okhttp.version>4.12.0</okhttp.version>
-        <lombok.version>1.18.30</lombok.version>
-        <hutool.version>5.8.16</hutool.version>
-        <tika.version>2.9.1</tika.version>
+        <lombok.version>1.18.42</lombok.version>
+        <hutool.version>5.8.43</hutool.version>
+        <tika.version>3.2.3</tika.version>
         <jsoup.version>1.21.2</jsoup.version>
-        <mybatis-plus.version>3.5.11</mybatis-plus.version>
+        <mybatis-plus.version>3.5.15</mybatis-plus.version>
         <java-image-scaling.version>0.8.6</java-image-scaling.version>
         <commons-io.version>2.14.0</commons-io.version>
         <guava.version>32.1.2-jre</guava.version>
@@ -46,7 +46,7 @@
         <!-- spring web 依赖 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -62,11 +62,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>com.github.ben-manes.caffeine</groupId>-->
-<!--            <artifactId>caffeine</artifactId>-->
-<!--            &lt;!&ndash; 使用 Spring Boot Parent 管理版本，或自行指定最新版本 &ndash;&gt;-->
-<!--        </dependency>-->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-model-openai</artifactId>
@@ -121,7 +116,7 @@
         <!-- 切面编程依赖 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aop</artifactId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
         </dependency>
         <dependency>
             <groupId>org.aspectj</groupId>
@@ -165,7 +160,7 @@
         <!-- MyBatis-Plus 依赖 -->
         <dependency>
             <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
             <version>${mybatis-plus.version}</version>
         </dependency>
         <!-- redis -->
@@ -183,13 +178,14 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
             <optional>true</optional>
         </dependency>
         <!-- 任务调度 -->
         <!-- https://mvnrepository.com/artifact/org.jobrunr/jobrunr-spring-boot-3-starter -->
         <dependency>
             <groupId>org.jobrunr</groupId>
-            <artifactId>jobrunr-spring-boot-3-starter</artifactId>
+            <artifactId>jobrunr-spring-boot-4-starter</artifactId>
             <version>${jobrunr.version}</version>
         </dependency>
         <dependency>
@@ -248,10 +244,26 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-java</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.bonigarcia</groupId>
+            <artifactId>webdrivermanager</artifactId>
+            <version>6.3.3</version>
+        </dependency>
     </dependencies>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.seleniumhq.selenium</groupId>
+                <artifactId>selenium-bom</artifactId>
+                <version>4.37.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
@@ -267,6 +279,17 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>${source.version}</source>
+                    <target>${target.version}</target>
+                    <annotationProcessorPaths>
+                        <dependency>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </dependency>
+                    </annotationProcessorPaths>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
@@ -288,6 +311,7 @@
                         </exclude>
                     </excludes>
                     <jvmArguments>
+                        --enable-native-access=ALL-UNNAMED
                         --add-opens java.base/sun.reflect.annotation=ALL-UNNAMED
                     </jvmArguments>
                 </configuration>
@@ -299,10 +323,26 @@
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
+                <excludes>
+                    <exclude>**/*.mp3</exclude>
+                    <exclude>**/*.wav</exclude>
+                    <exclude>**/*.png</exclude>
+                    <exclude>**/*.jpg</exclude>
+                    <exclude>**/*.jpeg</exclude>
+                </excludes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
                 <includes>
-                    <include>**/*</include> <!-- 包含所有文件 -->
+                    <include>**/*.mp3</include>
+                    <include>**/*.wav</include>
+                    <include>**/*.png</include>
+                    <include>**/*.jpg</include>
+                    <include>**/*.jpeg</include>
                 </includes>
             </resource>
+
         </resources>
     </build>
 

@@ -1,27 +1,31 @@
 package com.github.winefoxbot.plugins.pixiv.model.dto.common;
 
 import com.github.winefoxbot.plugins.pixiv.model.enums.PixivArtworkType;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
  * @author FlanChan (badapple495@outlook.com)
  * @since 2025-12-16-21:12
  */
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class PixivArtworkInfo {
-    private String pid;
-    private String title;
-    private String uid;
-    private String userName;
-    private String description;
-    private Boolean isR18;
-    private PixivArtworkType type;
-    private List<String> tags = new ArrayList<>();
+public record PixivArtworkInfo(
+        String pid,
+        String title,
+        String uid,
+        String userName,
+        String description,
+        Boolean isR18,
+        PixivArtworkType type,
+        List<String> tags
+) {
+    // 紧凑构造函数，用于处理默认值防御性拷贝
+    public PixivArtworkInfo {
+        if (tags == null) {
+            tags = Collections.emptyList();
+        } else {
+            // 保持不可变性
+            tags = List.copyOf(tags);
+        }
+    }
 }

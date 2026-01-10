@@ -345,38 +345,6 @@
       "name": "娱乐功能",
       "documentation": [
         {
-          "name": "今日运势",
-          "description": "获取您今天的运势，每日一次。",
-          "permission": "普通用户",
-          "commands": [
-            "今日运势"
-          ]
-        },
-        {
-          "name": "刷新今日运势",
-          "description": "刷新您自己的今日运势。请勿滥用。",
-          "permission": "超级用户",
-          "commands": [
-            "/刷新今日运势"
-          ]
-        },
-        {
-          "name": "刷新全局今日运势",
-          "description": "【管理员】强制刷新所有人的今日运势。",
-          "permission": "管理员",
-          "commands": [
-            "/刷新全局今日运势"
-          ]
-        },
-        {
-          "name": "刷新运势图片列表",
-          "description": "【管理员】重新加载“今日运势”使用的本地图片列表。",
-          "permission": "管理员",
-          "commands": [
-            "/刷新今日运势图片列表"
-          ]
-        },
-        {
           "name": "即梦绘画",
           "description": "生成绘画作品。\n用法1: /即梦绘画 <关键词>（文生图）\n用法2: 回复一张图片并附上 /即梦绘画 <关键词>（图生图）",
           "permission": "普通用户",

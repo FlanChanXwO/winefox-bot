@@ -5,6 +5,7 @@ import com.github.winefoxbot.core.model.dto.HelpData;
 import com.github.winefoxbot.core.model.dto.HelpGroup;
 import com.github.winefoxbot.core.service.file.FileStorageService;
 import com.github.winefoxbot.core.service.helpdoc.HelpImageService;
+import com.github.winefoxbot.core.utils.Base64Utils;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Locator;
@@ -14,18 +15,18 @@ import com.microsoft.playwright.options.WaitForSelectorState;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.tika.Tika;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Service;
-import org.springframework.util.FileCopyUtils;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.time.Duration;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * 帮助图片生成服务的实现类。
@@ -42,7 +43,6 @@ public class HelpImageServiceImpl implements HelpImageService {
     private final ResourcePatternResolver resourceResolver;
     private final Browser browser;
     private final FileStorageService fileStorageService;
-    private static final Tika TIKA_INSTANCE = new Tika();
     private static final String HTML_TEMPLATE = "help_report/main";
     private static final String RESOURCE_BASE_PATH = "templates/help_report/res";
 
@@ -198,15 +198,6 @@ public class HelpImageServiceImpl implements HelpImageService {
         if (resource == null || !resource.exists()) {
             throw new IOException("Resource does not exist or is null.");
         }
-        byte[] fileContent;
-        String mimeType;
-        // Tika可以直接从InputStream检测，避免将整个文件读入内存两次
-        try (InputStream inputStream = resource.getInputStream()) {
-            fileContent = FileCopyUtils.copyToByteArray(inputStream);
-            // 从字节数组检测MIME类型，更准确
-            mimeType = TIKA_INSTANCE.detect(fileContent);
-        }
-        String encodedString = Base64.getEncoder().encodeToString(fileContent);
-        return "data:" + mimeType + ";base64," + encodedString;
+        return Base64Utils.toBase64String(resource);
     }
 }

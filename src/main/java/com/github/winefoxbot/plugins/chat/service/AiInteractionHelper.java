@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.winefoxbot.core.model.entity.ShiroUserMessage;
 import com.github.winefoxbot.core.model.enums.MessageDirection;
+import com.github.winefoxbot.core.model.enums.MessageType;
 import com.github.winefoxbot.core.utils.BotUtils;
 import com.google.gson.JsonArray;
 import com.mikuac.shiro.core.Bot;
@@ -99,6 +100,8 @@ public class AiInteractionHelper {
         messageNode.put("sender", isBotMessage ? "bot" : "user");
         messageNode.put("time", formatter.format(shiroMsg.getTime()));
         messageNode.put("message", textBuffer.toString());
+        messageNode.put("session_id", shiroMsg.getSessionId());
+        messageNode.put("message_type",shiroMsg.getMessageType().getValue());
 
         return new AiMessageInput(messageNode, imageUrls);
     }
@@ -112,7 +115,8 @@ public class AiInteractionHelper {
      * @return AiMessageInput
      */
     public AiMessageInput createChatMessageInput(Bot bot, long userId, Long groupId, JSONArray messageChain) {
-        String nickname = (groupId != null)
+        boolean isGroupMessage = groupId != null;
+        String nickname = isGroupMessage
                 ? BotUtils.getGroupMemberNickname(bot, groupId, userId)
                 : BotUtils.getUserNickname(bot, userId);
 
@@ -123,7 +127,8 @@ public class AiInteractionHelper {
 
         ObjectNode node = createBaseUserNode(userId, nickname);
         node.put("message", textBuffer.toString());
-
+        node.put("session_id", isGroupMessage ? groupId : userId);
+        node.put("message_type", isGroupMessage ? MessageType.GROUP.getValue() : MessageType.PRIVATE.getValue());
         return new AiMessageInput(node, imageUrls);
     }
 
@@ -147,7 +152,7 @@ public class AiInteractionHelper {
     private ObjectNode createBaseUserNode(long userId, String nickname) {
         ObjectNode userNode = objectMapper.createObjectNode();
         userNode.put("sender", "user");
-        userNode.put("uid", String.valueOf(userId));
+        userNode.put("uid", userId);
         userNode.put("nickname", nickname);
         return userNode;
     }

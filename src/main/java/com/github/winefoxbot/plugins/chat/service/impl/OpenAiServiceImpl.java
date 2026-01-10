@@ -26,6 +26,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
@@ -43,6 +44,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @author FlanChan
@@ -60,12 +63,17 @@ public class OpenAiServiceImpl implements OpenAiService {
     private final WineFoxBotChatProperties wineFoxBotChatProperties;
     private final OkHttpClient okHttpClient;
     private final BotContainer botContainer;
+    // 用于从异常或残缺的 JSON 中提取 message 字段的正则表达式
+    private static final Pattern FALLBACK_MESSAGE_PATTERN = Pattern.compile("\"message\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
+
 
     @Override
     public String complete(Long sessionId, MessageType messageType, AiMessageInput currentMessage) {
         List<Message> messages = new ArrayList<>();
         Optional<Bot> botOpt = botContainer.robots.values().stream().findFirst();
+        // 0. 添加系统提示
         messages.add(new SystemMessage(botChatConfig.getSystemPrompt()));
+
         // 1. 处理历史记录
         List<ShiroUserMessage> history = shiroMessagesService.findLatestMessagesForContext(sessionId, messageType, wineFoxBotChatProperties.getContextSize());
         for (int i = history.size() - 1; i >= 0; i--) {
@@ -146,11 +154,13 @@ public class OpenAiServiceImpl implements OpenAiService {
             }
         }
 
+        System.out.println(currentMessage);
+
         log.info("Sending {} messages to AI for context.", messages.size());
 
         // 调用 AI
         String rawResponse = chatClient.prompt(new Prompt(messages)).call().content();
-
+        System.out.println(rawResponse);
         // 清洗 AI 的回复，防止它输出 JSON
         return cleanAiResponse(rawResponse);
     }
@@ -200,27 +210,58 @@ public class OpenAiServiceImpl implements OpenAiService {
 
 
     /**
-     * 清洗 AI 回复。如果 AI 抽风输出了 JSON，尝试提取 message 字段。
+     * 清洗 AI 回复。如果 AI 抽风输出了 JSON 或 Markdown 包裹的 JSON，尝试提取 message 字段。
      */
     private String cleanAiResponse(String content) {
-        if (content == null) {
+        if (StringUtils.isBlank(content)) {
             return "";
         }
         String trimmed = content.trim();
 
-        // 简单判断是否像 JSON 对象
-        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+        // 尝试寻找最外层的 JSON 对象范围（从第一个 { 到最后一个 }）
+        // 这样可以防御性地处理：
+        // 1. 纯 JSON
+        // 2. Markdown 代码块包裹的 JSON (```json { ... } ```)
+        // 3. 混杂在文字中的 JSON
+        int start = trimmed.indexOf('{');
+        int end = trimmed.lastIndexOf('}');
+
+        if (start >= 0 && end > start) {
+            String potentialJson = trimmed.substring(start, end + 1);
             try {
                 // 尝试解析
-                JSONObject json = JSONUtil.parseObj(trimmed);
+                JSONObject json = JSONUtil.parseObj(potentialJson);
                 if (json.containsKey("message")) {
-                    log.warn("AI 输出了 JSON 格式，已自动提取 message 字段。原始输出: {}", trimmed);
+                    log.warn("AI 输出了结构化数据，已自动提取 message 字段。");
                     return json.getStr("message");
                 }
             } catch (Exception e) {
-                // 解析失败，说明可能只是普通的包含花括号的对话，忽略异常直接返回原文
+                // 解析失败，说明可能只是普通的包含花括号的对话，或者 JSON 不完整 (half JSON)
+                // 这种情况下我们无法准确修复，只能忽略异常回退到返回原始文本
             }
         }
+
+
+        // 2. 兜底策略：正则暴力提取
+        // 针对场景：'{"sender":"bot",...,"message":"内容在此 (缺失结尾...
+        // 这种数据没有结尾的括号，JSONUtil 肯定会报错，但内容其实都在
+        Matcher matcher = FALLBACK_MESSAGE_PATTERN.matcher(trimmed);
+        if (matcher.find()) {
+            String extractedValue = matcher.group(1);
+            try {
+                // 利用 JSONUtil 的能力去把转义字符(e.g. \n, \") 正确还原
+                // 我们构造一个临时的最小合法 JSON 字符串进行反序列化，这比手写 replace 更安全
+                String tempJsonStr = "{\"tempContent\": \"" + extractedValue + "\"}";
+                JSONObject tempJson = JSONUtil.parseObj(tempJsonStr);
+                log.warn("检测到残缺/异常的 JSON 数据，已通过正则强制提取 message 字段。");
+                return tempJson.getStr("tempContent");
+            } catch (Exception e) {
+                // 如果反转义也失败了，至少返回正则提取出来的原始字符串，好过把一大坨 JSON 抛给用户
+                return extractedValue;
+            }
+        }
+
+        // 3. 既不是 JSON 也匹配不到 message 字段，直接返回原文
         return trimmed;
     }
 }

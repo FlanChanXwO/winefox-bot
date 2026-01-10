@@ -75,11 +75,11 @@ public class PixivRankServiceImpl implements PixivRankService {
                                 描述信息：%s
                                 作品链接：https://www.pixiv.net/artworks/%s
                                 标签：%s
-                                """, pixivArtworkInfo.getTitle(), pixivArtworkInfo.getPid(),
-                        pixivArtworkInfo.getUserName(), pixivArtworkInfo.getUid(),
-                        pixivArtworkInfo.getDescription(),
-                        pixivArtworkInfo.getPid(),
-                        StringUtils.join(pixivArtworkInfo.getTags(), ',')));
+                                """, pixivArtworkInfo.title(), pixivArtworkInfo.pid(),
+                        pixivArtworkInfo.userName(), pixivArtworkInfo.uid(),
+                        pixivArtworkInfo.description(),
+                        pixivArtworkInfo.pid(),
+                        StringUtils.join(pixivArtworkInfo.tags(), ',')));
                 for (File file : files) {
                     String filePath = FileUtil.getFileUrlPrefix() + file.getAbsolutePath();
                     builder.img(filePath);

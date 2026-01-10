@@ -3,7 +3,7 @@ package com.github.winefoxbot.core.exception.bot.handler;
 import cn.hutool.core.lang.Pair;
 import com.github.winefoxbot.core.exception.bot.*;
 import com.github.winefoxbot.core.exception.common.BusinessException;
-import com.github.winefoxbot.core.utils.BotUtils;
+import com.github.winefoxbot.core.utils.SendMsgUtil;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.Event;
 import lombok.extern.slf4j.Slf4j;
@@ -85,7 +85,7 @@ public class BotCommandExceptionHandler {
             findBotAndEventFromArgs(joinPoint.getArgs()).ifPresent(pair -> {
                 Bot bot = pair.getKey();
                 Event event = pair.getValue();
-                BotUtils.sendMsgByEvent(bot, event, "发生了一个未知的内部错误...", false);
+                SendMsgUtil.sendMsgByEvent(bot, event, "发生了一个未知的内部错误...", false);
             });
             return null;
         }
@@ -94,43 +94,43 @@ public class BotCommandExceptionHandler {
     private void handleBotCommandException(BaseException e, Bot bot, Event event) {
         switch (e) {
             case CommandParseException cpe -> {
-                BotUtils.sendMsgByEvent(bot, event, cpe.getMessage(), false);
+                SendMsgUtil.sendMsgByEvent(bot, event, cpe.getMessage(), false);
             }
             case ExternalServiceException ese -> {
-                BotUtils.sendMsgByEvent(bot, event,  ese.getMessage(), false);
+                SendMsgUtil.sendMsgByEvent(bot, event,  ese.getMessage(), false);
             }
             case FeatureNotEnabledException fnee -> {
-                BotUtils.sendMsgByEvent(bot, event,  fnee.getMessage(), false);
+                SendMsgUtil.sendMsgByEvent(bot, event,  fnee.getMessage(), false);
             }
             case InvalidCommandParamsException icpe -> {
-                BotUtils.sendMsgByEvent(bot, event,  icpe.getMessage(), false);
+                SendMsgUtil.sendMsgByEvent(bot, event,  icpe.getMessage(), false);
             }
             case PermissionDeniedException pde -> {
-                BotUtils.sendMsgByEvent(bot, event, pde.getMessage(), false);
+                SendMsgUtil.sendMsgByEvent(bot, event, pde.getMessage(), false);
             }
             case RateLimitException rle -> {
-                BotUtils.sendMsgByEvent(bot, event,  rle.getMessage(), false);
+                SendMsgUtil.sendMsgByEvent(bot, event,  rle.getMessage(), false);
             }
             case NetworkException ne -> {
-                BotUtils.sendMsgByEvent(bot, event, ne.getMessage(), false);
+                SendMsgUtil.sendMsgByEvent(bot, event, ne.getMessage(), false);
             }
             case ReceiveMessageException rme -> {
-                BotUtils.sendMsgByEvent(bot, event, rme.getMessage(), false);
+                SendMsgUtil.sendMsgByEvent(bot, event, rme.getMessage(), false);
             }
             case ResourceNotFoundException rnfe -> {
-                BotUtils.sendMsgByEvent(bot, event, rnfe.getMessage(), false);
+                SendMsgUtil.sendMsgByEvent(bot, event, rnfe.getMessage(), false);
             }
             case SendMessageException sme -> {
-                BotUtils.sendMsgByEvent(bot, event, sme.getMessage(), false);
+                SendMsgUtil.sendMsgByEvent(bot, event, sme.getMessage(), false);
             }
             case TimeoutException te -> {
-                BotUtils.sendMsgByEvent(bot, event, te.getMessage(), false);
+                SendMsgUtil.sendMsgByEvent(bot, event, te.getMessage(), false);
             }
             case PluginExecutionException pee -> {
-                BotUtils.sendMsgByEvent(bot, event,  pee.getMessage(), false);
+                SendMsgUtil.sendMsgByEvent(bot, event,  pee.getMessage(), false);
             }
             case AiServiceInvokeException asie -> {
-                BotUtils.sendMsgByEvent(bot, event, asie.getMessage(), false);
+                SendMsgUtil.sendMsgByEvent(bot, event, asie.getMessage(), false);
             }
             default -> log.error("未处理的 BaseException 类型: {}", e.getClass().getName());
         }
