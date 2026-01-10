@@ -27,7 +27,7 @@ import java.io.IOException;
  */
 @Shiro
 @Slf4j
-@Plugin(name = "DailyReport", description = "日报")
+@Plugin(name = "日报（重构中，请不要使用）", description = "日报")
 @Component
 @RequiredArgsConstructor
 public class DailyReportPlugin {

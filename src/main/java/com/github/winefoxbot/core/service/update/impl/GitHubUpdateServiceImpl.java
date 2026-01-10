@@ -316,7 +316,6 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
                 // 这会优雅地关闭 Spring 上下文，并返回退出码，而不会终止父 bat 脚本。
                 int exitCode = SpringApplication.exit(context, () -> RESTART_EXIT_CODE);
                 System.exit(exitCode);
-
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.error("重启线程被中断", e);
