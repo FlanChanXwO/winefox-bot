@@ -76,19 +76,19 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
      */
     private void processArtworkSending(Bot bot, MessageEvent event, PixivArtworkInfo pixivArtworkInfo, List<File> files, String additionalText) {
         if (files == null || files.isEmpty()) {
-            log.warn("PID: {} 的文件列表为空，无法发送。", pixivArtworkInfo.pid());
-            SendMsgUtil.sendMsgByEvent(bot, event, "未能获取到PID: " + pixivArtworkInfo.pid() + " 的图片文件！", false);
+            log.warn("PID: {} 的文件列表为空，无法发送。", pixivArtworkInfo.getPid());
+            SendMsgUtil.sendMsgByEvent(bot, event, "未能获取到PID: " + pixivArtworkInfo.getPid() + " 的图片文件！", false);
             return;
         }
 
         try {
-            if (pixivArtworkInfo.isR18()) {
+            if (pixivArtworkInfo.getIsR18()) {
                 handleR18Artwork(bot, event, pixivArtworkInfo, files);
             } else {
                 handleNormalArtwork(bot, event, pixivArtworkInfo, files, additionalText);
             }
         } catch (Exception e) {
-            log.error("处理并发送 PID: {} 时发生未知错误。", pixivArtworkInfo.pid(), e);
+            log.error("处理并发送 PID: {} 时发生未知错误。", pixivArtworkInfo.getPid(), e);
             SendMsgUtil.sendMsgByEvent(bot, event, "处理作品时发生内部错误：" + e.getMessage(), false);
         }
     }
@@ -112,14 +112,14 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
         int retryTimes = 3;
         long delay = 1000;
         while (sendResp != null && !sendResp.isSuccess() && retryTimes-- > 0) {
-            log.warn("发送 Pixiv 图片失败，正在重试，剩余次数={}，pid={}", retryTimes, pixivArtworkInfo.pid());
+            log.warn("发送 Pixiv 图片失败，正在重试，剩余次数={}，getPid={}", retryTimes, pixivArtworkInfo.getPid());
             Thread.sleep(delay);
             delay *= 2;
             sendResp = SendMsgUtil.sendMsgByEvent(bot, event, builder.build(), false);
         }
 
         if (sendResp == null || !sendResp.isSuccess()) {
-            log.error("发送 Pixiv 图片最终失败，pid={}", pixivArtworkInfo.pid());
+            log.error("发送 Pixiv 图片最终失败，getPid={}", pixivArtworkInfo.getPid());
             SendMsgUtil.sendMsgByEvent(bot, event, "图片发送失败，请稍后重试。", false);
         }
     }
@@ -139,22 +139,22 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
         Path filePath;
         try {
             if (totalSize >= R18_ZIP_THRESHOLD) {
-                log.info("图片总大小 {}MB 超过阈值，打包为ZIP。 PID: {}", String.format("%.2f", totalSize / (1024.0 * 1024.0)), pixivArtworkInfo.pid());
-                filePath = createZipArchive(files, FILE_OUTPUT_DIR, "pixiv_" + pixivArtworkInfo.pid());
+                log.info("图片总大小 {}MB 超过阈值，打包为ZIP。 PID: {}", String.format("%.2f", totalSize / (1024.0 * 1024.0)), pixivArtworkInfo.getPid());
+                filePath = createZipArchive(files, FILE_OUTPUT_DIR, "pixiv_" + pixivArtworkInfo.getPid());
             } else {
-                log.info("图片总大小 {}MB 未超过阈值，打包为DOCX/PDF。PID: {}", String.format("%.2f", totalSize / (1024.0 * 1024.0)), pixivArtworkInfo.pid());
-                filePath = pixivArtworkInfo.type() == PixivArtworkType.GIF
+                log.info("图片总大小 {}MB 未超过阈值，打包为DOCX/PDF。PID: {}", String.format("%.2f", totalSize / (1024.0 * 1024.0)), pixivArtworkInfo.getPid());
+                filePath = pixivArtworkInfo.getType() == PixivArtworkType.GIF
                         ? DocxUtil.wrapImagesIntoDocx(files, FILE_OUTPUT_DIR)
                         : PdfUtil.wrapImagesIntoPdf(files, FILE_OUTPUT_DIR);
             }
 
             if (filePath == null) {
-                log.error("生成R18文件包失败, pid={}", pixivArtworkInfo.pid());
+                log.error("生成R18文件包失败, getPid={}", pixivArtworkInfo.getPid());
                 SendMsgUtil.sendMsgByEvent(bot, event, "生成R18文件包失败，请稍后重试。", false);
                 return;
             }
         } catch (IOException e) {
-            log.error("处理R18文件时发生IO异常, pid={}", pixivArtworkInfo.pid(), e);
+            log.error("处理R18文件时发生IO异常, getPid={}", pixivArtworkInfo.getPid(), e);
             SendMsgUtil.sendMsgByEvent(bot, event, "处理文件时发生内部错误，请稍后重试。", false);
             return;
         }
@@ -184,17 +184,17 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
      * 构建作品基本信息
      */
     private MsgUtils buildArtworkInfoMsg(PixivArtworkInfo detail, boolean includeDescription) {
-        String description = includeDescription ? String.format("描述信息：%s\n", detail.description()) : "";
+        String description = includeDescription ? String.format("描述信息：%s\n", detail.getDescription()) : "";
         String text = String.format("""
                         作品标题：%s (%s)
                         作者：%s (%s)
                         %s作品链接：https://www.pixiv.net/artworks/%s
                         标签：%s
-                        """, detail.title(), detail.pid(),
-                detail.userName(), detail.uid(),
+                        """, detail.getTitle(), detail.getPid(),
+                detail.getUserName(), detail.getUid(),
                 description,
-                detail.pid(),
-                StringUtils.join(detail.tags(), ','));
+                detail.getPid(),
+                StringUtils.join(detail.getTags(), ','));
         return MsgUtils.builder().text(text);
     }
 

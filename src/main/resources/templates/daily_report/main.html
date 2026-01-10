@@ -33,7 +33,7 @@
         </div>
 
         <!-- 2. 一言区域 -->
-        <div class="five-border">
+        <div class="two-border">
             <div style="text-align: center; font-size: 16px;">
                 <span th:text="${hitokoto.hitokoto()}">一言内容</span> <br>
                 <span style="font-size: 14px; font-weight: normal; margin-top: 5px; display: block;"
@@ -41,19 +41,61 @@
             </div>
         </div>
 
+
+
+        <div class="three-border">
+            <div class="section-header">
+                <img th:src="${iconBgm}" class="title-icon" />
+                <span class="moyu-title-text">今日新番</span>
+            </div>
+            <div class="two-border-border">
+                <!-- [修改] 变量改为 animeList，属性改为 item.image 和 item.name -->
+                <div class="anime-border" th:each="item : ${animeList}">
+                    <img th:src="${item.image}" class="anime-img">
+                    <p class="anime-text" th:text="${item.name}">动漫名称</p>
+                </div>
+            </div>
+        </div>
+
         <!-- 3. 新闻列表区域 -->
         <div class="three-border">
-            <!-- [修改] 使用图标+标题 -->
             <div class="section-header">
                 <img th:src="${iconNews}" class="title-icon" />
-                <span class="moyu-title-text">今日新闻</span>
+                <span class="moyu-title-text">60S读世界</span>
             </div>
             <ul style="margin-top: 10px;">
-                <li th:each="item : ${newsData.news()}">
+                <!-- [修改] 变量改为 newsList -->
+                <li th:each="item : ${newsList}">
                     <div class="normal-text" th:text="${item}">新闻内容...</div>
                 </li>
             </ul>
         </div>
+
+        <!-- 3. IT资讯区域 -->
+        <div class="three-border">
+            <div class="section-header">
+                <img th:src="${iconIt}" class="title-icon" />
+                <span class="moyu-title-text">IT资讯</span>
+            </div>
+            <ul style="margin-top: 10px;">
+                <!-- [修改] 变量改为 itNewsList -->
+                <li th:each="item : ${itNewsList}">
+                    <div class="normal-text" th:text="${item}">IT资讯内容...</div>
+                </li>
+            </ul>
+        </div>
+
+<!--        <div class="three-border" th:if="${not #lists.isEmpty(historyList)}">-->
+<!--            <div class="section-header">-->
+<!--                <img th:src="${iconNews}" class="title-icon" />-->
+<!--                <span class="moyu-title-text">历史上的今天</span>-->
+<!--            </div>-->
+<!--            <ul style="margin-top: 10px;">-->
+<!--                <li th:each="item : ${historyList}">-->
+<!--                    <div class="normal-text" th:text="${item}">历史上的今天...</div>-->
+<!--                </li>-->
+<!--            </ul>-->
+<!--        </div>-->
 
         <!-- 4. 双栏区域 -->
         <div class="one-border">
