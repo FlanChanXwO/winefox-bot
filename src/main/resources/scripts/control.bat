@@ -50,8 +50,7 @@ goto :eof
 
 :stop
 echo [INFO] Stopping %APP_NAME%...
-taskkill /F /FI "WINDOWTITLE eq %WINDOW_TITLE%*" /IM cmd.exe >nul 2>&1
-taskkill /F /IM java.exe /FI "WINDOWTITLE eq %WINDOW_TITLE%*" >nul 2>&1
+taskkill /F /T /FI "WINDOWTITLE eq %WINDOW_TITLE%*" /IM cmd.exe >nul 2>&1
 echo [SUCCESS] Stop command sent.
 goto :eof
 

@@ -70,10 +70,9 @@ public class ChatPlugin {
     private static final double VOICE_REPLY_CHANCE = 0.2;
 
 
-    // ... (chatDoc 和 clearConversation 方法保持不变)
     @PluginFunction(
             name = "聊天回复",
-            description = "艾特酒狐或者直接在私聊中给酒狐发消息也许会有回应哦，戳一戳也有。也许如果你提到她的名字也可能会有回应呢~",
+            description = "艾特酒狐或者直接在私聊中给酒狐发消息也许会有回应哦，戳一戳也有。",
             permission = Permission.USER,
             autoGenerateHelp = false
     )
