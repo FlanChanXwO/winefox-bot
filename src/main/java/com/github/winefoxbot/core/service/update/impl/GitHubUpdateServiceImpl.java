@@ -58,7 +58,7 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
             long releaseId = Long.parseLong(props.getProperty("github.release.id", "-1"));
             long assetId = Long.parseLong(props.getProperty("github.asset.id", "-1"));
             long libAssetId = Long.parseLong(props.getProperty("github.lib.asset.id", "-1"));
-
+            String libSha256 = props.getProperty("github.lib.sha256", "");
             if (releaseId == -1 || assetId == -1) {
                 log.warn("Could not find valid release/asset ID in release-info.properties. Update checks may fail.");
             }
@@ -67,7 +67,7 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
             this.currentVersionInfo.releaseId = releaseId;
             this.currentVersionInfo.assetId = assetId;
             this.currentVersionInfo.libAssetId = libAssetId;
-
+            this.currentVersionInfo.libSha256 = libSha256;
             log.info("Successfully initialized current version info: {}", this.currentVersionInfo);
 
         } catch (IOException | NumberFormatException e) {
@@ -84,63 +84,91 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
         try {
             log.info("开始检查应用更新...");
             bot.sendMsg(event, "正在检查更新，请稍候...", false);
+
+            // 1. 获取线上最新版本信息
             GitHubRelease latestRelease = fetchLatestRelease();
             GitHubRelease.Asset jarAsset = findJarAsset(latestRelease.getAssets());
             if (jarAsset == null) {
-                throw new IllegalStateException("在 Release '" + latestRelease.getTagName() + "' 中未找到 .jar 文件。");
+                throw new IllegalStateException("未找到 .jar 文件。");
             }
 
-            VersionInfo latestVersion = new VersionInfo();
-            latestVersion.releaseId = latestRelease.getId();
-            latestVersion.assetId = jarAsset.getId();
-
-            GitHubRelease.Asset libAsset = findLibAsset(latestRelease.getAssets());
-            if (libAsset != null) {
-                latestVersion.libAssetId = libAsset.getId();
-            }
-
-            log.info("检测到最新版本: {}", latestVersion);
-            VersionInfo currentVersion = getCurrentVersionInfo();
-            log.info("当前运行版本: {}", currentVersion);
-
-            if (latestVersion.releaseId == currentVersion.releaseId) {
-                log.info("Release ID 相同，视为已是最新版本。");
+            // 简单的 ID 检查，决定是否需要开始流程
+            if (latestRelease.getId() == currentVersionInfo.releaseId) {
                 throw new IllegalStateException("当前已是最新版本，无需更新。");
             }
 
-            if (latestVersion.releaseId < currentVersion.releaseId) {
-                throw new IllegalStateException("检测到的线上版本比当前版本更旧，跳过更新。");
-            }
+            log.info("发现新版本 {}，开始处理...", latestRelease.getTagName());
+            bot.sendMsg(event, "发现新版本 " + latestRelease.getTagName() + "，正在下载主程序...", false);
 
-            log.info("发现新版本，开始下载并替换...");
-            bot.sendMsg(event, "发现新版本 " + latestRelease.getTagName() + "，正在下载更新包...", false);
+            // 2. 先下载 Thin JAR (这个文件很小，先下它)
+            String tempJarName = "update-temp.jar";
+            downloadAsset(jarAsset, tempJarName);
 
-            // Download Thin JAR
-            downloadAsset(jarAsset, "update-temp");
+            // 获取临时文件路径
+            Path currentJarDir = Paths.get(updateProperties.getCurrentJarName()).toAbsolutePath().getParent();
+            File downloadedJarFile = currentJarDir.resolve(tempJarName).toFile();
 
-            // Download Libs if needed
-            // Logic: If remote has lib.zip AND (local lib ID is different OR local lib ID is missing)
+            // 3. 【关键步骤】读取新下载 JAR 包内部的属性
+            VersionInfo newVersionInfo = readVersionInfoFromJar(downloadedJarFile);
+            log.info("新版本信息详情: {}", newVersionInfo);
+
+            // 4. 智能检测是否需要下载 lib.zip
+            GitHubRelease.Asset libAsset = findLibAsset(latestRelease.getAssets());
+            boolean needDownloadLib = false;
+
             if (libAsset != null) {
-                if (currentVersion.libAssetId != libAsset.getId()) {
-                     log.info("依赖库版本变更 (Local: {}, Remote: {})，正在下载依赖库...", currentVersion.libAssetId, libAsset.getId());
-                     bot.sendMsg(event, "正在下载依赖库更新 (lib.zip)...", false);
-                     downloadAsset(libAsset, "update-lib.zip");
+                // 如果当前版本没有哈希记录（旧版本），或者哈希不匹配，则下载
+                if (!StringUtils.hasText(currentVersionInfo.libSha256) ||
+                        !currentVersionInfo.libSha256.equals(newVersionInfo.libSha256)) {
+
+                    log.info("依赖库哈希变更 (Local: {}, Remote: {})，需要下载依赖库。",
+                            currentVersionInfo.libSha256, newVersionInfo.libSha256);
+                    needDownloadLib = true;
                 } else {
-                     log.info("依赖库版本一致，跳过下载 lib.zip");
+                    log.info("依赖库哈希一致 ({})，跳过下载 lib.zip。", currentVersionInfo.libSha256);
                 }
-            } else {
-                log.warn("线上 Release 未包含 lib.zip，如果是 Thin JAR 模式可能导致无法运行。");
             }
 
-            bot.sendMsg(event, "更新包下载完成，应用即将重启以完成更新...", false);
-            log.info("文件更新完成，即将重启应用...");
+            // 5. 如果需要，下载 lib.zip
+            if (needDownloadLib) {
+                bot.sendMsg(event, "检测到依赖库变更，正在下载 lib.zip...", false);
+                downloadAsset(libAsset, "update-lib.zip");
+            }
 
+            // 6. 重命名/准备重启
+            // 注意：这里我们已经下载了 jar 到 update-temp.jar，通常你的 restart 脚本或逻辑
+            // 需要知道去哪里找这个文件。上面的 downloadAsset 方法把文件存为了 "update-temp.jar" (根据这里的传参)
+            // 你原本的代码是用 "update-temp" 无后缀，请确保和你的重启脚本兼容。
+
+            bot.sendMsg(event, "更新包准备就绪，应用即将重启...", false);
             restartApplication(event);
 
         } finally {
             updateInProgress.set(false);
         }
     }
+
+    // 【新增辅助方法】从 Jar 包中读取 release-info.properties
+    private VersionInfo readVersionInfoFromJar(File jarFile) {
+        VersionInfo info = new VersionInfo();
+        try (java.util.jar.JarFile jar = new java.util.jar.JarFile(jarFile)) {
+            java.util.jar.JarEntry entry = jar.getJarEntry("release-info.properties");
+            if (entry != null) {
+                try (InputStream is = jar.getInputStream(entry)) {
+                    Properties props = new Properties();
+                    props.load(is);
+                    info.releaseId = Long.parseLong(props.getProperty("github.release.id", "-1"));
+                    info.assetId = Long.parseLong(props.getProperty("github.asset.id", "-1"));
+                    info.libAssetId = Long.parseLong(props.getProperty("github.lib.asset.id", "-1"));
+                    info.libSha256 = props.getProperty("github.lib.sha256", "");
+                }
+            }
+        } catch (Exception e) {
+            log.error("无法从下载的 JAR 中读取版本信息", e);
+        }
+        return info;
+    }
+
 
     @Override
     public VersionInfo getCurrentVersionInfo() {

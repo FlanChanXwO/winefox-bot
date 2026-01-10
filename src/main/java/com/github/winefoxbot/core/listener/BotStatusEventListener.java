@@ -86,13 +86,10 @@ public class BotStatusEventListener extends CoreEvent {
             long durationMillis = System.currentTimeMillis() - restartInfo.getStartTimeMillis();
             double durationSeconds = durationMillis / 1000.0;
 
-            // 获取当前版本
-            String currentVersion = updateService.getCurrentVersionInfo().toString();
-
             // 格式化最终消息
             String finalMessage = restartInfo.getSuccessMessage()
                     .replace("{duration}", String.format("%.2f秒", durationSeconds))
-                    .replace("{version}",wineFoxBotProperties.getApp().getVersion() + " " + currentVersion);
+                    .replace("{version}",wineFoxBotProperties.getApp().getVersion());
 
             // 发送消息
             if (MessageType.GROUP.equals(restartInfo.getMessageType())) {

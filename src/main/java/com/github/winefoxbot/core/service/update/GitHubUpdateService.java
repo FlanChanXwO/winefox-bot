@@ -28,7 +28,7 @@ public interface GitHubUpdateService {
         public long releaseId = -1;
         public long assetId = -1;
         public long libAssetId = -1;
-
+        public String libSha256;
         @Override
         public String toString() {
             return "(Release ID: %d | Asset Id: %d | Lib Asset Id: %d)".formatted(releaseId, assetId, libAssetId);

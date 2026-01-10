@@ -83,17 +83,24 @@ jobs:
           JAR_NAME="${{ steps.get_project_info.outputs.release_asset_name }}"
           LIB_NAME="lib.zip"
           
+          # 获取 Asset ID
           ASSET_ID=$(echo "$ASSETS_JSON" | jq --arg name "$JAR_NAME" -r '.[] | select(.name == $name) | .id')
           LIB_ASSET_ID=$(echo "$ASSETS_JSON" | jq --arg name "$LIB_NAME" -r '.[] | select(.name == $name) | .id')
           RELEASE_ID='${{ steps.create_release.outputs.id }}'
 
+          # 【新增】计算 lib.zip 的 SHA256 哈希值
+          # sha256sum 输出格式为 "hash  filename"，我们只取第一部分 hash
+          LIB_SHA256=$(sha256sum target/lib.zip | awk '{print $1}')
+          
           if [ -z "$RELEASE_ID" ] || [ -z "$ASSET_ID" ] || [ "$ASSET_ID" == "null" ]; then
             echo "Error: Could not determine Release ID or Asset ID."
             exit 1
           fi
 
-          echo "Final Release ID is: $RELEASE_ID"
-          echo "Final Asset ID for $JAR_NAME is: $ASSET_ID"
+          echo "Final Release ID: $RELEASE_ID"
+          echo "Final Asset ID (Jar): $ASSET_ID"
+          echo "Final Asset ID (Lib): $LIB_ASSET_ID"
+          echo "Final Lib SHA256: $LIB_SHA256"
 
           PROPERTIES_FILE="release-info.properties"
           echo "github.release.id=$RELEASE_ID" > $PROPERTIES_FILE
@@ -101,11 +108,13 @@ jobs:
           
           if [ ! -z "$LIB_ASSET_ID" ] && [ "$LIB_ASSET_ID" != "null" ]; then
              echo "github.lib.asset.id=$LIB_ASSET_ID" >> $PROPERTIES_FILE
-             echo "Final Asset ID for $LIB_NAME is: $LIB_ASSET_ID"
+             # 【新增】写入哈希值到配置文件
+             echo "github.lib.sha256=$LIB_SHA256" >> $PROPERTIES_FILE
           fi
           
           echo "Generated final $PROPERTIES_FILE content:"
           cat $PROPERTIES_FILE
+
 
       - name: Inject properties into JAR
         run: |
