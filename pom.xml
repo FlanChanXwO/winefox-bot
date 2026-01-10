@@ -11,7 +11,7 @@
 
     <groupId>com.github</groupId>
     <artifactId>winefox-bot</artifactId>
-    <version>1.9.2</version>
+    <version>1.9.3</version>
 
     <name>winefox-bot</name>
     <description>WineFox Bot 基于 Spring Boot 和 Shiro 的 QQ 机器人</description>
@@ -281,8 +281,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>${source.version}</source>
-                    <target>${target.version}</target>
+                    <source>25</source>
+                    <target>25</target>
                     <annotationProcessorPaths>
                         <dependency>
                             <groupId>org.projectlombok</groupId>
@@ -290,6 +290,7 @@
                             <version>${lombok.version}</version>
                         </dependency>
                     </annotationProcessorPaths>
+                    <compilerArgs>--enable-preview</compilerArgs>
                 </configuration>
             </plugin>
             <!-- 1. 配置 maven-jar-plugin 添加 Loader-Path 到 MANIFEST.MF -->

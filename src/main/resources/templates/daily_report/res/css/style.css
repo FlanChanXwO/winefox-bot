@@ -82,6 +82,44 @@ body {
   overflow: hidden;
 }
 
+.two-border-border {
+  display: flex;
+  flex-wrap: wrap;       /* 允许换行 */
+  justify-content: space-between; /* 均匀分布 */
+  gap: 10px;             /* 卡片之间的间距 */
+  padding-top: 10px;     /* 稍微给标题留点空 */
+}
+
+.anime-border {
+  /* 计算宽度：(总宽 - 间距*3) / 4列 ≈ 120px */
+  width: 120px;
+  text-align: center;    /* 文字居中 */
+  margin-bottom: 10px;   /*行间距*/
+}
+
+.anime-img {
+  width: 100%;           /* 填满容器宽度 */
+  height: 160px;         /* 固定高度，防止参差不齐 */
+  object-fit: cover;     /* 核心：裁切图片保持比例，不拉伸 */
+  border-radius: 8px;    /* 图片圆角 */
+  box-shadow: 2px 2px 5px rgba(0,0,0,0.1); /* 轻微阴影 */
+  display: block;        /* 消除图片底部空隙 */
+}
+
+.anime-text {
+  font-size: 12px;       /* 字体调小 */
+  color: #555;
+  margin-top: 5px;
+  margin-bottom: 0;
+
+  /* 文字超长省略号处理 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+
 /* 1. 顶部：星期几 (Sat) */
 .top-date-week {
   color: #f384a7;

@@ -7,6 +7,7 @@ import com.github.winefoxbot.core.config.playwright.PlaywrightConfig;
 import com.github.winefoxbot.core.service.file.FileStorageService;
 import com.github.winefoxbot.core.utils.Base64Utils;
 import com.github.winefoxbot.core.utils.ResourceLoader;
+import com.github.winefoxbot.plugins.dailyreport.DailyReportPlugin;
 import com.github.winefoxbot.plugins.dailyreport.config.DailyReportProperties;
 import com.github.winefoxbot.plugins.dailyreport.model.dto.BiliHotwordDTO;
 import com.github.winefoxbot.plugins.dailyreport.model.dto.HitokotoDTO;
@@ -104,6 +105,8 @@ public class DailyReportService {
             log.info("Serving daily report from cache: {}", cachePath);
             return Files.readAllBytes(cachePath);
         }
+
+        System.out.println(DailyReportPlugin.UID.get());
 
         lock.lock();
         try {

@@ -20,6 +20,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.util.concurrent.StructuredTaskScope;
+
 /**
  * @author FlanChan
  */
@@ -28,9 +31,10 @@ import org.springframework.stereotype.Component;
 @Plugin(name = "DailyReport", description = "日报")
 @Component
 @RequiredArgsConstructor
-public class DailyReportPlugin{
+public class DailyReportPlugin {
     private final GroupPushScheduleService scheduleService;
     private final DailyReportService dailyReportService;
+    public  static final ScopedValue<AnyMessageEvent> UID = ScopedValue.newInstance();
 
     private static final String DEFAULT_CRON = "0 1 9 * * ?";
     public static final String TASK_TYPE_DAILY_REPORT = "DAILY_REPORT";
@@ -38,16 +42,16 @@ public class DailyReportPlugin{
     /**
      * 开启本群的真寻日报自动推送
      */
-    @PluginFunction( permission = Permission.ADMIN, name = "日报", description = "开启真寻日报",commands = "/开启真寻日报")
+    @PluginFunction(permission = Permission.ADMIN, name = "日报", description = "开启真寻日报", commands = "/开启真寻日报")
     @GroupMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/开启真寻日报$")
     public void enableDailyReport(Bot bot, GroupMessageEvent event) {
         Long groupId = event.getGroupId();
 
         // 检查是否已存在任务
-        GroupPushSchedule existingSchedule = scheduleService.getTaskConfig(groupId, TASK_TYPE_DAILY_REPORT,null);
+        GroupPushSchedule existingSchedule = scheduleService.getTaskConfig(groupId, TASK_TYPE_DAILY_REPORT, null);
         if (existingSchedule != null && existingSchedule.getIsEnabled()) {
-            bot.sendGroupMsg(groupId, "本群已经开启了真寻日报推送哦~ 推送时间为：" + existingSchedule.getCronExpression(),false);
+            bot.sendGroupMsg(groupId, "本群已经开启了真寻日报推送哦~ 推送时间为：" + existingSchedule.getCronExpression(), false);
             return;
         }
 
@@ -58,7 +62,8 @@ public class DailyReportPlugin{
                 null,
                 DEFAULT_CRON,
                 "真寻日报每日推送",
-                () -> {}
+                () -> {
+                }
         );
         bot.sendGroupMsg(groupId, "本群的真寻日报推送已开启！将会在每天早上9:01发送。", false);
     }
@@ -79,26 +84,28 @@ public class DailyReportPlugin{
         }
 
         // 调用服务禁用任务，而不是删除
-        scheduleService.unscheduleTask(groupId,TASK_TYPE_DAILY_REPORT,null);
+        scheduleService.unscheduleTask(groupId, TASK_TYPE_DAILY_REPORT, null);
         bot.sendGroupMsg(groupId, "本群的真寻日报推送已关闭。", false);
     }
 
     /**
      * 手动获取当天的日报
      */
-    @PluginFunction( permission = Permission.USER, name = "获取日报", description = "手动获取当天的真寻日报",commands = {
+    @PluginFunction(permission = Permission.USER, name = "获取日报", description = "手动获取当天的真寻日报", commands = {
             "/真寻日报", "真寻日报"
     })
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/?真寻日报$")
     public void getManualReport(Bot bot, AnyMessageEvent event) {
-        try {
-            byte[] imageBytes = dailyReportService.getDailyReportImage();
-            String message = MsgUtils.builder().img(imageBytes).build();
-            bot.sendMsg(event, message,false);
-        } catch (Exception e) {
-            log.error("手动生成日报失败", e);
-            bot.sendMsg(event, "日报生成失败了，请联系管理员查看后台日志。",false);
-        }
+        ScopedValue.where(UID, event).run(() -> {
+            try {
+                byte[] imageBytes = dailyReportService.getDailyReportImage();
+                String message = MsgUtils.builder().img(imageBytes).build();
+                bot.sendMsg(event, message, false);
+            } catch (IOException e) {
+                log.error("手动生成日报失败", e);
+                bot.sendMsg(event, "日报生成失败了，请联系管理员查看后台日志。", false);
+            }
+        });
     }
 }

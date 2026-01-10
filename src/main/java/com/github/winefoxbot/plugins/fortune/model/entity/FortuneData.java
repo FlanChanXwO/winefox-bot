@@ -20,14 +20,8 @@ import lombok.Data;
 public class FortuneData implements Serializable {
     @TableId(type = IdType.INPUT)
     private Long userId;
-
     private Integer starNum;
-
     private LocalDate fortuneDate;
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createdAt;
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updatedAt;
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;
 }
