@@ -68,7 +68,6 @@ public class ChatPlugin {
     private static final int PITY_THRESHOLD = 30;
     private static final double PROACTIVE_POKE_BACK_CHANCE = 0.3;
     private static final double VOICE_REPLY_CHANCE = 0.2;
-    public static final ScopedValue<PrivateMessageEvent> PVT_EVENT = ScopedValue.newInstance();
 
 
     @PluginFunction(
@@ -119,12 +118,10 @@ public class ChatPlugin {
 
         // 关键修改：传递原始的 JSONArray (event.getMessage())
         AiMessageInput userMsg = aiInteractionHelper.createChatMessageInput(bot, userId, null, MessageConverter.parseCQToJSONArray(event.getRawMessage()));
-        ScopedValue.where(PVT_EVENT,event).run(() -> {
-            String resp = openAiService.complete(userId, MessageType.PRIVATE, userMsg);
-            if (resp != null && !resp.isEmpty()) {
-                bot.sendPrivateMsg(userId, resp, false);
-            }
-        });
+        String resp = openAiService.complete(userId, MessageType.PRIVATE, userMsg);
+        if (resp != null && !resp.isEmpty()) {
+            bot.sendPrivateMsg(userId, resp, false);
+        }
     }
 
 
