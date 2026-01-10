@@ -40,6 +40,38 @@ public class ScriptChecker {
                 return;
             }
 
+            // --- 新增代码开始: 强制重命名 Jar 包 ---
+            String targetJarName = "winefox-bot.jar";
+            if (!source.getName().equals(targetJarName)) {
+                File targetJar = new File(source.getParent(), targetJarName);
+
+                // 尝试重命名 (Windows下运行中的Jar可能无法重命名，Linux通常可以)
+                // 注意：如果在 Windows 上直接运行 java -jar xxx.jar，文件会被锁定，重命名通常会失败。
+                // 如果是复制一份再改名是没问题的，但无法改变当前运行的文件名。
+                // 这里我们尝试重命名，如果成功则打印提示。
+                boolean renameSuccess = source.renameTo(targetJar);
+
+                if (renameSuccess) {
+                    System.out.printf("[ScriptChecker] 检测到 Jar 包名称不标准，已自动重命名为: %s%n", targetJarName);
+                    // 因为物理文件改名了，为了保证后续脚本逻辑正确，这里可能需要更新 source 引用
+                    // 但通常 ApplicationHome 是一次性的，后续脚本生成只依赖目录路径，所以影响不大。
+                    // 只是此时若继续运行可能会有问题（因为 classpath 里的 jar 名字变了），建议提示重启。
+                    System.out.println("[ScriptChecker] 为了确保系统稳定，请使用新文件名重新启动或直接使用脚本管理。");
+                    System.exit(0);
+                } else {
+                    // 如果重命名失败（常见于 Windows 文件被锁定），尝试复制一份
+                    try {
+                        System.out.printf("[ScriptChecker] 无法直接重命名（文件可能被锁定），正在尝试复制为标准名称: %s%n", targetJarName);
+                        FileCopyUtils.copy(source, targetJar);
+                        System.out.println("[ScriptChecker] 复制成功。请后续使用 " + targetJarName + " 或配套脚本启动。");
+                        // 既然已经生成了标准包，建议让用户去用那个标准的包
+                    } catch (IOException ex) {
+                        System.err.println("[ScriptChecker] 重命名/复制 Jar 包失败: " + ex.getMessage());
+                    }
+                }
+            }
+            // --- 新增代码结束 ---
+
             File jarDir = home.getDir();
             boolean scriptsGenerated = false;
 
@@ -60,6 +92,7 @@ public class ScriptChecker {
             System.exit(1);
         }
     }
+
 
     private static boolean releaseScript(File targetDir, String scriptName) throws IOException {
         File scriptFile = new File(targetDir, scriptName);
