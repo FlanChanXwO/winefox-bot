@@ -333,6 +333,7 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <mainClass>com.github.winefoxbot.WineFoxBotApp</mainClass>
                     <finalName>winefox-bot</finalName>
                     <layout>ZIP</layout>
                     <includes>
