@@ -351,10 +351,6 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
-                    <jvmArguments>
-                        --enable-native-access=ALL-UNNAMED
-                        --add-opens java.base/sun.reflect.annotation=ALL-UNNAMED
-                    </jvmArguments>
                 </configuration>
             </plugin>
 
