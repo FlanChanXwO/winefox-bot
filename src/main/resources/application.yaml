@@ -162,8 +162,7 @@ winefox:
       # GitHub仓库地址和JAR包名通常是固定的
       github-repo: "FlanChanXwO/winefox-bot"
       current-jar-name: "winefox-bot.jar"
-      github-api-url: "https://api.github.com/repos/{repo}/releases/tags/{tag}"
-      release-tag: "latest"
+      github-api-url: "https://api.github.com/repos/{repo}/releases/latest"
   status:
     # Bot 的名称，会显示在图片中
     bot-name: ${winefox.robot.nickname}

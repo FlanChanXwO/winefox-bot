@@ -21,11 +21,12 @@ public class WineFoxBotAppUpdateProperties {
      * GitHub API 地址模板，{repo} 会被替换为 githubRepo
      * {tag} 会被替换为 releaseTag
      */
-    private String githubApiUrl = "https://api.github.com/repos/{repo}/releases/tags/{tag}";
+    private String githubApiUrl = "https://api.github.com/repos/{repo}/releases/latest";
 
     /**
      * 我们在 GitHub Actions 中设置的固定 Release 标签名
      */
+    @Deprecated
     private String releaseTag = "latest";
 
     /**

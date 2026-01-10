@@ -195,9 +195,7 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
 
     @Override
     public GitHubRelease fetchLatestRelease() throws IOException {
-        final String apiUrl = updateProperties.getGithubApiUrl()
-                .replace("{repo}", updateProperties.getGithubRepo())
-                .replace("{tag}", updateProperties.getReleaseTag());
+        final String apiUrl = updateProperties.getGithubApiUrl().replace("{repo}", updateProperties.getGithubRepo());
 
         log.info("请求 GitHub API URL: {}", apiUrl);
 
