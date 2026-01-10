@@ -36,7 +36,7 @@ public class FortuneTool {
             @ToolParam(required = false, description = "调用该工具所需的session_id，需要从json消息的session_id字段中获取")
             Long sessionId,
             @ToolParam(description = "调用该工具所需的message_type，需要从json消息的message_type字段中获取,该参数必须为小写")
-            MessageType messageType
+            String messageType
     ) {}
 
     public record FortuneResponse(
@@ -65,7 +65,7 @@ public class FortuneTool {
 
             Long userId = req.userId();
             Long sessionId = req.sessionId();
-            MessageType messageType = req.messageType();
+            MessageType messageType = MessageType.fromValue(req.messageType().toLowerCase());
 
             log.info("AI工具请求今日运势，userId: {}, sessionId: {}, messageType: {}", userId, sessionId, messageType);
 

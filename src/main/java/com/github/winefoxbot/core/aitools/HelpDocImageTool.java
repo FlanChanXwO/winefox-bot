@@ -32,7 +32,7 @@ public class HelpDocImageTool {
             @ToolParam(required = true, description = "调用该工具所需的session_id，需要从json消息的session_id字段中获取")
             Long sessionId,
             @ToolParam(required = true, description = "调用该工具所需的message_type，需要从json消息的message_type字段中获取,该参数必须为小写")
-            MessageType messageType,
+            String messageType,
             @ToolParam(required = false,description = "功能组名称，例如'wf'、'管理'等。如果不指定则获取全部帮助。")
             String groupName
 
@@ -60,9 +60,10 @@ public class HelpDocImageTool {
                             .img(imageBytes)
                             .build();
                     Bot bot = botOpt.get();
-                    if (request.messageType() == MessageType.GROUP) {
+                    MessageType messageType = MessageType.fromValue(request.messageType.toLowerCase());
+                    if (messageType == MessageType.GROUP) {
                         SendMsgUtil.sendGroupMsg(bot, request.sessionId, msg,false);
-                    } else if (request.messageType() == MessageType.PRIVATE) {
+                    } else if (messageType == MessageType.PRIVATE) {
                         SendMsgUtil.sendPrivateMsg(bot, request.sessionId, msg,false);
                     }
                 }

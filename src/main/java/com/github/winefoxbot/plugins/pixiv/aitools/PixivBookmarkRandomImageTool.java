@@ -43,7 +43,7 @@ public class PixivBookmarkRandomImageTool {
             @ToolParam(required = false, description = "调用该工具所需的session_id，需要从json消息的session_id字段中获取")
             Long sessionId,
             @ToolParam(required = true, description = "调用该工具所需的message_type，需要从json消息的message_type字段中获取,该参数必须为小写")
-            MessageType messageType
+            String messageType
     ) {}
 
     public record PixivBookmarkImageResponse(
@@ -89,7 +89,8 @@ public class PixivBookmarkRandomImageTool {
     }
 
     private void sendImage(PixivBookmarkImageRequest pixivBookmarkImageRequest, Bot bot, PixivArtworkInfo pixivArtworkInfo, List<File> files, String pid) {
-        if (pixivBookmarkImageRequest.messageType.equals(MessageType.GROUP)) {
+        MessageType messageType = MessageType.fromValue(pixivBookmarkImageRequest.messageType.toLowerCase());
+        if (messageType.equals(MessageType.GROUP)) {
             artworkService.sendArtworkToGroup(bot, pixivBookmarkImageRequest.sessionId, pixivArtworkInfo, files, null);
             log.info("群 [{}] 的随机收藏发送完成，作品ID: {}。", pixivBookmarkImageRequest.sessionId, pid);
         } else {
@@ -99,7 +100,8 @@ public class PixivBookmarkRandomImageTool {
     }
 
     private static void sendTip(PixivBookmarkImageRequest pixivBookmarkImageRequest, Bot bot, String tipMsg) {
-        if (pixivBookmarkImageRequest.messageType.equals(MessageType.GROUP)) {
+        MessageType messageType = MessageType.fromValue(pixivBookmarkImageRequest.messageType.toLowerCase());
+        if (messageType.equals(MessageType.GROUP)) {
             SendMsgUtil.sendGroupMsg(bot, pixivBookmarkImageRequest.sessionId, tipMsg,false);
         } else {
             SendMsgUtil.sendPrivateMsg(bot, pixivBookmarkImageRequest.sessionId, tipMsg, false);

@@ -33,7 +33,7 @@ public class SetuRandomImageTool {
             @ToolParam(required = true, description = "调用该工具所需的session_id，需要从json消息的session_id字段中获取")
             Long sessionId,
             @ToolParam(required = true, description = "调用该工具所需的message_type，需要从json消息的message_type字段中获取,该参数必须为小写")
-            MessageType messageType,
+            String messageType,
             @ToolParam(required = false, description = "图片标签或关键词，例如'白丝'、'黑丝'、'碧蓝档案'等。如果用户没有指定，则为空。")
             String tag
     ) {}
@@ -55,7 +55,8 @@ public class SetuRandomImageTool {
                 Bot bot = botOpt.get();
 
                 Long configUserId = request.userId();
-                Long groupContextId = (request.messageType() == MessageType.GROUP) ? request.sessionId() : null;
+                MessageType messageType = MessageType.fromValue(request.messageType.toLowerCase());
+                Long groupContextId = (messageType == MessageType.GROUP) ? request.sessionId() : null;
 
                 // 调用 Service 新增的 ID 重载方法
                 setuService.processSetuRequest(bot, configUserId, groupContextId, request.tag());

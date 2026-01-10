@@ -113,27 +113,27 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
             log.info("新版本信息详情: {}", newVersionInfo);
 
             // 4. 智能检测是否需要下载 lib.zip
-            GitHubRelease.Asset libAsset = findLibAsset(latestRelease.getAssets());
-            boolean needDownloadLib = false;
+//            GitHubRelease.Asset libAsset = findLibAsset(latestRelease.getAssets());
+//            boolean needDownloadLib = false;
 
-            if (libAsset != null) {
-                // 如果当前版本没有哈希记录（旧版本），或者哈希不匹配，则下载
-                if (!StringUtils.hasText(currentVersionInfo.libSha256) ||
-                        !currentVersionInfo.libSha256.equals(newVersionInfo.libSha256)) {
-
-                    log.info("依赖库哈希变更 (Local: {}, Remote: {})，需要下载依赖库。",
-                            currentVersionInfo.libSha256, newVersionInfo.libSha256);
-                    needDownloadLib = true;
-                } else {
-                    log.info("依赖库哈希一致 ({})，跳过下载 lib.zip。", currentVersionInfo.libSha256);
-                }
-            }
-
-            // 5. 如果需要，下载 lib.zip
-            if (needDownloadLib) {
-                bot.sendMsg(event, "检测到依赖库变更，正在下载 lib.zip...", false);
-                downloadAsset(libAsset, "update-lib.zip");
-            }
+//            if (libAsset != null) {
+//                // 如果当前版本没有哈希记录（旧版本），或者哈希不匹配，则下载
+//                if (!StringUtils.hasText(currentVersionInfo.libSha256) ||
+//                        !currentVersionInfo.libSha256.equals(newVersionInfo.libSha256)) {
+//
+//                    log.info("依赖库哈希变更 (Local: {}, Remote: {})，需要下载依赖库。",
+//                            currentVersionInfo.libSha256, newVersionInfo.libSha256);
+//                    needDownloadLib = true;
+//                } else {
+//                    log.info("依赖库哈希一致 ({})，跳过下载 lib.zip。", currentVersionInfo.libSha256);
+//                }
+//            }
+//
+//            // 5. 如果需要，下载 lib.zip
+//            if (needDownloadLib) {
+//                bot.sendMsg(event, "检测到依赖库变更，正在下载 lib.zip...", false);
+//                downloadAsset(libAsset, "update-lib.zip");
+//            }
 
             // 6. 重命名/准备重启
             // 注意：这里我们已经下载了 jar 到 update-temp.jar，通常你的 restart 脚本或逻辑
