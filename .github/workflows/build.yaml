@@ -79,8 +79,14 @@ jobs:
           TAG_NAME="v${{ steps.get_project_info.outputs.project_version }}"
           
           ASSET_ID=$(echo "$ASSETS_JSON" | jq --arg name "$JAR_NAME" -r '.[] | select(.name == $name) | .id')
+          
           LIB_ASSET_ID=$(echo "$ASSETS_JSON" | jq --arg name "$LIB_NAME" -r '.[] | select(.name == $name) | .id')
-          LIB_SHA256=$(sha256sum target/lib.zip | awk '{print $1}')
+          if [ -d "target/lib" ]; then
+             LIB_SHA256=$(find target/lib -type f -name "*.jar" -exec sha256sum {} + | sort | sha256sum | awk '{print $1}')
+          else
+             LIB_SHA256=""
+          fi
+          echo "Calculated Content-Based Lib SHA256: $LIB_SHA256"
           
           if [ -z "$RELEASE_ID" ] || [ -z "$ASSET_ID" ] || [ "$ASSET_ID" == "null" ]; then
             echo "Error: Could not determine Release ID or Asset ID."
