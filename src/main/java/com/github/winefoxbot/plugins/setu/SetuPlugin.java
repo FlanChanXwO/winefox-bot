@@ -43,7 +43,7 @@ public class SetuPlugin {
     )
     @Order(10)
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^(来(份|个|张))(\\S*?)(福利|色|瑟|涩|塞|)图$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^(来(份|个|张|点))(\\S*?)(福利|色|瑟|涩|塞|)图$")
     public void getRandomPicture(Bot bot, AnyMessageEvent event, Matcher matcher) {
         // 仅在私聊时进入命令模式，避免影响群聊体验
         if (event.getGroupId() == null) {
