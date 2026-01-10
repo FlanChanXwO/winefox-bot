@@ -27,10 +27,11 @@ public interface GitHubUpdateService {
     class VersionInfo {
         public long releaseId = -1;
         public long assetId = -1;
+        public long libAssetId = -1;
 
         @Override
         public String toString() {
-            return "(Release ID: %d | Asset Id：%d)".formatted(releaseId,assetId);
+            return "(Release ID: %d | Asset Id: %d | Lib Asset Id: %d)".formatted(releaseId, assetId, libAssetId);
         }
     }
 }

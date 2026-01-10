@@ -57,6 +57,7 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
             Properties props = PropertiesLoaderUtils.loadProperties(resource);
             long releaseId = Long.parseLong(props.getProperty("github.release.id", "-1"));
             long assetId = Long.parseLong(props.getProperty("github.asset.id", "-1"));
+            long libAssetId = Long.parseLong(props.getProperty("github.lib.asset.id", "-1"));
 
             if (releaseId == -1 || assetId == -1) {
                 log.warn("Could not find valid release/asset ID in release-info.properties. Update checks may fail.");
@@ -65,6 +66,7 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
             this.currentVersionInfo = new VersionInfo();
             this.currentVersionInfo.releaseId = releaseId;
             this.currentVersionInfo.assetId = assetId;
+            this.currentVersionInfo.libAssetId = libAssetId;
 
             log.info("Successfully initialized current version info: {}", this.currentVersionInfo);
 
@@ -91,17 +93,18 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
             VersionInfo latestVersion = new VersionInfo();
             latestVersion.releaseId = latestRelease.getId();
             latestVersion.assetId = jarAsset.getId();
-            log.info("检测到最新版本 - Release ID: {}, Asset ID: {}", latestVersion.releaseId, latestVersion.assetId);
+
+            GitHubRelease.Asset libAsset = findLibAsset(latestRelease.getAssets());
+            if (libAsset != null) {
+                latestVersion.libAssetId = libAsset.getId();
+            }
+
+            log.info("检测到最新版本: {}", latestVersion);
             VersionInfo currentVersion = getCurrentVersionInfo();
-            log.info("当前运行版本 - Release ID: {}, Asset ID: {}", currentVersion.releaseId, currentVersion.assetId);
-            // 【修复代码】只比较 Release ID。因为 Release ID 相同意味着是同一个版本构建。
-            // 由于 CI 流程中覆盖上传会导致 Asset ID 变更，因此不能比较 Asset ID。
+            log.info("当前运行版本: {}", currentVersion);
+
             if (latestVersion.releaseId == currentVersion.releaseId) {
-                // 可以加个日志提示一下，虽然 Asset ID 不同，但 Release ID 相同，视为最新
-                if (latestVersion.assetId != currentVersion.assetId) {
-                    log.info("Release ID 相同但 Asset ID 不同 ({} vs {})，忽略差异，视为已是最新版本。",
-                            currentVersion.assetId, latestVersion.assetId);
-                }
+                log.info("Release ID 相同，视为已是最新版本。");
                 throw new IllegalStateException("当前已是最新版本，无需更新。");
             }
 
@@ -111,7 +114,24 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
 
             log.info("发现新版本，开始下载并替换...");
             bot.sendMsg(event, "发现新版本 " + latestRelease.getTagName() + "，正在下载更新包...", false);
-            downloadAndReplace(jarAsset);
+
+            // Download Thin JAR
+            downloadAsset(jarAsset, "update-temp");
+
+            // Download Libs if needed
+            // Logic: If remote has lib.zip AND (local lib ID is different OR local lib ID is missing)
+            if (libAsset != null) {
+                if (currentVersion.libAssetId != libAsset.getId()) {
+                     log.info("依赖库版本变更 (Local: {}, Remote: {})，正在下载依赖库...", currentVersion.libAssetId, libAsset.getId());
+                     bot.sendMsg(event, "正在下载依赖库更新 (lib.zip)...", false);
+                     downloadAsset(libAsset, "update-lib.zip");
+                } else {
+                     log.info("依赖库版本一致，跳过下载 lib.zip");
+                }
+            } else {
+                log.warn("线上 Release 未包含 lib.zip，如果是 Thin JAR 模式可能导致无法运行。");
+            }
+
             bot.sendMsg(event, "更新包下载完成，应用即将重启以完成更新...", false);
             log.info("文件更新完成，即将重启应用...");
 
@@ -175,16 +195,15 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
     }
 
 
-    private void downloadAndReplace(GitHubRelease.Asset jarAsset) throws IOException {
-        // 【核心修改】目标不再是替换当前 JAR，而是将新文件下载为 update-temp.jar
-        String downloadUrl = jarAsset.getUrl();
+    private void downloadAsset(GitHubRelease.Asset asset, String targetFileName) throws IOException {
+        String downloadUrl = asset.getUrl();
         // 获取当前 JAR 所在的目录
         Path currentJarDir = Paths.get(updateProperties.getCurrentJarName()).toAbsolutePath().getParent();
         // 最终的临时文件路径
-        Path tempJarPath = currentJarDir.resolve("update-temp");
+        Path targetPath = currentJarDir.resolve(targetFileName);
 
 
-        log.info("从 API URL {} 下载新版本到 {}", downloadUrl, tempJarPath);
+        log.info("从 API URL {} 下载文件到 {}", downloadUrl, targetPath);
 
         Request.Builder requestBuilder = new Request.Builder()
                 .url(downloadUrl)
@@ -202,12 +221,16 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
             if (!response.isSuccessful()) {
                 throw new IOException("下载文件失败: " + response);
             }
-            try (InputStream in = response.body().byteStream()) {
-                // 将下载的文件直接保存为 update-temp.jar，并覆盖已有的
-                Files.copy(in, tempJarPath, StandardCopyOption.REPLACE_EXISTING);
+            ResponseBody body = response.body();
+            if (body == null) {
+                throw new IOException("下载失败: 响应体为空");
+            }
+            try (InputStream in = body.byteStream()) {
+                // 将下载的文件直接保存为目标文件，并覆盖已有的
+                Files.copy(in, targetPath, StandardCopyOption.REPLACE_EXISTING);
             }
         }
-        log.info("新版本已成功下载到 {}", tempJarPath);
+        log.info("文件已成功下载到 {}", targetPath);
     }
 
     @Override
@@ -215,6 +238,16 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
         if (assets == null) return null;
         for (GitHubRelease.Asset asset : assets) {
             if (asset.getName().endsWith(".jar")) {
+                return asset;
+            }
+        }
+        return null;
+    }
+
+    private GitHubRelease.Asset findLibAsset(GitHubRelease.Asset[] assets) {
+        if (assets == null) return null;
+        for (GitHubRelease.Asset asset : assets) {
+            if ("lib.zip".equals(asset.getName())) {
                 return asset;
             }
         }

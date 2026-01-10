@@ -33,11 +33,17 @@ jobs:
           echo "fat_jar_name=${FAT_JAR_NAME}" >> $GITHUB_OUTPUT
           echo "release_asset_name=${RELEASE_ASSET_NAME}" >> $GITHUB_OUTPUT
 
-      - name: Build 'fat' JAR with Maven
+      - name: Build JAR with Maven
         run: mvn -B package spring-boot:repackage --file pom.xml
 
-      - name: Rename fat JAR for processing
-        run: mv "target/${{ steps.get_project_info.outputs.fat_jar_name }}" "target/${{ steps.get_project_info.outputs.release_asset_name }}"
+      - name: Rename JAR and Zip Libs
+        run: |
+          mv "target/${{ steps.get_project_info.outputs.fat_jar_name }}" "target/${{ steps.get_project_info.outputs.release_asset_name }}"
+          cd target
+          if [ -d "lib" ]; then
+             zip -r lib.zip lib/
+          fi
+          cd ..
 
       # 【核心修改】强制删除旧的 'latest' Release 和 Tag
       - name: Force delete and recreate 'latest' tag
@@ -66,14 +72,19 @@ jobs:
           # `make_latest: true` 确保这个新的 release 被标记为 "Latest"
           make_latest: true
           body: "🚀 Latest development build, updated at ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
-          files: "target/${{ steps.get_project_info.outputs.release_asset_name }}"
+          files: |
+            target/${{ steps.get_project_info.outputs.release_asset_name }}
+            target/lib.zip
 
       - name: Generate final release-info.properties
         id: generate_properties
         run: |
           ASSETS_JSON='${{ steps.create_release.outputs.assets }}'
           JAR_NAME="${{ steps.get_project_info.outputs.release_asset_name }}"
-          ASSET_ID=$(echo "$ASSETS_JSON" | jq --arg name "$JAR_NAME" '.[] | select(.name == $name) | .id')
+          LIB_NAME="lib.zip"
+          
+          ASSET_ID=$(echo "$ASSETS_JSON" | jq --arg name "$JAR_NAME" -r '.[] | select(.name == $name) | .id')
+          LIB_ASSET_ID=$(echo "$ASSETS_JSON" | jq --arg name "$LIB_NAME" -r '.[] | select(.name == $name) | .id')
           RELEASE_ID='${{ steps.create_release.outputs.id }}'
 
           if [ -z "$RELEASE_ID" ] || [ -z "$ASSET_ID" ] || [ "$ASSET_ID" == "null" ]; then
@@ -87,6 +98,11 @@ jobs:
           PROPERTIES_FILE="release-info.properties"
           echo "github.release.id=$RELEASE_ID" > $PROPERTIES_FILE
           echo "github.asset.id=$ASSET_ID" >> $PROPERTIES_FILE
+          
+          if [ ! -z "$LIB_ASSET_ID" ] && [ "$LIB_ASSET_ID" != "null" ]; then
+             echo "github.lib.asset.id=$LIB_ASSET_ID" >> $PROPERTIES_FILE
+             echo "Final Asset ID for $LIB_NAME is: $LIB_ASSET_ID"
+          fi
           
           echo "Generated final $PROPERTIES_FILE content:"
           cat $PROPERTIES_FILE

@@ -61,6 +61,12 @@ while true; do
         echo "[UPDATE] Update exit code detected. Starting update process..."
         sleep 2 # 等待，确保文件句柄释放
 
+        if [ ! -f "$TEMP_JAR_PATH" ] && [ ! -f "$TEMP_LIB_PATH" ]; then
+            echo "[ERROR] Update exit code 5 received but no update files found!"
+            echo "[INFO] Restarting with the current version."
+        fi
+
+        # 处理 JAR 更新
         if [ -f "$TEMP_JAR_PATH" ]; then
             echo "[UPDATE] Found update file: '$TEMP_JAR_PATH'."
             echo "[UPDATE] Attempting to replace '$JAR_PATH'..."
@@ -72,10 +78,28 @@ while true; do
                 echo "[ERROR] Update failed: Could not replace the JAR file. Check permissions."
                 echo "[INFO] Restarting with the old version."
             fi
-        else
-            echo "[ERROR] Update failed: Temporary update file '$TEMP_JAR_PATH' not found!"
-            echo "[INFO] Aborting update and restarting with the old version."
         fi
+
+        # 处理 Lib 更新
+        if [ -f "$TEMP_LIB_PATH" ]; then
+            echo "[UPDATE] Found Library update: '$TEMP_LIB_PATH'."
+            echo "[UPDATE] Extracting libraries..."
+
+            # 尝试使用 unzip
+            if command -v unzip >/dev/null 2>&1; then
+                unzip -o "$TEMP_LIB_PATH" && rm -f "$TEMP_LIB_PATH"
+                echo "[SUCCESS] Libraries extracted successfully."
+            else
+                # 尝试使用 jar 命令 (通常 JDK 自带)
+                if command -v jar >/dev/null 2>&1; then
+                    jar -xf "$TEMP_LIB_PATH" && rm -f "$TEMP_LIB_PATH"
+                    echo "[SUCCESS] Libraries extracted successfully via jar command."
+                else
+                    echo "[ERROR] Failed to extract '$TEMP_LIB_PATH': 'unzip' and 'jar' commands not found."
+                fi
+            fi
+        fi
+
     else
         echo "[INFO] Normal exit or crash detected (Code: $EXIT_CODE). Restarting application..."
     fi

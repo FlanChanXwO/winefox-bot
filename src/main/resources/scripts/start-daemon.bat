@@ -57,23 +57,42 @@ if not "!EXIT_CODE!" == "!UPDATE_EXIT_CODE!" (
 echo [UPDATE] Update exit code detected. Starting update process...
 timeout /t 2 /nobreak > nul
 
-if not exist "%TEMP_JAR_PATH%" (
-    echo [ERROR] Update failed: Temporary update file '%TEMP_JAR_PATH%' not found!
-    echo [INFO] Aborting update and restarting with the old version.
+if not exist "%TEMP_JAR_PATH%" if not exist "%TEMP_LIB_PATH%" (
+    echo [ERROR] Update exit code 5 received but no update files found!
+    echo [INFO] Restarting with the current version.
     goto restart_loop
 )
 
-echo [UPDATE] Found update file: '%TEMP_JAR_PATH%'.
-echo [UPDATE] Attempting to replace '%JAR_PATH%'...
+if exist "%TEMP_JAR_PATH%" (
+    echo [UPDATE] Found JAR update: '%TEMP_JAR_PATH%'.
+    echo [UPDATE] Attempting to replace '%JAR_PATH%'...
+    move /Y "%TEMP_JAR_PATH%" "%JAR_PATH%" > nul
+    if !errorlevel! == 0 (
+        echo [SUCCESS] JAR successfully updated.
+    ) else (
+        echo [ERROR] Update failed: Could not replace the JAR file. Check file permissions or if it's locked.
+    )
+)
 
-:: 使用 MOVE /Y 命令来强制覆盖旧文件
-move /Y "%TEMP_JAR_PATH%" "%JAR_PATH%" > nul
+if exist "%TEMP_LIB_PATH%" (
+    echo [UPDATE] Found Library update: '%TEMP_LIB_PATH%'.
+    echo [UPDATE] Extracting libraries...
 
-if !errorlevel! == 0 (
-    echo [SUCCESS] Update complete! '%JAR_PATH%' has been successfully updated.
-) else (
-    echo [ERROR] Update failed: Could not replace the JAR file. Check file permissions or if it's locked.
-    echo [INFO] Restarting with the old version.
+    :: Try tar first (Win10+)
+    tar -xf "%TEMP_LIB_PATH%"
+    if !errorlevel! == 0 (
+        echo [SUCCESS] Libraries extracted successfully.
+        del "%TEMP_LIB_PATH%"
+    ) else (
+        echo [WARN] 'tar' failed or not found. Trying PowerShell...
+        powershell -command "Expand-Archive -Force '%TEMP_LIB_PATH%' ."
+        if !errorlevel! == 0 (
+             echo [SUCCESS] Libraries extracted successfully via PowerShell.
+             del "%TEMP_LIB_PATH%"
+        ) else (
+             echo [ERROR] Failed to extract libraries! Check if files are locked.
+        )
+    )
 )
 
 :restart_loop
