@@ -1,18 +1,16 @@
 package com.github.winefoxbot.plugins.pixiv.model.entity;
 
-import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * @TableName pixiv_rank_push_schedule
+ * 这是一个DTO，用于在插件和核心调度服务之间传递数据。
+ * 旧的数据库表已废弃，统一使用 group_push_schedule。
  */
-@TableName(value ="pixiv_rank_push_schedule")
 @Data
 public class PixivRankPushSchedule implements Serializable {
-    @TableId(type = IdType.AUTO)
     private Integer id;
 
     private Long groupId;
@@ -22,10 +20,10 @@ public class PixivRankPushSchedule implements Serializable {
     private String cronSchedule;
 
     private String description;
-    @TableField(fill = FieldFill.INSERT)
+
     private LocalDateTime createdAt;
-    @TableField(fill = FieldFill.INSERT_UPDATE)
+
     private LocalDateTime updatedAt;
-    @TableField(exist = false)
+
     private static final long serialVersionUID = 1L;
 }

@@ -11,7 +11,7 @@ import java.time.LocalTime;
 * @description 针对表【water_group_schedule】的数据库操作Service
 * @createDate 2025-12-24 11:53:16
 */
-public interface WaterGroupScheduleService extends IService<WaterGroupSchedule> {
+public interface WaterGroupScheduleService {
 
     void scheduleDailyPush(Long groupId, LocalTime time);
 

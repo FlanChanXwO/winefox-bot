@@ -52,32 +52,22 @@ CREATE TABLE IF NOT EXISTS water_group_msg_stat
     UNIQUE (user_id, group_id, date) -- 确保每个群的每个用户在每个日期只有一条记录
 );
 
-CREATE TABLE if not exists water_group_schedule
-(
-    id       SERIAL PRIMARY KEY,
-    group_id BIGINT NOT NULL,
-    time     TIME   NOT NULL,
-    UNIQUE (group_id)
-);
-CREATE TABLE IF NOT EXISTS pixiv_rank_push_schedule
-(
-    id            SERIAL PRIMARY KEY,
-    group_id      BIGINT       NOT NULL,
-    rank_type     VARCHAR(10)  NOT NULL,
-    -- 存储标准的 Cron 表达式
-    -- 例如: '0 9 * * 1'   (每周一上午9:00)
-    --       '0 10 1 * *'  (每月1号上午10:00)
-    --       '0 8 * * *'   (每天上午8:00)
-    cron_schedule VARCHAR(64) NOT NULL,
-    description   TEXT, -- [可选] 对 Cron 的可读性描述，方便调试
-    created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (group_id, rank_type)
-);
 
--- 为查询创建索引
-CREATE INDEX IF NOT EXISTS idx_cron_schedule ON pixiv_rank_push_schedule (cron_schedule);
-
+-- 统一的群组推送日程表，替代原有的各插件独立表
+CREATE TABLE IF NOT EXISTS group_push_schedule
+(
+    id              SERIAL PRIMARY KEY,
+    group_id        BIGINT       NOT NULL,
+    task_type       VARCHAR(64)  NOT NULL, -- 任务类型 e.g. 'WATER_GROUP_STAT', 'PIXIV_RANK'
+    task_param      VARCHAR(64),           -- 任务参数 e.g. 'daily', 'weekly' (可选)
+    cron_expression VARCHAR(64)  NOT NULL, -- Cron表达式
+    description     TEXT,                  -- 描述
+    is_enabled      BOOLEAN      NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (group_id, task_type, task_param)
+);
+CREATE INDEX IF NOT EXISTS idx_group_push_schedule_group ON group_push_schedule (group_id);
 
 
 

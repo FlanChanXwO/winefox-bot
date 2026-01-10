@@ -1,9 +1,8 @@
 package com.github.winefoxbot.plugins.pixiv.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.github.winefoxbot.core.service.schedule.ScheduleTaskService;
-import com.github.winefoxbot.plugins.pixiv.mapper.PixivRankPushScheduleMapper;
+import com.github.winefoxbot.core.model.entity.GroupPushSchedule;
+import com.github.winefoxbot.core.service.push.GroupPushTaskExecutor;
+import com.github.winefoxbot.core.service.schedule.GroupPushScheduleService;
 import com.github.winefoxbot.plugins.pixiv.model.entity.PixivRankPushSchedule;
 import com.github.winefoxbot.plugins.pixiv.model.enums.PixivRankPushMode;
 import com.github.winefoxbot.plugins.pixiv.service.PixivRankPushScheduleService;
@@ -11,96 +10,80 @@ import com.github.winefoxbot.plugins.pixiv.service.PixivRankService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
-* @author FlanChan
-* @description 针对表【pixiv_rank_push_schedule】的数据库操作Service实现
-* @createDate 2025-12-28 19:46:20
-*/
+ * @author FlanChan
+ * 针对 unified `group_push_schedule` 的 Pixiv 适配实现
+
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class PixivRankPushScheduleServiceImpl extends ServiceImpl<PixivRankPushScheduleMapper, PixivRankPushSchedule>
-    implements PixivRankPushScheduleService{
+public class PixivRankPushScheduleServiceImpl implements PixivRankPushScheduleService {
 
-    private final ScheduleTaskService scheduleTaskService;
     private final PixivRankService pixivRankService;
+    private final GroupPushTaskExecutor groupPushTaskExecutor;
+    private final GroupPushScheduleService groupPushScheduleService;
 
-    private static final String JOB_ID_TEMPLATE = "pixiv-rank-push-%s-%s"; // {rankType}-{groupId}
+    private static final String TASK_TYPE = "PIXIV_RANK_PUSH";
 
     @Override
-    @Transactional
     public void schedulePush(Long groupId, PixivRankPushMode mode, String cronExpression, String description) {
-        String jobId = String.format(JOB_ID_TEMPLATE, mode.getValue(), groupId);
-
-        // 使用新的调度服务来创建或更新定时任务
-        scheduleTaskService.scheduleOrUpdateRecurrentTask(
-                jobId,
+        groupPushScheduleService.scheduleTask(
+                groupId,
+                TASK_TYPE,
+                mode.getValue(),
                 cronExpression,
-                () -> executePush(groupId, mode.getValue()) // 定义任务执行的具体逻辑
+                description,
+                () -> executePush(groupId, mode.getValue())
         );
-
-        // 从数据库查找是否已存在该订阅
-        PixivRankPushSchedule schedule = getSchedule(groupId, mode);
-        if (schedule == null) {
-            schedule = new PixivRankPushSchedule();
-            schedule.setGroupId(groupId);
-            schedule.setRankType(mode.getValue());
-        }
-        // 更新或插入数据
-        schedule.setCronSchedule(cronExpression);
-        schedule.setDescription(description);
-        this.saveOrUpdate(schedule);
-        log.info("成功调度P站排行榜推送任务: [{}], Cron: [{}], GroupId: [{}]", mode.getValue(), cronExpression, groupId);
     }
 
     @Override
-    @Transactional
     public boolean unschedulePush(Long groupId, PixivRankPushMode mode) {
-        String jobId = String.format(JOB_ID_TEMPLATE, mode.getValue(), groupId);
-        // 删除定时任务
-        scheduleTaskService.deleteRecurrentTask(jobId);
-
-        // 删除数据库记录
-        boolean removed = this.remove(new LambdaQueryWrapper<PixivRankPushSchedule>()
-                .eq(PixivRankPushSchedule::getGroupId, groupId)
-                .eq(PixivRankPushSchedule::getRankType, mode.getValue()));
-
-        if (removed) {
-            log.info("成功取消P站排行榜推送任务: [{}], GroupId: [{}]", mode.getValue(), groupId);
-        } else {
-            log.warn("尝试取消一个不存在的P站排行榜推送任务: [{}], GroupId: [{}]", mode.getValue(), groupId);
+        GroupPushSchedule existing = groupPushScheduleService.getTaskConfig(groupId, TASK_TYPE, mode.getValue());
+        if (existing != null) {
+            groupPushScheduleService.unscheduleTask(groupId, TASK_TYPE, mode.getValue());
+            return true;
         }
-        return removed;
+        return false;
     }
 
     @Override
     public List<PixivRankPushSchedule> getSchedulesByGroupId(Long groupId) {
-        return this.list(new LambdaQueryWrapper<PixivRankPushSchedule>()
-                .eq(PixivRankPushSchedule::getGroupId, groupId));
+        List<GroupPushSchedule> configs = groupPushScheduleService.listTaskConfigs(groupId, TASK_TYPE);
+        return configs.stream().map(this::convertToLegacyDto).collect(Collectors.toList());
     }
 
     @Override
     public PixivRankPushSchedule getSchedule(Long groupId, PixivRankPushMode mode) {
-        return this.getOne(new LambdaQueryWrapper<PixivRankPushSchedule>()
-                .eq(PixivRankPushSchedule::getGroupId, groupId)
-                .eq(PixivRankPushSchedule::getRankType, mode.getValue()));
+        GroupPushSchedule config = groupPushScheduleService.getTaskConfig(groupId, TASK_TYPE, mode.getValue());
+        if (config == null) {
+            return null;
+        }
+        return convertToLegacyDto(config);
     }
 
     /**
      * 将Cron表达式解析为用户友好的字符串
-     * @param cronExpression Cron表达式
-     * @return 可读的描述
      */
     @Override
     public String parseCronToDescription(String cronExpression) {
         try {
             String[] fields = cronExpression.split(" ");
-            log.info("解析Cron表达式: {}, 分解字段: {}", cronExpression, Arrays.toString(fields));
+            // log.info("解析Cron表达式: {}, 分解字段: {}", cronExpression, Arrays.toString(fields));
+            // Assuming 5 or 6 fields. If 6, index 0 is seconds. If 5, index 0 is minutes.
+            // JobRunr/Spring @Scheduled typically uses 6 fields.
+            // Let's assume standard behavior or what was previously used.
+            // Previous code assumed: minute = fields[0], hour = fields[1], dayOfMonth = fields[2], dayOfWeek = fields[4]
+            // This implies a 5-field cron (min hour day month dow).
+
+            if (fields.length < 5) return "未知时间格式";
+
             String minute = fields[0];
             String hour = fields[1];
             String dayOfMonth = fields[2];
@@ -123,7 +106,7 @@ public class PixivRankPushScheduleServiceImpl extends ServiceImpl<PixivRankPushS
             if (dayOfMonth.equals("*") && dayOfWeek.equals("*")) {
                 return String.format("每日 %s", timePart);
             }
-            return "自定义时间"; // 其他复杂情况
+            return "自定义时间";
         } catch (Exception e) {
             log.error("解析Cron表达式失败: {}", cronExpression, e);
             return "时间格式异常";
@@ -144,17 +127,27 @@ public class PixivRankPushScheduleServiceImpl extends ServiceImpl<PixivRankPushS
     }
 
     /**
-     * 注意请不要使用枚举传参，因为这是定时任务执行的方法，枚举无法序列化
-     * 定时任务实际执行的推送逻辑
-     * @param groupId 群组ID
-     * @param mode 排行榜类型 (daily, weekly, monthly)
+     * JobRunr target method
      */
     public void executePush(Long groupId, String mode) {
-        log.info("开始执行P站排行榜推送任务, 群组ID: {}, 类型: {}", groupId, mode);
-        pixivRankService.fetchAndPushRank(groupId, PixivRankPushMode.fromValue(mode), PixivRankService.Content.ILLUST);
+        groupPushTaskExecutor.execute(groupId, "P站排行榜推送-" + mode, (bot) -> {
+            log.info("开始执行P站排行榜推送任务, 群组ID: {}, 类型: {}", groupId, mode);
+            pixivRankService.fetchAndPushRank(groupId, PixivRankPushMode.fromValue(mode), PixivRankService.Content.ILLUST);
+        });
+    }
+
+    private PixivRankPushSchedule convertToLegacyDto(GroupPushSchedule config) {
+        PixivRankPushSchedule dto = new PixivRankPushSchedule();
+        // Since id is Integer in new entity and Integer in old, we can copy or ignore.
+        // Old entity ID was Serial (Integer).
+        dto.setId(config.getId());
+        dto.setGroupId(config.getGroupId());
+        dto.setRankType(config.getTaskParam());
+        dto.setCronSchedule(config.getCronExpression());
+        dto.setDescription(config.getDescription());
+        dto.setCreatedAt(config.getCreatedAt());
+        dto.setUpdatedAt(config.getUpdatedAt());
+        return dto;
     }
 }
-
-
-
 
