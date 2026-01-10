@@ -1,5 +1,6 @@
 package com.github.winefoxbot.plugins.pixiv;
 
+import com.github.winefoxbot.core.annotation.Limit;
 import com.github.winefoxbot.core.annotation.Plugin;
 import com.github.winefoxbot.core.annotation.PluginFunction;
 import com.github.winefoxbot.core.exception.bot.PluginExecutionException;
@@ -68,6 +69,7 @@ public class PixivBookmarkPlugin {
     }
 
 
+    @Limit(globalPermits = 20, userPermits = 3 , timeInSeconds = 3)
     @Async
     @PluginFunction(name = "鼠鼠の收藏",
             description = "从鼠鼠的收藏夹中随机抽取一张作品，发送 \"鼠鼠的收藏\" 命令即可获得~",

@@ -1,5 +1,6 @@
 package com.github.winefoxbot.plugins.setu;
 
+import com.github.winefoxbot.core.annotation.Limit;
 import com.github.winefoxbot.core.annotation.Plugin;
 import com.github.winefoxbot.core.annotation.PluginFunction;
 import com.github.winefoxbot.core.model.enums.Permission;
@@ -35,6 +36,7 @@ public class SetuPlugin {
     private final ShiroSessionStateService shiroSessionStateService;
     private final SetuService setuService;
 
+    @Limit(globalPermits = 20, userPermits = 3 , timeInSeconds = 3)
     @Async
     @PluginFunction(
             name = "随机福利图片获取",

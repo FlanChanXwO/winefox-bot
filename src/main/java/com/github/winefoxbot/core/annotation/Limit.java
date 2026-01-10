@@ -47,7 +47,7 @@ public @interface Limit {
      *
      * @return 提示信息文本
      */
-    String message() default "操作太快啦，请稍后再试~";
+    String message() default "";
 
     /**
      * 发送限流提示的最小时间间隔（单位：秒）。

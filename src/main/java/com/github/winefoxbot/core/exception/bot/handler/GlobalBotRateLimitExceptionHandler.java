@@ -20,6 +20,9 @@ public class GlobalBotRateLimitExceptionHandler {
                     event.getUserId(), // getUserId() 在 MessageEvent 中存在
                     event.getClass().getSimpleName(),
                     e.getMessage());
+            if (e.getMessage().isEmpty() || e.getMessage().isBlank()) {
+                return;
+            }
             switch (event) {
                 case AnyMessageEvent anyMessageEvent -> bot.sendMsg(anyMessageEvent, e.getMessage(), false);
                 case GroupMessageEvent groupMessageEvent ->
