@@ -54,7 +54,7 @@ public class FortuneTool {
 
 
     @Bean("fortuneGetTool")
-    @Description("获取今日运势的唯一工具。当用户话题涉及'运势'、'运气'、'jrys'、'抽签'时，**严禁**自行编造结果，**必须**调用此工具获取真实数据。具体'运势'请看**运势标题**，尽管运势描述出现了'小吉'等词你也应该以**运势标题**为准。该工具会异步发送图片，并返回文本结果供你回复。")
+    @Description("获取今日运势的唯一工具。当用户需要向你获取今日运势相关内容时，**严禁**自行编造结果，必须调用此工具获取真实数据。具体'运势'请看**运势标题**，尽管运势描述出现了'小吉'等词你也应该以**运势标题**为准。该工具会异步发送图片，并返回文本结果供你回复。")
     public Function<FortuneRequest,FortuneResponse> fortuneGetTool() {
         return req -> {
             Optional<Bot> botOptional = botContainer.robots.values().stream().findFirst();

@@ -133,7 +133,7 @@ public class OpenAiServiceImpl implements OpenAiService {
         }
 
         log.debug("Loaded {} historical messages for AI context.", history.size());
-        // 2. 处理当前用户消息
+// 2. 处理当前用户消息
         if (currentMessage != null) {
             try {
                 String currentUserMessageJson = objectMapper.writeValueAsString(currentMessage.getContentNode());
@@ -142,8 +142,16 @@ public class OpenAiServiceImpl implements OpenAiService {
 
                 if (!mediaList.isEmpty()) {
                     log.info("Current message contains {} images.", mediaList.size());
+
+                    // 【核心修改】在这里拼接一段提示，强制 AI 关注文本
+                    // 注意：因为你的 prompt 规定了输入是 JSON，所以我们得小心拼接，或者直接修改 JSON 内容
+                    // 但最简单的方法是直接拼接在字符串后面，前提是这不破坏你的 JSON 解析逻辑（如果有的话）
+                    // 既然你发给 AI 的是 contentNode 的 JSON 字符串，我们可以直接改这个 text
+
+                    String promptText = currentUserMessageJson + "\n\n[系统提示: 这条消息包含图片和文本。请重点回答文本内容，图片仅作参考。]";
+
                     messages.add(UserMessage.builder()
-                            .text(currentUserMessageJson)
+                            .text(promptText)
                             .media(mediaList)
                             .build());
                 } else {
@@ -153,6 +161,7 @@ public class OpenAiServiceImpl implements OpenAiService {
                 log.error("Failed to serialize current user message for AI context.", e);
             }
         }
+
 
         System.out.println(currentMessage);
 

@@ -255,6 +255,10 @@ public class LocalStorageService implements FileStorageService {
 
         boolean deleted = Files.deleteIfExists(filePath);
         if (deleted) {
+            // 从记录中移除文件
+            if (fileRecords.remove(filePath.toString()) != null) {
+                log.info("Removed record and file during directory cleanup: {}", filePath);
+            }
             log.info("File deleted successfully: {}", pathString);
             if (afterDeleteCallback != null) {
                 afterDeleteCallback.accept(filePath);
@@ -275,6 +279,10 @@ public class LocalStorageService implements FileStorageService {
     public boolean deleteFile(Path filePath, Consumer<Path> afterDeleteCallback) throws IOException {
         boolean deleted = Files.deleteIfExists(filePath);
         if (deleted) {
+            // 从记录中移除文件
+            if (fileRecords.remove(filePath.toString()) != null) {
+                log.info("Removed record and file during directory cleanup: {}", filePath);
+            }
             log.info("File deleted successfully: {}", filePath);
             // 注意：从 fileRecords 中移除记录的操作应该由调用者（如 cleanupExpiredFiles）负责
             // 因为这个方法可能被其他地方调用，不一定需要操作 fileRecords。

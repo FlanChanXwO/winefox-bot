@@ -210,8 +210,7 @@ jobrunr:
   job-scheduler:
     enabled: true
   dashboard:
-    enabled: true
-    port: 8000
+    enabled: false
   jobs:
     default-number-of-retries: 5
 

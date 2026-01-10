@@ -69,7 +69,6 @@ public class ScriptChecker {
                     }
                 }
             }
-            // --- 新增代码结束 ---
 
             File jarDir = home.getDir();
             boolean scriptsGenerated = false;
