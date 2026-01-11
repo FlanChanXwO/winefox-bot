@@ -24,17 +24,25 @@ body {
   overflow: hidden; /* 防止图片溢出圆角 */
 }
 
+
+/* --- 头部立绘微调 --- */
+.top-character {
+  height: 155px;
+}
+
 /* --- 头部 --- */
 .top-border {
   display: flex;
   position: relative;
   height: 160px; /* 增加高度给立绘 */
+  text-align: center;
 }
 
 .top-title {
   position: relative;
   width: 280px;
   z-index: 2; /* 确保文字在立绘上面 */
+  text-align: center;
 }
 
 .zx-title {
@@ -43,18 +51,19 @@ body {
   color: #f7a0b5;
   font-size: 80px; /* 稍微调小一点防止换行 */
   position: absolute;
-  top: -10px;
+  top:10px;
   left: -5px;
   line-height: 1;
+  text-align: center;
 }
 
 .zx-tip {
   color: #f7c1d4;
   font-family: 'NotoSansSC-Bold', "Microsoft YaHei", sans-serif;
-  font-size: 30px;
-  position: absolute;
-  top: 75px;
-  left: 10px;
+  font-size: 33px;
+  position: relative;
+  top: 80px;
+  text-align: center;
 }
 /* --- 头部日期区域修正 --- */
 
@@ -168,18 +177,6 @@ body {
   padding-bottom: 10px;
 }
 
-
-/* --- 头部立绘微调 --- */
-.top-character {
-  position: absolute;
-  /* 调整 right 值，让它不要和日期框重叠太多，也不要离太远 */
-  right: 140px;
-  /* 稍微往下一点，或者对齐底部 */
-  bottom: 0;
-  height: 145px; /* 控制高度，不要太高顶出去了 */
-  z-index: 1;
-}
-
 .top-character img {
   height: 100%;
   object-fit: contain;
@@ -250,6 +247,29 @@ body {
   width: 32%; /* 调整宽度比例 */
   padding: 15px 10px;
 }
+
+.moyu-inner {
+  display: flex;
+  line-height: 15px;
+  font-size: 13px;
+}
+
+.moyu-day {
+  width: 37px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.moyu-day-name {
+  color: #dda6b8;
+  background-color: #fff9fb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 55px;
+}
+
 
 .bili-border {
   width: 65%; /* 调整宽度比例 */

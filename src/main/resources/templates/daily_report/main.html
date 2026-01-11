@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>每日早报</title>
-    <!-- 引入动态CSS -->
-    <style th:utext="${cssStyle}"></style>
-<!--    <link rel="stylesheet" href="./res/css/style.css">-->
+<!--    <style th:utext="${cssStyle}"></style>-->
+    <link rel="stylesheet" href="res/css/style.css" />
 </head>
 <body>
 <div class="wrapper">
@@ -13,15 +12,17 @@
 
         <!-- 1. 头部区域 -->
         <div class="top-border">
+            <div class="top-character">
+                <!--                <img th:src="${imgCharacter}" alt="Character" />-->
+                <img src="res/image/1.no-bg.png" alt="Character" />
+            </div>
+
+
             <div class="top-title">
                 <div class="zx-title">每日早报</div>
                 <div class="zx-tip">Daily News</div>
             </div>
 
-            <!-- [修改] 增加右上角动漫人物立绘 (原本这里是空的) -->
-            <div class="top-character">
-                <img th:src="${imgCharacter}" alt="Character" />
-            </div>
 
             <div class="top-date">
                 <div class="top-date-week" th:text="${#dates.format(newsData.date(), 'E')}">Sat</div>
@@ -29,15 +30,6 @@
                 <div class="top-date-cn" style="padding-top: 10px;">
                     <span th:text="${#dates.format(newsData.date(), 'MM月dd日')}">MM月dd日</span>
                 </div>
-            </div>
-        </div>
-
-        <!-- 2. 一言区域 -->
-        <div class="two-border">
-            <div style="text-align: center; font-size: 16px;">
-                <span th:text="${hitokoto.hitokoto()}">一言内容</span> <br>
-                <span style="font-size: 14px; font-weight: normal; margin-top: 5px; display: block;"
-                      th:text="${'—— ' + hitokoto.from()}">—— 来源</span>
             </div>
         </div>
 
@@ -49,7 +41,6 @@
                 <span class="moyu-title-text">今日新番</span>
             </div>
             <div class="two-border-border">
-                <!-- [修改] 变量改为 animeList，属性改为 item.image 和 item.name -->
                 <div class="anime-border" th:each="item : ${animeList}">
                     <img th:src="${item.image}" class="anime-img">
                     <p class="anime-text" th:text="${item.name}">动漫名称</p>
@@ -106,9 +97,9 @@
                     <img th:src="${iconFish}" class="title-icon" />
                     <span class="moyu-title-text">摸鱼日历</span>
                 </div>
-                <div style="margin-top: 15px; font-size: 13px; line-height: 1.6; color: #555;">
-                    <span th:text="${newsData.tip()}">摸鱼提示内容...</span>
-                </div>
+                <p class="moyu-inner" th:each="item : ${holidayList}">距离<span class="moyu-day-name" th:text=" ${item.name()} ">国庆节</span>还剩<span
+                        class="moyu-day" th:text="${item.daysLeft()}">1</span>天
+                </p>
             </div>
 
             <!-- 右侧：B站热搜 -->
@@ -125,6 +116,15 @@
                         <div class="normal-text" th:text="${item.showName()}">热搜标题</div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- 一言区域 -->
+        <div class="two-border">
+            <div style="text-align: center; font-size: 16px;">
+                <span th:text="${hitokoto.hitokoto()}">一言内容</span> <br>
+                <span style="font-size: 14px; font-weight: normal; margin-top: 5px; display: block;"
+                      th:text="${'—— ' + hitokoto.from()}">—— 来源</span>
             </div>
         </div>
 

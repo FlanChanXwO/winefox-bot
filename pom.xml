@@ -11,7 +11,7 @@
 
     <groupId>com.github</groupId>
     <artifactId>winefox-bot</artifactId>
-    <version>1.9.15</version>
+    <version>1.9.16</version>
 
     <name>winefox-bot</name>
     <description>WineFox Bot 基于 Spring Boot 和 Shiro 的 QQ 机器人</description>
@@ -87,7 +87,6 @@
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
-            <!-- 版本号最好与你项目中的 jackson-databind 一致 -->
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
@@ -105,7 +104,7 @@
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
-            <version>${commons-io.version}</version> <!-- 请使用最新版本 -->
+            <version>${commons-io.version}</version>
         </dependency>
         <dependency>
             <!-- jsoup HTML parser library @ https://jsoup.org/ -->
@@ -130,7 +129,7 @@
         <dependency>
             <groupId>org.objenesis</groupId>
             <artifactId>objenesis</artifactId>
-            <version>${objenesis.version}</version> <!-- Use a recent version -->
+            <version>${objenesis.version}</version>
         </dependency>
         <!-- qq机器人框架依赖 -->
         <dependency>
@@ -245,26 +244,10 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.seleniumhq.selenium</groupId>
-            <artifactId>selenium-java</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.github.bonigarcia</groupId>
-            <artifactId>webdrivermanager</artifactId>
-            <version>6.3.3</version>
-        </dependency>
     </dependencies>
 
     <dependencyManagement>
         <dependencies>
-            <dependency>
-                <groupId>org.seleniumhq.selenium</groupId>
-                <artifactId>selenium-bom</artifactId>
-                <version>4.37.0</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
             <dependency>
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
@@ -292,7 +275,6 @@
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
-            <!-- 1. 配置 maven-jar-plugin 添加 Loader-Path 到 MANIFEST.MF -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
@@ -304,7 +286,6 @@
                     </archive>
                 </configuration>
             </plugin>
-            <!-- 2. Copy dependencies to target/lib -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
@@ -338,7 +319,6 @@
                     <finalName>winefox-bot</finalName>
                     <layout>ZIP</layout>
                     <includes>
-                        <!-- Exclude all dependencies to create a thin jar -->
                         <include>
                             <groupId>nothing</groupId>
                             <artifactId>nothing</artifactId>

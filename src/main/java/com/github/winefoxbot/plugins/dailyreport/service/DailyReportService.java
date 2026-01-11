@@ -7,7 +7,6 @@ import com.github.winefoxbot.core.config.playwright.PlaywrightConfig;
 import com.github.winefoxbot.core.service.file.FileStorageService;
 import com.github.winefoxbot.core.utils.Base64Utils;
 import com.github.winefoxbot.core.utils.ResourceLoader;
-import com.github.winefoxbot.plugins.dailyreport.DailyReportPlugin;
 import com.github.winefoxbot.plugins.dailyreport.config.DailyReportProperties;
 import com.github.winefoxbot.plugins.dailyreport.model.dto.BiliHotwordDTO;
 import com.github.winefoxbot.plugins.dailyreport.model.dto.HitokotoDTO;
@@ -57,27 +56,28 @@ import java.util.stream.Collectors;
 @Slf4j
 public class DailyReportService {
 
-    public static final String DATE_FORMAT_PATTERN = "yyyy-MM-dd";
-    public static final String DAILY_REPORT_CACHE_DIR = "daily-report";
-    public static final String HITOKOTO_API_URL = "https://v1.hitokoto.cn/?c=a&c=b&c=c&encode=json";
-    public static final String BILI_HOTWORD_API_URL = "https://s.search.bilibili.com/main/hotword";
-    public static final String IT_RSS_URL = "https://www.ithome.com/rss/";
-    public static final String ANIME_API_URL = "https://api.bgm.tv/calendar";
+    private static final String DATE_FORMAT_PATTERN = "yyyy-MM-dd";
+    private static final String DAILY_REPORT_CACHE_DIR = "daily-report";
+    private static final String HITOKOTO_API_URL = "https://v1.hitokoto.cn/?c=a&c=b&c=c&encode=json";
+    private static final String BILI_HOTWORD_API_URL = "https://s.search.bilibili.com/main/hotword";
+    private static final String IT_RSS_URL = "https://www.ithome.com/rss/";
+    private static final String ANIME_API_URL = "https://api.bgm.tv/calendar";
 
     // 定义模板变量 Key
-    public static final String VAR_ANIME_LIST = "animeList";
-    public static final String VAR_IT_NEWS_LIST = "itNewsList";
-    public static final String VAR_NEWS_LIST = "newsList";
-    public static final String VAR_HISTORY_LIST = "historyList";
-    public static final String CONTEXT_VARIABLE_HITOKOTO = "hitokoto";
-    public static final String CONTEXT_VARIABLE_NEWS_DATA = "newsData";
-    public static final String CONTEXT_VARIABLE_BILI_HOTWORDS = "biliHotwords";
-    public static final String CONTEXT_VARIABLE_CSS_STYLE = "cssStyle";
+    private static final String CONTEXT_VARIABLE_ANIME_LIST = "animeList";
+    private static final String CONTEXT_VARIABLE_ITNEWS_LIST = "itNewsList";
+    private static final String CONTEXT_VARIABLE_60SNEWS_LIST = "newsList";
+    private static final String CONTEXT_VARIABLE_HISTORY_LIST = "historyList";
+    private static final String CONTEXT_VARIABLE_HITOKOTO = "hitokoto";
+    private static final String CONTEXT_VARIABLE_HOLIDAY_LIST = "holidayList";
+    private static final String CONTEXT_VARIABLE_NEWS_DATA = "newsData";
+    private static final String CONTEXT_VARIABLE_BILI_HOTWORDS = "biliHotwords";
+    private static final String CONTEXT_VARIABLE_CSS_STYLE = "cssStyle";
 
-    public static final String PAGE_CONTAINER_SELECTOR = ".wrapper";
-    public static final int BILI_HOTWORDS_LIMIT = 10;
+    private static final String PAGE_CONTAINER_SELECTOR = ".wrapper";
+    private static final int BILI_HOTWORDS_LIMIT = 10;
 
-    public record AnimeItem(String name, String image) {}
+    private record AnimeItem(String name, String image) {}
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern(DATE_FORMAT_PATTERN);
 
@@ -88,6 +88,7 @@ public class DailyReportService {
     private final TemplateEngine templateEngine;
     private final DailyReportProperties properties;
     private final FileStorageService fileStorageService;
+    private final HolidayService holidayService;
     private final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
     private final Lock lock = new ReentrantLock();
 
@@ -105,8 +106,6 @@ public class DailyReportService {
             log.info("Serving daily report from cache: {}", cachePath);
             return Files.readAllBytes(cachePath);
         }
-
-        System.out.println(DailyReportPlugin.UID.get());
 
         lock.lock();
         try {
@@ -166,9 +165,11 @@ public class DailyReportService {
             // 填充 60s 新闻 (注意这里对应 HTML 的 ${newsList})
             // NewsDataDTO.data().news() 返回的是 List<String>
             NewsDataDTO newsDto = newsFuture.get();
-            data.put(VAR_NEWS_LIST, newsDto != null && newsDto.data() != null ? newsDto.data().news() : Collections.emptyList());
+            data.put(CONTEXT_VARIABLE_60SNEWS_LIST, newsDto != null && newsDto.data() != null ? newsDto.data().news() : Collections.emptyList());
             // 复用 newsData 对象给 header 的日期使用 (HTML中用到了 newsData.date)
             data.put(CONTEXT_VARIABLE_NEWS_DATA, newsDto != null ? newsDto.data() : null);
+            // 填充节假日信息
+            data.put(CONTEXT_VARIABLE_HOLIDAY_LIST, holidayService.getHolidaysSorted());
 
             // 填充 B站热搜
             List<BiliHotwordDTO.HotwordItem> hotwords = biliHotwordFuture.get() != null
@@ -177,13 +178,13 @@ public class DailyReportService {
             data.put(CONTEXT_VARIABLE_BILI_HOTWORDS, hotwords);
 
             // [新增] 填充 IT 资讯
-            data.put(VAR_IT_NEWS_LIST, itNewsFuture.get());
+            data.put(CONTEXT_VARIABLE_ITNEWS_LIST, itNewsFuture.get());
 
             // [新增] 填充 动漫数据
-            data.put(VAR_ANIME_LIST, animeFuture.get());
+            data.put(CONTEXT_VARIABLE_ANIME_LIST, animeFuture.get());
 
             // [新增] 填充 历史上的今天 (Python源无此数据，置空)
-            data.put(VAR_HISTORY_LIST, Collections.emptyList());
+            data.put(CONTEXT_VARIABLE_HISTORY_LIST, Collections.emptyList());
 
             return renderHtmlToImage(data);
         } catch (Exception e) {
@@ -219,7 +220,9 @@ public class DailyReportService {
                     .addHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0")
                     .build();
             try (Response response = httpClient.newCall(request).execute()) {
-                if (response.body() == null) return Collections.emptyList();
+                if (response.body() == null) {
+                    return Collections.emptyList();
+                }
                 String xmlContent = response.body().string();
 
                 // 简单的 XML 解析

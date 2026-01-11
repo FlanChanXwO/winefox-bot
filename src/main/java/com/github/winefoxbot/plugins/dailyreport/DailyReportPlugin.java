@@ -33,7 +33,6 @@ import java.io.IOException;
 public class DailyReportPlugin {
     private final GroupPushScheduleService scheduleService;
     private final DailyReportService dailyReportService;
-    public  static final ScopedValue<AnyMessageEvent> UID = ScopedValue.newInstance();
 
     private static final String DEFAULT_CRON = "0 1 9 * * ?";
     public static final String TASK_TYPE_DAILY_REPORT = "DAILY_REPORT";
@@ -61,8 +60,7 @@ public class DailyReportPlugin {
                 null,
                 DEFAULT_CRON,
                 "真寻日报每日推送",
-                () -> {
-                }
+                () -> {}
         );
         bot.sendGroupMsg(groupId, "本群的真寻日报推送已开启！将会在每天早上9:01发送。", false);
     }
@@ -96,15 +94,13 @@ public class DailyReportPlugin {
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/?真寻日报$")
     public void getManualReport(Bot bot, AnyMessageEvent event) {
-        ScopedValue.where(UID, event).run(() -> {
-            try {
-                byte[] imageBytes = dailyReportService.getDailyReportImage();
-                String message = MsgUtils.builder().img(imageBytes).build();
-                bot.sendMsg(event, message, false);
-            } catch (IOException e) {
-                log.error("手动生成日报失败", e);
-                bot.sendMsg(event, "日报生成失败了，请联系管理员查看后台日志。", false);
-            }
-        });
+        try {
+            byte[] imageBytes = dailyReportService.getDailyReportImage();
+            String message = MsgUtils.builder().img(imageBytes).build();
+            bot.sendMsg(event, message, false);
+        } catch (IOException e) {
+            log.error("手动生成日报失败", e);
+            bot.sendMsg(event, "日报生成失败了，请联系管理员查看后台日志。", false);
+        }
     }
 }
