@@ -8,6 +8,8 @@ import com.github.winefoxbot.core.service.shiro.ShiroBotsService;
 import com.github.winefoxbot.core.service.update.GitHubUpdateService;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.CoreEvent;
+import com.mikuac.shiro.dto.action.common.ActionData;
+import com.mikuac.shiro.dto.action.response.StrangerInfoResp;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
@@ -37,7 +39,11 @@ public class BotStatusEventListener extends CoreEvent {
         // 1. 首先，执行原来的上线通知逻辑
         log.info("Bot {} 上线了！", bot.getSelfId());
         for (Long superuser : wineFoxBotProperties.getRobot().getSuperUsers()) {
-            bot.sendPrivateMsg(superuser, "我上线啦～", false);
+            ActionData<StrangerInfoResp> strangerInfo = bot.getStrangerInfo(superuser, false);
+            if (strangerInfo != null && strangerInfo.getRetCode() == 0) {
+                bot.sendPrivateMsg(superuser, "我上线啦～", false);
+
+            }
         }
         // 2. 接着，处理重启成功的通知逻辑
         handleRestartNotice(bot);

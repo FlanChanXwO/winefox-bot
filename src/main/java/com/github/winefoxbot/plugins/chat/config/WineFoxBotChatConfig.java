@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.winefoxbot.core.config.app.WineFoxBotProperties;
 import com.github.winefoxbot.core.config.app.WineFoxBotRobotProperties;
 import com.github.winefoxbot.core.init.HelpDocLoader;
-import com.github.winefoxbot.core.model.dto.HelpData;
 import com.github.winefoxbot.core.model.dto.HelpGroup;
 import com.github.winefoxbot.core.utils.ResourceLoader;
 import lombok.Getter;
@@ -41,7 +40,6 @@ public class WineFoxBotChatConfig {
     private final WineFoxBotProperties wineFoxBotProperties;
     private final WineFoxBotChatProperties wineFoxBotChatProperties;
     private final ObjectMapper objectMapper;
-    private final List<String> aiToolNames;
 
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ContextRefreshedEvent.class)
@@ -51,7 +49,6 @@ public class WineFoxBotChatConfig {
             loadAvatarInfo();
             // 此时 HelpDocLoader 已经通过事件监听器加载完数据了
             loadHelpDocs();
-            loadToolTips();
             log.info("WineFoxBotChatConfig system prompt initialized successfully.");
         } catch (Exception e) {
             log.error("Failed to initialize WineFoxBotChatConfig system prompt.", e);
@@ -100,13 +97,6 @@ public class WineFoxBotChatConfig {
         } catch (IOException e) {
             throw new RuntimeException("Failed to serialize help data to JSON", e);
         }
-    }
-
-    private void loadToolTips() {
-        this.systemPrompt = systemPrompt.replace("{tool_string}", aiToolNames.stream()
-                .map(name -> "- " + name)
-                .collect(Collectors.joining("\n")));
-        log.info("Loaded AI tool names: {}", aiToolNames);
     }
 
 }

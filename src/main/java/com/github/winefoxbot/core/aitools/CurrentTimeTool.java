@@ -33,7 +33,7 @@ public class CurrentTimeTool {
      * @return 包含当前年份、日期（YYYY-MM-DD）、星期（中文）和时间（HH:mm:ss）的字符串。
      */
     @Bean("dateTimeTool")
-    @Description("获取当前详细时间信息，包括年份、月日、星期以及具体时间。例如：2023年10月27日 星期五 15:30:00；你可以在任何需要查询时间的时候使用，不必返回原样信息给用户")
+    @Description("获取当前详细时间信息，包括年份、月日、星期以及具体时间。例如：2023年10月27日 星期五 15:30:00")
     public Function<Void,String> getCurrentDateTime() {
         return _ -> {
             // 获取当前日期

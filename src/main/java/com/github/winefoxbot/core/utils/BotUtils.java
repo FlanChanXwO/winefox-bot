@@ -54,7 +54,7 @@ public final class BotUtils {
         } else {
             // 否则使用群成员信息接口获取昵称
             ActionData<GroupMemberInfoResp> groupMemberInfo = bot.getGroupMemberInfo(groupId, userId, false);
-            if (groupMemberInfo.getRetCode() == 0) {
+            if (groupMemberInfo != null && groupMemberInfo.getRetCode() == 0) {
                 String card = groupMemberInfo.getData().getCard();
                 return card.isBlank() ? groupMemberInfo.getData().getNickname() : card;
             } else {
@@ -90,14 +90,14 @@ public final class BotUtils {
         groupMember.setGroupId(groupId);
 
         ActionData<GroupMemberInfoResp> groupMemberInfo = bot.getGroupMemberInfo(groupId, userId, false);
-        if (groupMemberInfo.getRetCode() == 0) {
+        if (groupMemberInfo != null && groupMemberInfo.getRetCode() == 0){
             GroupMemberInfoResp data = groupMemberInfo.getData();
             groupMember.setNickname(data.getNickname());
             groupMember.setCard(data.getCard());
             groupMember.setRole(GroupMemberRole.fromValue(data.getRole()));
         } else {
             ActionData<StrangerInfoResp> strangerInfo = bot.getStrangerInfo(userId, false);
-            if (strangerInfo.getRetCode() == 0) {
+            if (strangerInfo != null && strangerInfo.getRetCode() == 0) {
                 StrangerInfoResp data = strangerInfo.getData();
                 groupMember.setNickname(data.getNickname());
                 groupMember.setCard(data.getNickname());
@@ -111,21 +111,21 @@ public final class BotUtils {
 
     public static String getGroupName(Bot bot, Long groupId) {
         ActionData<GroupInfoResp> resp = bot.getGroupInfo(groupId, true);
-        return resp.getRetCode() == 0 ? resp.getData().getGroupName() : groupId.toString();
+        return  resp.getRetCode() == 0 ? resp.getData().getGroupName() : groupId.toString();
     }
 
 
     public static String getUserNickname(Bot bot, Long userId) {
         ActionData<StrangerInfoResp> resp = bot.getStrangerInfo(userId, true);
-        if (resp.getRetCode() == 0) {
+        if (resp != null &&  resp.getRetCode() == 0) {
             return resp.getData().getNickname();
         }
-        return resp.getRetCode() == 0 ? resp.getData().getNickname() : userId.toString();
+        return userId.toString();
     }
 
     public static boolean isAdmin(Bot bot, Long groupId) {
         ActionData<GroupMemberInfoResp> groupMemberInfoResp = bot.getGroupMemberInfo(groupId, bot.getSelfId(), true);
-        if (groupMemberInfoResp.getRetCode() == 0) {
+        if (groupMemberInfoResp != null && groupMemberInfoResp.getRetCode() == 0) {
             String role = groupMemberInfoResp.getData().getRole();
             return "admin".equals(role);
         }

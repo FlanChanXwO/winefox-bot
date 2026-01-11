@@ -54,7 +54,11 @@ public class FortuneTool {
 
 
     @Bean("fortuneGetTool")
-    @Description("获取今日运势的唯一工具。当用户需要向你获取今日运势相关内容时，**严禁**自行编造结果，必须调用此工具获取真实数据。具体'运势'请看**运势标题**，尽管运势描述出现了'小吉'等词你也应该以**运势标题**为准。该工具会异步发送图片，并返回文本结果供你回复。")
+    @Description("""
+        仅当用户明确要求进行'运势查询'、'抽签'、'求签'或'占卜'时才可使用此工具。
+        如果用户只是进行日常对话、打招呼(如'早上好')、或者询问你是谁，**绝对不要**调用此工具。
+        这是一个会发送图片的重型操作，必须由用户显式触发。
+        """)
     public Function<FortuneRequest,FortuneResponse> fortuneGetTool() {
         return req -> {
             Optional<Bot> botOptional = botContainer.robots.values().stream().findFirst();
