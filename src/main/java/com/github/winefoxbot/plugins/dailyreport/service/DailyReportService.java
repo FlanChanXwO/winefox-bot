@@ -278,7 +278,7 @@ public class DailyReportService {
                 List<AnimeItem> animeList = new ArrayList<>();
                 if (todayItems != null) {
                     for (JsonNode item : todayItems) {
-                        if (animeList.size() >= 8) break;
+//                        if (animeList.size() >= 8) break;
                         String name = item.has("name_cn") && !item.get("name_cn").asText().isEmpty()
                                 ? item.get("name_cn").asText()
                                 : item.get("name").asText();
@@ -324,9 +324,9 @@ public class DailyReportService {
         context.setVariable("iconFish", getResourceAsBase64("classpath:templates/daily_report/res/icon/fish.png"));
         context.setVariable("iconBili", getResourceAsBase64("classpath:templates/daily_report/res/icon/bilibili.png"));
         context.setVariable("iconGame", getResourceAsBase64("classpath:templates/daily_report/res/icon/game.png"));
-        context.setVariable("iconBgm", getResourceAsBase64("classpath:templates/daily_report/res/icon/it.png"));
+        context.setVariable("iconBgm", getResourceAsBase64("classpath:templates/daily_report/res/icon/bgm.png"));
         context.setVariable("iconIt", getResourceAsBase64("classpath:templates/daily_report/res/icon/it.png"));
-
+        context.setVariable("iconHitokoto", getResourceAsBase64("classpath:templates/daily_report/res/icon/hitokoto.png"));
         final String htmlContent = templateEngine.process(properties.getTemplatePath(), context);
 
         try (Page page = browser.newPage(new Browser.NewPageOptions().setDeviceScaleFactor(playwrightConfig.getDeviceScaleFactor()))) {

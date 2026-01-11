@@ -1,5 +1,6 @@
 package com.github.winefoxbot.core.config.inner;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -7,8 +8,7 @@ import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.serializer.JacksonJsonRedisSerializer;
-import org.springframework.data.redis.serializer.RedisSerializationContext.SerializationPair;
+import org.springframework.data.redis.serializer.*;
 
 import java.time.Duration;
 
@@ -18,16 +18,17 @@ import static com.github.winefoxbot.core.constants.CacheConstants.CACHE_KEY_PREF
 public class CacheConfig {
 
     @Bean
-    public RedisCacheConfiguration cacheConfiguration() {
+    public RedisCacheConfiguration cacheConfiguration(ObjectMapper objectMapper) {
         // 全局默认配置
         return RedisCacheConfiguration.defaultCacheConfig()
                 // 设置全局默认过期时间为 7 天
                 .entryTtl(Duration.ofDays(7))
                 // 设置 key 的序列化方式 (可选)
-                // .serializeKeysWith(...)
                 .prefixCacheNameWith(CACHE_KEY_PREFIX) // 设置缓存前缀
-                // 设置 value 的序列化方式为 JSON
-                .serializeValuesWith(SerializationPair.fromSerializer(new JacksonJsonRedisSerializer<>(Object.class)))
+                // 设置 Key 为 String 序列化 (这是最佳实践，方便在 Redis GUI 中查看)
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(RedisSerializer.string()))
+                // 设置 Value 为 JSON 序列化 (包含 @class 类型信息)
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(RedisSerializer.json()))
                 // 不缓存 null 值
                 .disableCachingNullValues();
     }

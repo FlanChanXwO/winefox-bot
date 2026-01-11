@@ -227,8 +227,12 @@ body {
 
 .five-border {
   padding: 15px;
-  margin-top: 20px; /* 调整间距 */
   width: 100%;
+  margin-top: 46px;
+  font-size: 19px;
+  color: #efacc3;
+  font-weight: 600;
+  background-color: #fffbfc;
 }
 
 .three-border {
