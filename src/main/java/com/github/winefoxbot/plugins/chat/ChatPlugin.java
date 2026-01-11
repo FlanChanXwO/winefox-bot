@@ -100,6 +100,10 @@ public class ChatPlugin {
     @Order(100)
     @Block
     @PrivateMessageHandler
+    @PluginFunction(name = "私聊聊天回复",
+            hidden = true,
+            description = "在私聊中与酒狐进行智能聊天。",
+            permission = Permission.SUPERADMIN)
     @MessageHandlerFilter(types = {MsgTypeEnum.text, MsgTypeEnum.image})
     public void handlePrivateChatMessage(Bot bot, PrivateMessageEvent event) {
         String sessionKey = shiroSessionStateService.getSessionKey(event);

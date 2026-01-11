@@ -55,9 +55,18 @@ public class FortuneTool {
 
     @Bean("fortuneGetTool")
     @Description("""
-        仅当用户明确要求进行'运势查询'、'抽签'、'求签'或'占卜'时才可使用此工具。
-        如果用户只是进行日常对话、打招呼(如'早上好')、或者询问你是谁，**绝对不要**调用此工具。
-        这是一个会发送图片的重型操作，必须由用户显式触发。
+        Use this tool to generate a 'Fortune/Omikuji' image card for the user.
+        
+        [TRIGGER RULES]
+        1. AUTHORIZED: You MUST call this tool ONLY when the user explicitly asks for "fortune", "omikuji", "luck", "divination" (e.g., "求签", "运势", "今日人品").
+        2. FORBIDDEN: DO NOT call this tool for general greetings (e.g., "Hello"), small talk, or self-introductions.
+        
+        [STRICT PROHIBITIONS - CRITICAL]
+        1. NO AMBIGUOUS INPUTS: If the user sends short, meaningless text like "1", "ok", "...", or an emoji, DO NOT trigger this tool. Treat it as a chat reply.
+        2. NO REPETITION: If you have already executed this tool in the recent context, DO NOT trigger it again unless the user explicitly says "Do it again" or "One more time".
+        
+        [SIDE EFFECTS]
+        This is a HEAVY operation. Do not trigger it implicitly.
         """)
     public Function<FortuneRequest,FortuneResponse> fortuneGetTool() {
         return req -> {
