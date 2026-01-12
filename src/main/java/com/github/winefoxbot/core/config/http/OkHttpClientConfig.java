@@ -25,21 +25,10 @@ public class OkHttpClientConfig {
 
     private ProxyConfig proxyConfig;
 
-    // 1. 定义选择器 Bean
     @Bean
     public AutoSwitchProxySelector autoSwitchProxySelector(ProxyConfig proxyConfig) {
         this.proxyConfig = proxyConfig;
         return new AutoSwitchProxySelector(proxyConfig);
-    }
-
-    // 2. 初始化时，接管整个 JVM 的代理逻辑
-    @PostConstruct
-    public void initGlobalProxySelector() {
-        if (proxyConfig != null) {
-            AutoSwitchProxySelector selector = new AutoSwitchProxySelector(proxyConfig);
-            ProxySelector.setDefault(selector);
-            log.warn("已设置 JVM 全局 ProxySelector (AutoSwitchProxySelector)，接管所有网络流量路由");
-        }
     }
 
     @Bean
