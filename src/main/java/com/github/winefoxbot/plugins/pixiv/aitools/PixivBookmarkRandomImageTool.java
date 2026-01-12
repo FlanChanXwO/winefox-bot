@@ -52,7 +52,13 @@ public class PixivBookmarkRandomImageTool {
 
 
     @Bean("randomPixivBookmarkTool")
-    @Description("随机获取一张P站（Pixiv）收藏的画作。当用户想看涩图、色图或随机图片时使用此功能。")
+    @Description("""
+    Get a random illustration from Pixiv bookmarks.
+    
+    TRIGGER RULES:
+    1. Use this tool ONLY when the user explicitly requests images, such as 'setu', 'anime picture', 'random image', or 'illustration'.
+    2. Do NOT use this tool for general conversation.
+    """)
     public Function<PixivBookmarkImageRequest,PixivBookmarkImageResponse> randomPixivBookmarkTool() {
         return pixivBookmarkImageRequest -> {
             Optional<Bot> botOptional = botContainer.robots.values().stream().findFirst();

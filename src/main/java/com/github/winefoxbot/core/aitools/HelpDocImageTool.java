@@ -25,7 +25,6 @@ public class HelpDocImageTool {
     private final HelpImageService helpImageService;
     private final BotContainer botContainer;
 
-    public static final String CURRENT_TOOL = "helpDocumentTool";
 
 
     public record HelpCommandRequest(
@@ -42,9 +41,16 @@ public class HelpDocImageTool {
                                     @ToolParam(description = "是否调用工具成功：true:成功 false:失败")  Boolean success,
                                     @ToolParam(description = "错误信息") String message) {}
 
-    @Bean(CURRENT_TOOL)
-    @Description("获取系统的帮助文档图片。当用户询问'帮助'、'有什么功能'、'怎么用'、'说明'或想要某个'分组'的文档时，应调用此工具。它可以展示所有功能或特定分组的功能说明。")
-    public Function<HelpCommandRequest,HelpCommandResponse> helpDocumentTool() {
+    @Bean("helpDocumentGetTool")
+    @Description("""
+    Get the system help documentation image.
+    
+    TRIGGER RULES:
+    1. Use this tool when the user asks for 'help', 'features', 'usage', 'manual', or asks about specific 'group' documentation.
+    2. This tool can display all features or features for a specific group.
+    3. Do NOT use this if the user just types '?' or looks confused without asking for help explicitly; explain with text first.
+    """)
+    public Function<HelpCommandRequest,HelpCommandResponse> helpDocumentGetTool() {
         log.info("Help Document Tool Bean initialized");
         return request -> {
             try {

@@ -43,7 +43,13 @@ public class SetuRandomImageTool {
             @ToolParam(description = "错误信息") String message) {}
 
     @Bean("randomSetuTool")
-    @Description("随机获取一张福利图片/色图/涩图。当用户想要看图片、发福利、看来点色图时调用此功能。支持指定标签。")
+    @Description("""
+    Get a random illustration from Pixiv bookmarks.
+    
+    TRIGGER RULES:
+    1. Use this tool ONLY when the user explicitly requests images, such as 'setu', 'anime picture', 'random image', or 'illustration'.
+    2. Do NOT use this tool for general conversation.
+    """)
     public Function<SetuRequest, SetuResponse> randomSetuTool() {
         return request -> {
             try {

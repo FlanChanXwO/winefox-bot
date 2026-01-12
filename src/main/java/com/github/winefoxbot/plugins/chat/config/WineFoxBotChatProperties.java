@@ -24,7 +24,11 @@ public class WineFoxBotChatProperties {
     /**
      * 上下文消息数量
      */
-    private Integer contextSize = 20;
+    private Integer contextSize = 60;
+    /**
+     * 上下文 Token 最大限制
+     */
+    private Integer maxContextTokens = 25000;
     /**
      * 是否启用图片分析功能
      */

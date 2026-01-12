@@ -55,19 +55,15 @@ public class FortuneTool {
 
     @Bean("fortuneGetTool")
     @Description("""
-        Use this tool to generate a 'Fortune/Omikuji' image card for the user.
-        
-        [TRIGGER RULES]
-        1. AUTHORIZED: You MUST call this tool ONLY when the user explicitly asks for "fortune", "omikuji", "luck", "divination" (e.g., "求签", "运势", "今日人品").
-        2. FORBIDDEN: DO NOT call this tool for general greetings (e.g., "Hello"), small talk, or self-introductions.
-        
-        [STRICT PROHIBITIONS - CRITICAL]
-        1. NO AMBIGUOUS INPUTS: If the user sends short, meaningless text like "1", "ok", "...", or an emoji, DO NOT trigger this tool. Treat it as a chat reply.
-        2. NO REPETITION: If you have already executed this tool in the recent context, DO NOT trigger it again unless the user explicitly says "Do it again" or "One more time".
-        
-        [SIDE EFFECTS]
-        This is a HEAVY operation. Do not trigger it implicitly.
-        """)
+    Get the daily fortune (今日运势).
+    
+    TRIGGER RULES:
+    1. ONLY invoke this tool when the user EXPLICITLY asks for 'fortune', 'luck', 'fortune telling', or '今日运势'.
+    2. DO NOT invoke this tool for ambiguous inputs like '?', 'hello', 'what', or simple greetings.
+    3. If the user input is just punctuation or unclear, reply with text only.
+    
+    Function: Returns the fortune content text and triggers an asynchronous image send.
+    """)
     public Function<FortuneRequest,FortuneResponse> fortuneGetTool() {
         return req -> {
             Optional<Bot> botOptional = botContainer.robots.values().stream().findFirst();

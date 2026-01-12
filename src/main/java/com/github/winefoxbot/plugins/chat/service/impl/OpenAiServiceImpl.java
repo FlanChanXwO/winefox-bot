@@ -71,14 +71,14 @@ public class OpenAiServiceImpl implements OpenAiService {
     public String complete(Long sessionId, MessageType messageType, AiMessageInput currentMessage) {
         List<Message> messages = new ArrayList<>();
         Optional<Bot> botOpt = botContainer.robots.values().stream().findFirst();
+        SystemMessage systemMessage = new SystemMessage(botChatConfig.getSystemPrompt());
         // 0. 添加系统提示
-        messages.add(new SystemMessage(botChatConfig.getSystemPrompt()));
+        messages.add(systemMessage);
 
         // 1. 处理历史记录
         List<ShiroUserMessage> history = shiroMessagesService.findLatestMessagesForContext(sessionId, messageType, wineFoxBotChatProperties.getContextSize());
         for (int i = history.size() - 1; i >= 0; i--) {
             ShiroUserMessage shiroMsg = history.get(i);
-
             try {
                 // 使用 Helper 解析历史消息（包含图片提取）
                 AiMessageInput historyInput = aiInteractionHelper.createHistoryMessageInput(shiroMsg);
@@ -142,16 +142,8 @@ public class OpenAiServiceImpl implements OpenAiService {
 
                 if (!mediaList.isEmpty()) {
                     log.info("Current message contains {} images.", mediaList.size());
-
-                    // 【核心修改】在这里拼接一段提示，强制 AI 关注文本
-                    // 注意：因为你的 prompt 规定了输入是 JSON，所以我们得小心拼接，或者直接修改 JSON 内容
-                    // 但最简单的方法是直接拼接在字符串后面，前提是这不破坏你的 JSON 解析逻辑（如果有的话）
-                    // 既然你发给 AI 的是 contentNode 的 JSON 字符串，我们可以直接改这个 text
-
-                    String promptText = currentUserMessageJson + "\n\n[系统提示: 这条消息包含图片和文本。请重点回答文本内容，图片仅作参考。]";
-
                     messages.add(UserMessage.builder()
-                            .text(promptText)
+                            .text(currentUserMessageJson)
                             .media(mediaList)
                             .build());
                 } else {
@@ -162,16 +154,35 @@ public class OpenAiServiceImpl implements OpenAiService {
             }
         }
 
-
-        System.out.println(currentMessage);
+        // 获取配置的限制
+        Prompt prompt = new Prompt(messages);
+        int maxTokens = wineFoxBotChatProperties.getMaxContextTokens();
+        // 预留一部分 token 给 output (防止输入就占满了)
+        int safeLimit = maxTokens - 500;
+        log.info("current prompt token estimate: {}, max allowed: {}", prompt.getContents().length(), safeLimit);
+        if (prompt.getContents().length() > safeLimit) {
+            log.warn("Context tokens ({}) exceed the limit ({}). Truncating oldest messages.", prompt.getContents().length(), safeLimit);
+            throw new IllegalStateException("对话上下文过长，已超出限制，请尝试减少图片或消息数量后重试。");
+        }
 
         log.info("Sending {} messages to AI for context.", messages.size());
-
         // 调用 AI
-        String rawResponse = chatClient.prompt(new Prompt(messages)).call().content();
-        System.out.println(rawResponse);
+        String rawResponse = chatClient.prompt(prompt).call().content();
         // 清洗 AI 的回复，防止它输出 JSON
         return cleanAiResponse(rawResponse);
+    }
+
+    /**
+     * 简单的 Token 估算器
+     * 由于 Gemini 对多语言 Token 处理较好，且我们是做预算控制而非精确截断，
+     * 这里使用保守策略：假设 1 个字符 = 1 个 Token (中文通常 >1 char/token，英文 <1 char/token)
+     * 这样能确保不超支。
+     */
+    private int estimateTokenCount(String text) {
+        if (StringUtils.isBlank(text)) {
+            return 0;
+        }
+        return text.length();
     }
 
     /**
