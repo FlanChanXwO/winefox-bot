@@ -67,7 +67,7 @@ public class DailyReportPlugin {
 
         // 生成 Cron 表达式: 秒 分 时 日 月 周
         // 这里设置为每天指定时间执行
-        String cronExpression = "0 %d %d * * ?".formatted(minute, hour);
+        String cronExpression = "0 %d %d * * *".formatted(minute, hour);
 
         // 移除旧的检查逻辑，直接覆盖/更新任务
         scheduleService.scheduleTask(

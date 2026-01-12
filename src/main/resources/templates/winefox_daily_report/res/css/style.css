@@ -47,10 +47,10 @@ body {
     /* 字体名称保持引用，但增加备选 */
     font-family: "SSFangTangTi", "Microsoft YaHei", sans-serif;
     color: #f7a0b5;
-    font-size: 80px; /* 稍微调小一点防止换行 */
+    font-size: 75px; /* 稍微调小一点防止换行 */
     position: absolute;
     top:10px;
-    left: -5px;
+    left: -10px;
     line-height: 1;
     text-align: center;
 }
@@ -58,9 +58,10 @@ body {
 .zx-tip {
     color: #f7c1d4;
     font-family: 'NotoSansSC-Bold', "Microsoft YaHei", sans-serif;
-    font-size: 33px;
+    font-size: 36px;
     position: relative;
     top: 80px;
+    right: 16px;
     text-align: center;
 }
 /* --- 头部日期区域修正 --- */

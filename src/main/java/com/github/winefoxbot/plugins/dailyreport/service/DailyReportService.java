@@ -1,6 +1,7 @@
 package com.github.winefoxbot.plugins.dailyreport.service;
 
 
+import cn.hutool.core.util.RandomUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.core.config.playwright.PlaywrightConfig;
@@ -80,6 +81,11 @@ public class DailyReportService {
     private static final String CONTEXT_VARIABLE_NEWS_DATA = "newsData";
     private static final String CONTEXT_VARIABLE_BILI_HOTWORDS = "biliHotwords";
     private static final String CONTEXT_VARIABLE_CSS_STYLE = "cssStyle";
+    private static final String [] CHARACTER_IMAGES = {
+            "classpath:templates/winefox_daily_report/res/image/character_1.png",
+            "classpath:templates/winefox_daily_report/res/image/character_2.png",
+            "classpath:templates/winefox_daily_report/res/image/character_3.png"
+    };
 
     private static final String PAGE_CONTAINER_SELECTOR = ".wrapper";
     private static final int BILI_HOTWORDS_LIMIT = 10;
@@ -156,7 +162,7 @@ public class DailyReportService {
     public void executeDailyPush(Long groupId) {
         groupPushTaskExecutor.execute(groupId, DailyReportPlugin.TASK_TYPE_DAILY_REPORT,bot -> {
             byte[] image = generateReportImage();
-            bot.sendGroupMsg(groupId,"今日的酒狐日报来啦~", false);
+            bot.sendGroupMsg(groupId,"今日的酒狐早报来啦~", false);
             bot.sendGroupMsg(groupId, MsgUtils.builder().img(image).build(),false);
         });
     }
@@ -362,7 +368,7 @@ public class DailyReportService {
         context.setVariable(CONTEXT_VARIABLE_CSS_STYLE, cssContent);
 
         // 2. 将图片资源转换为 Base64 并注入 Context
-        context.setVariable("imgCharacter", getResourceAsBase64("classpath:templates/winefox_daily_report/res/image/2.no-bg.png"));
+        context.setVariable("imgCharacter", getResourceAsBase64(RandomUtil.randomEle(CHARACTER_IMAGES)));
         context.setVariable("imgBottom", getResourceAsBase64("classpath:templates/winefox_daily_report/res/image/bottom.png"));
         context.setVariable("iconNews", getResourceAsBase64("classpath:templates/winefox_daily_report/res/icon/60.png"));
         context.setVariable("iconFish", getResourceAsBase64("classpath:templates/winefox_daily_report/res/icon/fish.png"));
