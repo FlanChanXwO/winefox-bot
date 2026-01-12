@@ -21,5 +21,4 @@ public interface PixivRankPushScheduleService {
 
     PixivRankPushSchedule getSchedule(Long groupId, PixivRankPushMode rankType);
 
-    String parseCronToDescription(String cronExpression);
 }

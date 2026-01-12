@@ -5,8 +5,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.core.config.playwright.PlaywrightConfig;
 import com.github.winefoxbot.core.service.file.FileStorageService;
+import com.github.winefoxbot.core.service.push.GroupPushTaskExecutor;
 import com.github.winefoxbot.core.utils.Base64Utils;
 import com.github.winefoxbot.core.utils.ResourceLoader;
+import com.github.winefoxbot.plugins.dailyreport.DailyReportPlugin;
 import com.github.winefoxbot.plugins.dailyreport.config.DailyReportProperties;
 import com.github.winefoxbot.plugins.dailyreport.model.dto.BiliHotwordDTO;
 import com.github.winefoxbot.plugins.dailyreport.model.dto.HitokotoDTO;
@@ -16,12 +18,17 @@ import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.ScreenshotType;
 import com.microsoft.playwright.options.WaitForSelectorState;
+import com.mikuac.shiro.common.utils.MsgUtils;
+import com.mikuac.shiro.core.BotContainer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpHeaders;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
@@ -77,6 +84,7 @@ public class DailyReportService {
     private static final String PAGE_CONTAINER_SELECTOR = ".wrapper";
     private static final int BILI_HOTWORDS_LIMIT = 10;
 
+
     private record AnimeItem(String name, String image) {}
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern(DATE_FORMAT_PATTERN);
@@ -90,7 +98,13 @@ public class DailyReportService {
     private final FileStorageService fileStorageService;
     private final HolidayService holidayService;
     private final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
+    private final GroupPushTaskExecutor groupPushTaskExecutor;
     private final Lock lock = new ReentrantLock();
+
+
+    @Lazy
+    @Autowired
+    private DailyReportService self;
 
     /**
      * 获取日报图片。优先从缓存读取，否则生成新的图片。
@@ -119,16 +133,45 @@ public class DailyReportService {
         }
     }
 
+
+    /**
+     * 定时任务：每天预生成当天的日报图片并缓存。
+     */
+    @Scheduled(cron = "${winefoxbot.plugins.dailyreport.pre-generate-cron:0 30 8 * * ?}")
+    public void scheduledPreGenerateDailyReport() {
+        try {
+            log.info("Scheduled task: Pre-generating daily report image for today.");
+            self.regenerateDailyReportImage();
+            log.info("Scheduled task: Daily report image pre-generation completed.");
+        } catch (IOException e) {
+            log.error("Scheduled task: Failed to pre-generate daily report image.", e);
+        }
+    }
+
+
+    /**
+     * 执行每日推送任务。
+     * @param groupId 群组ID
+     */
+    public void executeDailyPush(Long groupId) {
+        groupPushTaskExecutor.execute(groupId, DailyReportPlugin.TASK_TYPE_DAILY_REPORT,bot -> {
+            byte[] image = generateReportImage();
+            bot.sendGroupMsg(groupId,"今日的酒狐日报来啦~", false);
+            bot.sendGroupMsg(groupId, MsgUtils.builder().img(image).build(),false);
+        });
+    }
+
+
+
     /**
      * 强制重新生成当天的日报图片。
      *
-     * @return 新生成的日报图片的字节数组
      * @throws IOException 如果文件读写或网络请求失败
      */
-    public byte[] regenerateDailyReportImage() throws IOException {
+    public void regenerateDailyReportImage() throws IOException {
         String cacheKey = getCachePathForToday();
         fileStorageService.deleteFile(cacheKey, null);
-        return generateAndCacheReport(cacheKey);
+        generateAndCacheReport(cacheKey);
     }
 
     private byte[] generateAndCacheReport(String cacheKey) {
@@ -149,7 +192,7 @@ public class DailyReportService {
         CompletableFuture<NewsDataDTO> newsFuture = fetchNewsData();
         CompletableFuture<BiliHotwordDTO> biliHotwordFuture = fetchData(BILI_HOTWORD_API_URL, BiliHotwordDTO.class);
 
-        // 2. [新增] 获取 IT 资讯 (XML) 和 动漫新番 (JSON)
+        // 2. 获取 IT 资讯 (XML) 和 动漫新番 (JSON)
         CompletableFuture<List<String>> itNewsFuture = fetchItNewsData();
         CompletableFuture<List<AnimeItem>> animeFuture = fetchAnimeData();
 
@@ -170,28 +213,27 @@ public class DailyReportService {
             data.put(CONTEXT_VARIABLE_NEWS_DATA, newsDto != null ? newsDto.data() : null);
             // 填充节假日信息
             data.put(CONTEXT_VARIABLE_HOLIDAY_LIST, holidayService.getHolidaysSorted());
-
             // 填充 B站热搜
             List<BiliHotwordDTO.HotwordItem> hotwords = biliHotwordFuture.get() != null
                     ? biliHotwordFuture.get().list().stream().limit(BILI_HOTWORDS_LIMIT).collect(Collectors.toList())
                     : Collections.emptyList();
             data.put(CONTEXT_VARIABLE_BILI_HOTWORDS, hotwords);
-
-            // [新增] 填充 IT 资讯
+            // 填充 IT 资讯
             data.put(CONTEXT_VARIABLE_ITNEWS_LIST, itNewsFuture.get());
-
-            // [新增] 填充 动漫数据
+            // 填充 动漫数据
             data.put(CONTEXT_VARIABLE_ANIME_LIST, animeFuture.get());
-
-            // [新增] 填充 历史上的今天 (Python源无此数据，置空)
+            // 填充 历史上的今天 (Python源无此数据，置空)
             data.put(CONTEXT_VARIABLE_HISTORY_LIST, Collections.emptyList());
-
+            log.info("All data fetched successfully, rendering image...");
             return renderHtmlToImage(data);
         } catch (Exception e) {
             log.error("Error occurred while getting future results or rendering image", e);
             throw new RuntimeException("Failed to generate report image", e);
         }
     }
+
+
+
 
     private <T> CompletableFuture<T> fetchData(String url, Class<T> clazz) {
         return CompletableFuture.supplyAsync(() -> {
@@ -248,11 +290,13 @@ public class DailyReportService {
     }
 
     /**
-     * [新增] 获取 Bangumi 每日番剧
+     * 获取 Bangumi 每日番剧
      */
     private CompletableFuture<List<AnimeItem>> fetchAnimeData() {
         return CompletableFuture.supplyAsync(() -> {
-            Request request = new Request.Builder().url(ANIME_API_URL).build();
+            Request request = new Request.Builder()
+                    .addHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome")
+                    .url(ANIME_API_URL).build();
             try (Response response = httpClient.newCall(request).execute()) {
                 if (response.body() == null) return Collections.emptyList();
 
@@ -314,20 +358,20 @@ public class DailyReportService {
         context.setVariables(data);
 
         // 1. 读取并注入 CSS (保持不变)
-        String cssContent = new String(ResourceLoader.getInputStream("classpath:templates/daily_report/res/css/style.css").readAllBytes(), StandardCharsets.UTF_8);
+        String cssContent = new String(ResourceLoader.getInputStream("classpath:templates/winefox_daily_report/res/css/style.css").readAllBytes(), StandardCharsets.UTF_8);
         context.setVariable(CONTEXT_VARIABLE_CSS_STYLE, cssContent);
 
         // 2. 将图片资源转换为 Base64 并注入 Context
-        context.setVariable("imgCharacter", getResourceAsBase64("classpath:templates/daily_report/res/image/2.no-bg.png"));
-        context.setVariable("imgBottom", getResourceAsBase64("classpath:templates/daily_report/res/image/bottom.png"));
-        context.setVariable("iconNews", getResourceAsBase64("classpath:templates/daily_report/res/icon/60.png"));
-        context.setVariable("iconFish", getResourceAsBase64("classpath:templates/daily_report/res/icon/fish.png"));
-        context.setVariable("iconBili", getResourceAsBase64("classpath:templates/daily_report/res/icon/bilibili.png"));
-        context.setVariable("iconGame", getResourceAsBase64("classpath:templates/daily_report/res/icon/game.png"));
-        context.setVariable("iconBgm", getResourceAsBase64("classpath:templates/daily_report/res/icon/bgm.png"));
-        context.setVariable("iconIt", getResourceAsBase64("classpath:templates/daily_report/res/icon/it.png"));
-        context.setVariable("iconHitokoto", getResourceAsBase64("classpath:templates/daily_report/res/icon/hitokoto.png"));
-        final String htmlContent = templateEngine.process(properties.getTemplatePath(), context);
+        context.setVariable("imgCharacter", getResourceAsBase64("classpath:templates/winefox_daily_report/res/image/2.no-bg.png"));
+        context.setVariable("imgBottom", getResourceAsBase64("classpath:templates/winefox_daily_report/res/image/bottom.png"));
+        context.setVariable("iconNews", getResourceAsBase64("classpath:templates/winefox_daily_report/res/icon/60.png"));
+        context.setVariable("iconFish", getResourceAsBase64("classpath:templates/winefox_daily_report/res/icon/fish.png"));
+        context.setVariable("iconBili", getResourceAsBase64("classpath:templates/winefox_daily_report/res/icon/bilibili.png"));
+        context.setVariable("iconGame", getResourceAsBase64("classpath:templates/winefox_daily_report/res/icon/game.png"));
+        context.setVariable("iconBgm", getResourceAsBase64("classpath:templates/winefox_daily_report/res/icon/bgm.png"));
+        context.setVariable("iconIt", getResourceAsBase64("classpath:templates/winefox_daily_report/res/icon/it.png"));
+        context.setVariable("iconHitokoto", getResourceAsBase64("classpath:templates/winefox_daily_report/res/icon/hitokoto.png"));
+        final String htmlContent = templateEngine.process("winefox_daily_report/main", context);
 
         try (Page page = browser.newPage(new Browser.NewPageOptions().setDeviceScaleFactor(playwrightConfig.getDeviceScaleFactor()))) {
             page.setContent(htmlContent);

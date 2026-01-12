@@ -5,8 +5,11 @@ import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.Proxy;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,6 +17,7 @@ import org.springframework.util.StringUtils;
 
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Playwright 核心配置类
@@ -50,11 +54,17 @@ public class PlaywrightConfig {
     private double deviceScaleFactor = 1.0;
 
     public enum BrowserStrategy {
-        /** 使用系统安装的 Google Chrome */
+        /**
+         * 使用系统安装的 Google Chrome
+         */
         CHROME,
-        /** 使用系统安装的 Microsoft Edge */
+        /**
+         * 使用系统安装的 Microsoft Edge
+         */
         EDGE,
-        /** 使用指定路径的浏览器 */
+        /**
+         * 使用指定路径的浏览器
+         */
         CUSTOM
     }
 
@@ -64,25 +74,53 @@ public class PlaywrightConfig {
         System.setProperty("playwright.skipBrowserDownload", "true");
     }
 
+
     @Bean(destroyMethod = "close")
     public Playwright playwright() {
         return Playwright.create();
     }
 
+
     @Bean
+    @ConditionalOnBooleanProperty(prefix = "request.proxy", name = "enabled")
     public Proxy playwrightProxy(ProxyConfig proxyConfig) {
-        if (proxyConfig != null && Boolean.TRUE.equals(proxyConfig.getEnabled())) {
-            return new Proxy(proxyConfig.getType().name().toUpperCase() + "://" + proxyConfig.getHost() + ":" + proxyConfig.getPort());
+        if (Boolean.TRUE.equals(proxyConfig.getEnabled())) {
+            // 1. 构造代理地址 string
+            String server = String.format("%s://%s:%d",
+                    proxyConfig.getType().name().toLowerCase(), // http 或 socks
+                    proxyConfig.getHost(),
+                    proxyConfig.getPort()
+            );
+
+            Proxy proxy = new Proxy(server);
+
+            // 2. 处理 bypass (白名单)
+            // Playwright 的 bypass 格式通常是用逗号分隔的字符串
+            if (proxyConfig.getNoProxyHosts() != null && !proxyConfig.getNoProxyHosts().isEmpty()) {
+                // 注意：Playwright 的 bypass 语法不仅支持域名，还支持通配符
+                // 如果你的配置只有 "bgm.tv"，为了保险起见，可以自动追加子域名通配符
+                // 但通常 "bgm.tv" 在很多代理规范里已经隐含了 *.bgm.tv，不过显式声明更好
+                // 下面这个流处理是把 "bgm.tv" 变成 "bgm.tv,*.bgm.tv" (可选优化，看你具体需求)
+                String enhancedBypass = proxyConfig.getNoProxyHosts().stream()
+                        .map(host -> host + ",*." + host)
+                        .collect(Collectors.joining(","));
+
+                proxy.setBypass(enhancedBypass);
+            }
+
+            return proxy;
         }
         return null;
     }
 
     @Bean(destroyMethod = "close")
-    public Browser browser(Playwright playwright, Proxy proxy) {
+    public Browser browser(Playwright playwright, @Nullable Proxy proxy) {
         BrowserType.LaunchOptions options = new BrowserType.LaunchOptions()
-                .setProxy(proxy)
                 .setArgs(List.of("--no-sandbox", "--disable-setuid-sandbox"))
                 .setHeadless(this.headless);
+        if (proxy != null) {
+            options.setProxy(proxy);
+        }
 
         switch (type) {
             case CHROME:

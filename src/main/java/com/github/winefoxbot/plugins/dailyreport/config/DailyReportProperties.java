@@ -9,9 +9,9 @@ import org.springframework.stereotype.Component;
  * @author FlanChan
  */
 @Data
-@ConfigurationProperties(prefix = "daily-report")
+@ConfigurationProperties(prefix = "winefoxbot.plugins.dailyreport")
 public class DailyReportProperties {
     private String alapiUrl = "https://60s.viki.moe/v2/60s";
-    private String templatePath = "daily_report/main";
     private HolidayRegion holidayRegion = HolidayRegion.CN;
+    private String preGenerateCron = "0 30 7 * * ?";
 }

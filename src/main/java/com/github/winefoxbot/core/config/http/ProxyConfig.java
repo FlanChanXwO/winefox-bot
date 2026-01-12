@@ -13,7 +13,7 @@ import java.util.List;
  */
 @Data
 @Configuration
-@ConfigurationProperties(prefix = "okhttp.proxy")
+@ConfigurationProperties(prefix = "request.proxy")
 public class ProxyConfig {
     /**
      * 代理主机地址

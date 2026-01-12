@@ -68,51 +68,6 @@ public class PixivRankPushScheduleServiceImpl implements PixivRankPushScheduleSe
         return convertToLegacyDto(config);
     }
 
-    /**
-     * 将Cron表达式解析为用户友好的字符串
-     */
-    @Override
-    public String parseCronToDescription(String cronExpression) {
-        try {
-            String[] fields = cronExpression.split(" ");
-            // log.info("解析Cron表达式: {}, 分解字段: {}", cronExpression, Arrays.toString(fields));
-            // Assuming 5 or 6 fields. If 6, index 0 is seconds. If 5, index 0 is minutes.
-            // JobRunr/Spring @Scheduled typically uses 6 fields.
-            // Let's assume standard behavior or what was previously used.
-            // Previous code assumed: minute = fields[0], hour = fields[1], dayOfMonth = fields[2], dayOfWeek = fields[4]
-            // This implies a 5-field cron (min hour day month dow).
-
-            if (fields.length < 5) return "未知时间格式";
-
-            String minute = fields[0];
-            String hour = fields[1];
-            String dayOfMonth = fields[2];
-            String dayOfWeek = fields[4];
-
-            String timePart = String.format("%s时%s分", hour, minute);
-
-            // 每月
-            if (!dayOfMonth.equals("*") && dayOfWeek.equals("*")) {
-                if (dayOfMonth.equals("L")) {
-                    return String.format("每月最后一天 %s", timePart);
-                }
-                return String.format("每月%s日 %s", dayOfMonth, timePart);
-            }
-            // 每周
-            if (dayOfMonth.equals("*") && !dayOfWeek.equals("*")) {
-                return String.format("每周%s %s", convertDayOfWeek(dayOfWeek), timePart);
-            }
-            // 每日
-            if (dayOfMonth.equals("*") && dayOfWeek.equals("*")) {
-                return String.format("每日 %s", timePart);
-            }
-            return "自定义时间";
-        } catch (Exception e) {
-            log.error("解析Cron表达式失败: {}", cronExpression, e);
-            return "时间格式异常";
-        }
-    }
-
     private String convertDayOfWeek(String day) {
         return switch (day.toUpperCase()) {
             case "1", "SUN" -> "日";

@@ -3,6 +3,7 @@ package com.github.winefoxbot.plugins.pixiv;
 import com.github.winefoxbot.core.annotation.Plugin;
 import com.github.winefoxbot.core.annotation.PluginFunction;
 import com.github.winefoxbot.core.model.enums.Permission;
+import com.github.winefoxbot.core.utils.CronFormatter;
 import com.github.winefoxbot.core.utils.FileUtil;
 import com.github.winefoxbot.plugins.pixiv.model.dto.common.PixivArtworkInfo;
 import com.github.winefoxbot.plugins.pixiv.model.entity.PixivRankPushSchedule;
@@ -72,7 +73,7 @@ public class PixivPlugin {
 
         StringBuilder reply = new StringBuilder("本群P站排行订阅状态如下：\n");
         for (PixivRankPushSchedule schedule : schedules) {
-            String readableTime = pixivRankPushScheduleService.parseCronToDescription(schedule.getCronSchedule());
+            String readableTime = CronFormatter.parseCronToDescription(schedule.getCronSchedule());
             reply.append(String.format("【%s】推送时间：%s\n", schedule.getDescription(), readableTime));
         }
         bot.sendMsg(event, reply.toString().trim(), true);
@@ -94,13 +95,14 @@ public class PixivPlugin {
         String minuteStr = matcher.group(3);
 
         if (rankType == null || hourStr == null) {
-            String help = "指令格式错误！\n" +
-                    "用法: /订阅P站排行 [类型] [时间 HH:mm]\n" +
-                    "支持的类型: daily(每日), weekly(每周), monthly(每月)\n" +
-                    "示例:\n" +
-                    "/订阅P站排行 daily 09:30\n" +
-                    "/订阅P站排行 weekly 10:00 (默认为周五)\n" +
-                    "/订阅P站排行 monthly 12:00 (默认为月底)";
+            String help = """
+                    指令格式错误！
+                    用法: /订阅P站排行 [类型] [时间 HH:mm]
+                    支持的类型: 每日, 每周), 每月
+                    示例:
+                    /订阅P站排行 每日 09:30
+                    /订阅P站排行 每周 10:00 (默认为周五)
+                    /订阅P站排行 每月 12:00 (默认为月底)""";
             bot.sendMsg(event, help, true);
             return;
         }
@@ -129,7 +131,7 @@ public class PixivPlugin {
         }
 
         pixivRankPushScheduleService.schedulePush(groupId, mode, cronExpression, description);
-        String readableTime = pixivRankPushScheduleService.parseCronToDescription(cronExpression);
+        String readableTime = CronFormatter.parseCronToDescription(cronExpression);
         bot.sendMsg(event, String.format("成功订阅/更新【%s】！\n推送时间设置为：%s", description, readableTime), true);
     }
 

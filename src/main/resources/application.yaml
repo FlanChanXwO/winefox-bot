@@ -121,12 +121,12 @@ playwright:
   type: edge
 
 # 网络代理配置
-okhttp:
+request:
   proxy:
-    type: socks5
     host: 127.0.0.1
+    type: socks5
     port: 7889
-    enabled: on
+    enabled: true
     no-proxy-hosts:
       - localhost
       - 127.0.0.1
@@ -137,6 +137,14 @@ okhttp:
       - q2.qlogo.cn
       - multimedia.nt.qq.com.cn
       - 60s.viki.moe
+      - bgm.tv
+      - v1.hitokoto.cn
+      - ithome.com
+      - bing.com
+      - bilibili.com
+      - edge.microsoft.com
+      - api.ablai.top
+
 # 日志级别
 logging:
   level:

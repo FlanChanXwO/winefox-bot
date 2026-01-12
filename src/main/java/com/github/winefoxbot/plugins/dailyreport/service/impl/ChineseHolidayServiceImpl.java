@@ -1,4 +1,3 @@
-
 package com.github.winefoxbot.plugins.dailyreport.service.impl;
 
 import cn.hutool.core.date.ChineseDate;
@@ -18,15 +17,12 @@ public class ChineseHolidayServiceImpl implements HolidayService {
 
     private record LunarDate(int month, int day) {}
 
-    // 定义农历节日
+    // 定义农历节日 (移除除夕，单独特殊处理)
     private static final Map<String, LunarDate> LUNAR_FESTIVALS = new LinkedHashMap<>();
     static {
         LUNAR_FESTIVALS.put("春节", new LunarDate(1, 1));
         LUNAR_FESTIVALS.put("端午节", new LunarDate(5, 5));
         LUNAR_FESTIVALS.put("中秋节", new LunarDate(8, 15));
-        // Hutool 的 ChineseDate 支持闰月，但除夕通常是腊月最后一天，
-        // 计算较为复杂，此处简化为腊月三十，对于小年夜的情况也能基本覆盖。
-        LUNAR_FESTIVALS.put("除夕", new LunarDate(12, 30));
     }
 
     // 定义公历节日
@@ -41,29 +37,48 @@ public class ChineseHolidayServiceImpl implements HolidayService {
     @Override
     public List<HolidayDTO> getHolidaysSorted() {
         LocalDate today = LocalDate.now();
-        int currentYear = today.getYear();
+        int currentGregorianYear = today.getYear();
+
+        // 例如：公历2026年1月12日，实际上是农历2025年。如果不转，直接用2026去算春节，会算出2027年的春节。
+        ChineseDate chineseToday = new ChineseDate(today);
+        int currentLunarYear = chineseToday.getChineseYear();
+
         List<HolidayDTO> holidayList = new ArrayList<>();
 
-        // 1. 处理农历节日
+        // 1. 处理普通农历节日
         LUNAR_FESTIVALS.forEach((name, lunarDate) -> {
-            LocalDate festivalDate = lunarToSolar(currentYear, lunarDate);
-            // 如果计算出的节日日期在今天之前，就计算明年的
-            if (festivalDate.isBefore(today)) {
-                festivalDate = lunarToSolar(currentYear + 1, lunarDate);
-            }
+            LocalDate festivalDate = calculateNextLunarDate(currentLunarYear, lunarDate.month, lunarDate.day, today);
             addHolidayToList(holidayList, name, festivalDate, today);
         });
 
-        // 2. 处理公历节日
+        // 2. 处理除夕
+        // 逻辑：找到下一个"春节"，然后减去1天，即为除夕。这样可以完美解决腊月二十九/三十的问题。
+        // 先算今年的春节 (基于当前农历年)
+        LocalDate springFestivalThisLunarYear = getSolarDateFromLunar(currentLunarYear, 1, 1);
+        // 今年的除夕 = 今年的春节 - 1天
+        LocalDate chuXiThisLunarYear = springFestivalThisLunarYear.minusDays(1);
+
+        LocalDate finalChuXi;
+        if (chuXiThisLunarYear.isBefore(today)) {
+            // 如果今年的除夕已过，就算明年的春节-1天
+            LocalDate springFestivalNextLunarYear = getSolarDateFromLunar(currentLunarYear + 1, 1, 1);
+            finalChuXi = springFestivalNextLunarYear.minusDays(1);
+        } else {
+            finalChuXi = chuXiThisLunarYear;
+        }
+        addHolidayToList(holidayList, "除夕", finalChuXi, today);
+
+
+        // 3. 处理公历节日
         SOLAR_FESTIVALS.forEach((name, dateInfo) -> {
-            LocalDate festivalDate = LocalDate.of(currentYear, dateInfo.getKey(), dateInfo.getValue());
+            LocalDate festivalDate = LocalDate.of(currentGregorianYear, dateInfo.getKey(), dateInfo.getValue());
             if (festivalDate.isBefore(today)) {
                 festivalDate = festivalDate.plusYears(1);
             }
             addHolidayToList(holidayList, name, festivalDate, today);
         });
 
-        // 3. 按剩余天数排序
+        // 4. 按剩余天数排序
         holidayList.sort(Comparator.comparingInt(HolidayDTO::daysLeft));
         return holidayList;
     }
@@ -74,23 +89,35 @@ public class ChineseHolidayServiceImpl implements HolidayService {
     }
 
     /**
-     * 将农历日期转换为公历日期 (使用 Hutool 实现)
-     * @param year 公历年份
-     * @param lunarDate 农历月和日
-     * @return 对应的公历日期 (LocalDate)
+     * 计算下一个最近的农历节日公历日期
      */
-    private LocalDate lunarToSolar(int year, LunarDate lunarDate) {
-        // 使用 Hutool 的 ChineseDate 进行转换
-        // 构造函数 ChineseDate(int chineseYear, int chineseMonth, int chineseDay)
-        ChineseDate cd = new ChineseDate(year, lunarDate.month, lunarDate.day);
-        
-        // 将 Hutool 的 ChineseDate 对象转换为 java.util.Date
-        Date gregorianDate = cd.getGregorianDate();
+    private LocalDate calculateNextLunarDate(int currentLunarYear, int month, int day, LocalDate today) {
+        // 尝试计算当前农历年的节日
+        LocalDate date = getSolarDateFromLunar(currentLunarYear, month, day);
 
-        // 将 java.util.Date 转换为 java.time.LocalDate (推荐)
-        return gregorianDate.toInstant()
-                .atZone(ZoneId.systemDefault())
-                .toLocalDate();
+        // 如果当前农历年的节日已经过了（比如今天是农历八月，要算端午五月），则计算下一年
+        if (date.isBefore(today)) {
+            date = getSolarDateFromLunar(currentLunarYear + 1, month, day);
+        }
+        return date;
+    }
+
+
+    /**
+     * 将农历日期转换为公历日期
+     */
+    private LocalDate getSolarDateFromLunar(int lunarYear, int lunarMonth, int lunarDay) {
+        try {
+            ChineseDate cd = new ChineseDate(lunarYear, lunarMonth, lunarDay);
+            Date gregorianDate = cd.getGregorianDate();
+            return gregorianDate.toInstant()
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate();
+        } catch (Exception e) {
+            // 防止闰月或非法日期导致的异常，虽然Hutool通常处理得很好
+            // 如果出错，默认返回一个较远的日期避免报错阻断流程
+            return LocalDate.now().plusYears(1);
+        }
     }
 
     /**
