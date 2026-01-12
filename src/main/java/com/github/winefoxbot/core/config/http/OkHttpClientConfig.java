@@ -39,8 +39,8 @@ public class OkHttpClientConfig {
                     .connectTimeout(10, TimeUnit.SECONDS)
                     .retryOnConnectionFailure(true)
                     .connectionPool(connectionPool)
-                    .followRedirects(false)
-                    .followSslRedirects(false)
+                    .followRedirects(true)
+                    .followSslRedirects(true)
                     .addInterceptor(new RetryInterceptor(3, 1000))
                     .proxySelector(proxySelector)
                     .build();
