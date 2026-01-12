@@ -1,14 +1,19 @@
 package com.github.winefoxbot.core.listener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.winefoxbot.core.actionpath.napcat.SetQQAvatarActionPath;
+import com.github.winefoxbot.core.actionpath.napcat.SetSelfLongNickActionPath;
 import com.github.winefoxbot.core.config.app.WineFoxBotProperties;
+import com.github.winefoxbot.core.model.dto.BotInfoDTO;
 import com.github.winefoxbot.core.model.dto.RestartInfo;
 import com.github.winefoxbot.core.model.enums.MessageType;
 import com.github.winefoxbot.core.service.shiro.ShiroBotsService;
-import com.github.winefoxbot.core.service.update.GitHubUpdateService;
+import com.github.winefoxbot.core.utils.Base64Utils;
+import com.github.winefoxbot.core.utils.ResourceLoader;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.CoreEvent;
 import com.mikuac.shiro.dto.action.common.ActionData;
+import com.mikuac.shiro.dto.action.common.ActionRaw;
 import com.mikuac.shiro.dto.action.response.StrangerInfoResp;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,8 +23,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Primary
@@ -42,7 +50,6 @@ public class BotStatusEventListener extends CoreEvent {
             ActionData<StrangerInfoResp> strangerInfo = bot.getStrangerInfo(superuser, false);
             if (strangerInfo != null && strangerInfo.getRetCode() == 0) {
                 bot.sendPrivateMsg(superuser, "我上线啦～", false);
-
             }
         }
         // 2. 接着，处理重启成功的通知逻辑
@@ -50,6 +57,7 @@ public class BotStatusEventListener extends CoreEvent {
         // 3. 更新或储存Bot的登录信息
         saveOrUpdateBotInfo(bot);
     }
+
 
     /**
      * 保存或更新 Bot 信息到数据库

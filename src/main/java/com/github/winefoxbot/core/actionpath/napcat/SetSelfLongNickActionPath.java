@@ -12,14 +12,14 @@ import java.util.Map;
  * @since 2026-01-07-17:50
  */
 @Getter
-public enum SetQQAvatarActionPath implements ActionPath {
+public enum SetSelfLongNickActionPath implements ActionPath {
 
-    SET_QQ_AVATAR("set_qq_avatar"),
+    SET_SELF_LONGNICK("set_self_longnick"),
     ;
 
     private final String path;
 
-    SetQQAvatarActionPath(String path) {
+    SetSelfLongNickActionPath(String path) {
         this.path = path;
     }
 
@@ -29,16 +29,14 @@ public enum SetQQAvatarActionPath implements ActionPath {
     }
 
     @Builder
-    public static class SetQQAvatarParams {
+    public static class SetSelfLongNickParams {
         /**
-         * 图片路径或链接
+         * 签名
          */
-        private String file;
+        private String longNick;
 
         public Map<String,Object> toParamMap() {
-            return Map.of(
-                    "file", this.file
-            );
+            return Map.of("longNick", longNick);
         }
     }
 

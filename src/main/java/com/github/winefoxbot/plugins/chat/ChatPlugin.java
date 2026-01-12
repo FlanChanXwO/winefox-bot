@@ -93,7 +93,7 @@ public class ChatPlugin {
         Long sessionId = BotUtils.getSessionId(event);
         MessageType messageType = MessageType.fromValue(event.getMessageType());
         shiroMessagesService.clearConversation(sessionId, messageType);
-        bot.sendMsg(event, "当前会话的消息记录已经被酒狐忘掉啦，可以开始新的聊天咯！", false);
+        bot.sendMsg(event, "当前会话的消息记录已经被我忘掉啦，可以开始新的聊天咯！", false);
     }
 
     @Async
