@@ -11,7 +11,7 @@
 
     <groupId>com.github</groupId>
     <artifactId>winefox-bot</artifactId>
-    <version>1.9.21</version>
+    <version>1.9.22</version>
 
     <name>winefox-bot</name>
     <description>WineFox Bot 基于 Spring Boot 和 Shiro 的 QQ 机器人</description>
@@ -29,6 +29,7 @@
         <tika.version>3.2.3</tika.version>
         <jsoup.version>1.21.2</jsoup.version>
         <mybatis-plus.version>3.5.15</mybatis-plus.version>
+        <redisson.version>4.1.0</redisson.version>
         <java-image-scaling.version>0.8.6</java-image-scaling.version>
         <commons-io.version>2.14.0</commons-io.version>
         <guava.version>32.1.2-jre</guava.version>
@@ -168,6 +169,13 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson-spring-boot-starter</artifactId>
+            <!-- 请使用较新的版本 -->
+            <version>${redisson.version}</version>
+        </dependency>
+
         <!-- okhttp请求库 -->
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>

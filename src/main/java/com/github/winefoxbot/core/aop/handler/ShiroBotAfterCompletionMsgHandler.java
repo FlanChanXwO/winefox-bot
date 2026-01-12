@@ -1,6 +1,7 @@
 package com.github.winefoxbot.core.aop.handler;
 
 import cn.hutool.core.util.RandomUtil;
+import com.github.winefoxbot.core.annotation.RedissonLock; // 确保这是你定义的注解路径
 import com.github.winefoxbot.core.model.entity.ShiroGroup;
 import com.github.winefoxbot.core.model.entity.ShiroMessage;
 import com.github.winefoxbot.core.model.entity.ShiroUser;
@@ -20,6 +21,8 @@ import com.mikuac.shiro.dto.event.message.MessageEvent;
 import com.mikuac.shiro.dto.event.message.PrivateMessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -33,56 +36,100 @@ public class ShiroBotAfterCompletionMsgHandler {
     private final ShiroGroupMembersService shiroGroupMembersService;
     private final ShiroMessagesService shiroMessagesService;
 
+
+    @Lazy
+    @Autowired
+    private ShiroBotAfterCompletionMsgHandler self;
+
     @Async
     public void handle(Bot bot, MessageEvent event) {
         try {
-            // 判断消息方向：如果发送者ID等于机器人自身ID，则是发送的消息
+            // 判断消息方向
             Long selfId = bot.getSelfId();
             Long userId = event.getUserId();
             boolean isSelf = userId != null && userId.equals(selfId);
             MessageDirection direction = isSelf ? MessageDirection.MESSAGE_SENT : MessageDirection.MESSAGE_RECEIVE;
 
-            // 1. 保存或更新用户信息（如果是发送的消息，userId就是Bot自己）
+            // 1. 保存或更新用户信息
+            // 提取数据逻辑保持在主线程，IO操作通过 self 代理调用加锁方法
             ShiroUser user = extractUserFromEvent(bot, event);
-            shiroUsersService.saveOrUpdate(user);
+            self.saveUserSafe(user);
 
             // 2. 构建消息实体
             ShiroMessage message = buildShiroMessage(bot, event, direction);
 
-            // 3. 处理群组或私聊特定的逻辑
+            // 3. 处理群组或私聊
             if (event instanceof GroupMessageEvent groupEvent) {
                 // 保存群组信息
                 ShiroGroup group = extractGroupFromEvent(bot, groupEvent);
-                shiroGroupsService.saveOrUpdate(group);
-                shiroGroupMembersService.saveOrUpdateGroupMemberInfo(groupEvent);
+                self.saveGroupSafe(group);
+
+                // 保存群成员信息
+                self.saveGroupMemberSafe(groupEvent);
 
                 message.setSessionId(groupEvent.getGroupId());
             } else {
-                // 私聊：SessionId设为对方的UserId（若是接收，则是发送者；若是发送，理想情况下应是接收者）
-                // 注意：在OneBot标准的私聊自上报事件中，可能需要自行解析target_id，这里暂使用event.getUserId()作为会话ID
+                // 私聊处理
                 message.setSessionId(event.getUserId());
             }
 
-            // 处理非法 sessionId 的情况
+            // 处理非法 sessionId
             if (message.getSessionId() < 0 || message.getMessageId() < 0) {
                 log.warn("Invalid sessionId or messageId. sessionId: {}, messageId: {}", message.getSessionId(), message.getMessageId());
                 return;
             }
 
             // 4. 保存消息
-            shiroMessagesService.save(message);
-            // 调整日志级别，避免刷屏，仅记录
+            self.saveMessageSafe(message);
+
             log.debug("Saved {} message ID: {}, Session: {}", direction, message.getMessageId(), message.getSessionId());
+
         } catch (Exception e) {
             log.error("Error handling message event. event: {}", event, e);
         }
+    }
+
+    /**
+     * 1. 锁住特定用户信息的更新
+     * Key: save_user:lock:{userId}
+     */
+    @RedissonLock(prefix = "save_user:lock", key = "#user.userId")
+    public void saveUserSafe(ShiroUser user) {
+        shiroUsersService.saveOrUpdate(user);
+    }
+
+    /**
+     * 2. 锁住特定群组信息的更新
+     * Key: save_group:lock:{groupId}
+     */
+    @RedissonLock(prefix = "save_group:lock", key = "#group.groupId")
+    public void saveGroupSafe(ShiroGroup group) {
+        shiroGroupsService.saveOrUpdate(group);
+    }
+
+    /**
+     * 3. 锁住特定群成员信息的更新
+     * Key: save_member:lock:{groupId}:{userId}
+     */
+    @RedissonLock(prefix = "save_member:lock", key = "#event.groupId + ':' + #event.userId")
+    public void saveGroupMemberSafe(GroupMessageEvent event) {
+        shiroGroupMembersService.saveOrUpdateGroupMemberInfo(event);
+    }
+
+    /**
+     * 4. 锁住特定消息的保存 (防止重复入库)
+     * Key: save_msg:lock:{messageId}
+     */
+    @RedissonLock(prefix = "save_msg:lock", key = "#message.messageId")
+    public void saveMessageSafe(ShiroMessage message) {
+        shiroMessagesService.save(message);
     }
 
 
     private ShiroMessage buildShiroMessage(Bot bot, MessageEvent event, MessageDirection direction) {
         ShiroMessage message = new ShiroMessage();
 
-        // 安全提取 Message ID
+        // 安全提取 Message ID (JDK 21 Pattern Matching switch)
         long msgId = switch (event) {
             case AnyMessageEvent e -> e.getMessageId() != null ? e.getMessageId().longValue() : -1L;
             case GroupMessageEvent e -> e.getMessageId() != null ? e.getMessageId().longValue() : -1L;
