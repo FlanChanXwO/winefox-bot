@@ -148,7 +148,7 @@ public class CorePlugin {
         }
     }
 
-    private static @NonNull String buildUpdateIntroduction(GitHubRelease release, String publishTime) {
+    private @NonNull String buildUpdateIntroduction(GitHubRelease release, String publishTime) {
         String body = release.getBody();
         if (body == null || body.isBlank()) {
             body = "该版本暂无详细说明。";
