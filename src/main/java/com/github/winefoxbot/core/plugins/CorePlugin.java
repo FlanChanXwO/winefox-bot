@@ -18,10 +18,13 @@ import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import com.mikuac.shiro.enums.MsgTypeEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.regex.Matcher;
 
 import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
@@ -93,7 +96,7 @@ public class CorePlugin {
                     "当前版本: " + 'v' +  wineFoxBotProperties.getApp().getVersion() + "\n" +
                     "最新版本: " + latestRelease.getTagName();
             if (latestRelease.getId() > currentVersion.releaseId) {
-                msg += "\n\n检测到新版本！可发送 '更新版本' 命令进行升级。";
+                msg += "\n\n检测到新版本！可发送 '/更新版本' 命令进行升级。";
             } else {
                 msg += "\n\n当前已是最新版本。";
             }
@@ -102,6 +105,71 @@ public class CorePlugin {
             msg = "获取版本信息失败: " + e.getMessage();
         }
         bot.sendMsg(event, msg, false);
+    }
+
+    /**
+     * 查看更新日志
+     */
+    @PluginFunction(
+            name = "更新日志",
+            description = "查看最新版本的更新详情、修复内容及发布时间",
+            commands = {
+                    COMMAND_PREFIX + "changes" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "changelog" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "更新日志" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "更新内容" + COMMAND_SUFFIX
+            }
+
+    )
+    @AnyMessageHandler
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(changes|changelog|更新日志|更新内容)" + COMMAND_SUFFIX_REGEX)
+    public void checkReleaseNotes(Bot bot, AnyMessageEvent event) {
+        try {
+            // 1. 获取最新 Release 信息
+            GitHubRelease release = updateService.fetchLatestRelease();
+
+            // 2. 处理时间格式 (GitHub 返回的是 ISO 8601，如 2025-01-14T12:00:00Z)
+            String publishTime = "未知时间";
+            if (release.getPublishedAt() != null) {
+                try {
+                    // 使用 ZonedDateTime 解析 ISO 时间并转换为更易读的格式
+                    var zdt = ZonedDateTime.parse(release.getPublishedAt());
+                    publishTime = zdt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+                } catch (Exception ignored) {
+                    publishTime = release.getPublishedAt(); // 解析失败则原样显示
+                }
+            }
+            // 3. 处理日志内容 (如果是 Markdown，可以在这里做简单的清洗，或者直接发送)
+            String msg = buildUpdateIntroduction(release, publishTime);
+            bot.sendMsg(event, msg, false);
+        } catch (Exception e) {
+            log.error("获取更新日志失败", e);
+            bot.sendMsg(event, "获取更新日志失败: " + e.getMessage(), false);
+        }
+    }
+
+    private static @NonNull String buildUpdateIntroduction(GitHubRelease release, String publishTime) {
+        String body = release.getBody();
+        if (body == null || body.isBlank()) {
+            body = "该版本暂无详细说明。";
+        }
+
+        // 4. 构建消息
+        return """
+                📦 最新版本信息
+                ━━━━━━━━━━━━━━
+                🔖 版本号： %s
+                📅 发布于： %s
+                
+                📝 更新内容：
+                %s
+                
+                (发送 '/更新版本' 可执行更新)
+                """.formatted(
+                release.getTagName(),
+                publishTime,
+                body
+        );
     }
 
     /**

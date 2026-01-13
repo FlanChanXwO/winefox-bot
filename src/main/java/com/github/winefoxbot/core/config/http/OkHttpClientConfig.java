@@ -1,17 +1,16 @@
 package com.github.winefoxbot.core.config.http;
 
 import com.github.winefoxbot.core.config.http.interceptor.RetryInterceptor;
-import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.ConnectionPool;
+import okhttp3.Dispatcher;
 import okhttp3.OkHttpClient;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
+import okhttp3.brotli.BrotliInterceptor;
 import javax.net.ssl.*;
-import java.net.ProxySelector;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -34,13 +33,18 @@ public class OkHttpClientConfig {
     @Bean
     public OkHttpClient okHttpClient(AutoSwitchProxySelector proxySelector) {
         try {
-            ConnectionPool connectionPool = new ConnectionPool(20, 5, TimeUnit.MINUTES);
+            Dispatcher dispatcher = new Dispatcher();
+            dispatcher.setMaxRequests(64);
+            dispatcher.setMaxRequestsPerHost(10);
+            ConnectionPool connectionPool = new ConnectionPool(50, 5, TimeUnit.MINUTES);
             return new OkHttpClient.Builder()
                     .connectTimeout(10, TimeUnit.SECONDS)
                     .retryOnConnectionFailure(true)
                     .connectionPool(connectionPool)
+                    .dispatcher(dispatcher)
                     .followRedirects(true)
                     .followSslRedirects(true)
+                    .addInterceptor(BrotliInterceptor.INSTANCE)
                     .addInterceptor(new RetryInterceptor(3, 1000))
                     .proxySelector(proxySelector)
                     .build();

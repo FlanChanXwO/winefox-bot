@@ -16,6 +16,16 @@ public class GitHubRelease {
     @JsonProperty("tag_name")
     private String tagName;
     private Asset[] assets;
+    /**
+     * Release Notes (Markdown 格式的更新日志)
+     */
+    private String body;
+
+    /**
+     * 发布时间 (ISO 8601 格式，例如: 2025-01-14T12:00:00Z)
+     */
+    @JsonProperty("published_at")
+    private String publishedAt;
 
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
