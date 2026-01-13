@@ -23,6 +23,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.regex.Matcher;
@@ -133,7 +134,8 @@ public class CorePlugin {
             if (release.getPublishedAt() != null) {
                 try {
                     // 使用 ZonedDateTime 解析 ISO 时间并转换为更易读的格式
-                    var zdt = ZonedDateTime.parse(release.getPublishedAt());
+                    var zdt = ZonedDateTime.parse(release.getPublishedAt())
+                            .withZoneSameInstant(ZoneId.systemDefault());
                     publishTime = zdt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
                 } catch (Exception ignored) {
                     publishTime = release.getPublishedAt(); // 解析失败则原样显示
