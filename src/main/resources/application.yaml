@@ -218,7 +218,7 @@ jobrunr:
   job-scheduler:
     enabled: true
   dashboard:
-    enabled: false
+    enabled: true
   jobs:
     default-number-of-retries: 5
 
