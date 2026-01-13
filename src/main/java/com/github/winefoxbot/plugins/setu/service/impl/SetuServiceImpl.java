@@ -215,7 +215,7 @@ public class SetuServiceImpl implements SetuService {
      * 统一处理图片发送逻辑
      */
     private void sendImage(Bot bot, AnyMessageEvent event, Long userId, Long groupId, SetuApiResponse response) {
-        java.util.List<String> urls = response.imgUrls();
+        List<String> urls = response.imgUrls();
         if (urls.isEmpty()) {
             return;
         }
@@ -223,7 +223,7 @@ public class SetuServiceImpl implements SetuService {
         boolean sendAsPdf = response.enabledR18();
 
         if (sendAsPdf) {
-            java.util.List<Path> imagePaths = new java.util.ArrayList<>();
+            List<Path> imagePaths = new ArrayList<>();
             for (String url : urls) {
                 Path path = getOrDownloadImageFile(url);
                 if (path != null) {
@@ -300,7 +300,7 @@ public class SetuServiceImpl implements SetuService {
                 : MsgUtils.builder().img((String) imageSource).build();
 
         if (event != null) {
-            bot.sendMsg(event, msg, false);
+            SendMsgUtil.sendMsgByEvent(bot,event, msg, false);
         } else {
             if (groupId != null) {
                 SendMsgUtil.sendGroupMsg(bot, groupId, msg, false);

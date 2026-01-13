@@ -13,6 +13,7 @@ import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import com.mikuac.shiro.dto.event.message.PrivateMessageEvent;
 import com.mikuac.shiro.dto.event.notice.PokeNoticeEvent;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +33,8 @@ public final class SendMsgUtil {
     private SendMsgUtil() {
         throw new UnsupportedOperationException("工具类不允许实例化");
     }
+
+    private final static int RETRY_TIMES = 3;
 
     public static SendMsgResult sendMsgByBotContainer(BotContainer botContainer, Long targetId, String message, boolean escape, MessageType messageType) {
         Bot bot = getFirstBot(botContainer);
@@ -69,6 +72,17 @@ public final class SendMsgUtil {
     }
 
     public static SendMsgResult sendMsgByEvent(Bot bot, Event event, String message, boolean escape) {
+        int retry = 0;
+        SendMsgResult res = sendMsg(bot, event, message, escape);
+        while (!res.isSuccess() && retry < RETRY_TIMES) {
+            log.warn("消息发送失败，正在重试... 第 {} 次", retry + 1);
+            res = sendMsg(bot, event, message, escape);
+            retry++;
+        }
+        return res;
+    }
+
+    private static @NonNull SendMsgResult sendMsg(Bot bot, Event event, String message, boolean escape) {
         return switch (event) {
             case AnyMessageEvent e -> buildResult(bot.sendMsg(e, message, escape));
             case GroupMessageEvent e -> buildResult(bot.sendGroupMsg(e.getGroupId(), message, escape));
@@ -84,11 +98,25 @@ public final class SendMsgUtil {
     }
 
     public static SendMsgResult sendPrivateMsg(Bot bot, Long userId, String message, boolean escape) {
-        return buildResult(bot.sendPrivateMsg(userId, message, escape));
+        int retry = 0;
+        SendMsgResult sendMsgResult = buildResult(bot.sendPrivateMsg(userId, message, escape));
+        while (!sendMsgResult.isSuccess() && retry < RETRY_TIMES) {
+            log.warn("私聊消息发送失败，正在重试... 第 {} 次", retry + 1);
+            sendMsgResult = buildResult(bot.sendPrivateMsg(userId, message, escape));
+            retry++;
+        }
+        return sendMsgResult;
     }
 
     public static SendMsgResult sendGroupMsg(Bot bot, Long groupId, String message, boolean escape) {
-        return buildResult(bot.sendGroupMsg(groupId, message, escape));
+        int retry = 0;
+        SendMsgResult sendMsgResult = buildResult(bot.sendGroupMsg(groupId, message, escape));
+        while (!sendMsgResult.isSuccess() && retry < RETRY_TIMES) {
+            log.warn("群聊消息发送失败，正在重试... 第 {} 次", retry + 1);
+            sendMsgResult = buildResult(bot.sendGroupMsg(groupId, message, escape));
+            retry++;
+        }
+        return sendMsgResult;
     }
 
     public static CompletableFuture<SendMsgResult> sendMsgByEventAsync(Bot bot, Event event, String message, boolean escape) {
@@ -103,7 +131,6 @@ public final class SendMsgUtil {
         return supplyAsyncResult(() -> sendGroupMsg(bot, groupId, message, escape));
     }
 
-    // --- Private Helper Methods ---
 
     private static Bot getFirstBot(BotContainer botContainer) {
         validateBotContainer(botContainer);
