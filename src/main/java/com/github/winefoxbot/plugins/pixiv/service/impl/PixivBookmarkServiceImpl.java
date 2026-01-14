@@ -1019,12 +1019,15 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
         boolean hasMore = true;
 
         PixivProperties.CookieProperties cookieProps = pixivProperties.getCookie();
+        String bookmarkUrlTemplate = pixivProperties.getApi().getBookmarkUrlTemplate();
         String cookie = String.format("PHPSESSID=%s; p_ab_id=%s;", cookieProps.getPhpsessid(), cookieProps.getPAbId());
 
         while (hasMore) {
-            // API: ajax/users/{uid}/bookmarks/artworks
-            String url = String.format("https://www.pixiv.net/ajax/users/%s/bookmarks/artworks?tag=&offset=%d&limit=%d&rest=show",
-                    userId, offset, limit);
+            String url = bookmarkUrlTemplate
+                    .replace("{userId}", userId)
+                    .replace("{offset}", String.valueOf(offset))
+                    .replace("{limit}", String.valueOf(limit))
+                    .replace("{tag}", "");
 
             Request request = new Request.Builder()
                     .url(url)
