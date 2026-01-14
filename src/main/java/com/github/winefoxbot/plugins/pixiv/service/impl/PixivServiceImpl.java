@@ -53,7 +53,6 @@ public class PixivServiceImpl implements PixivService {
     private final ExecutorService downloadExecutor = Executors.newVirtualThreadPerTaskExecutor();
     private final ConcurrentHashMap<String, Lock> pidLocks = new ConcurrentHashMap<>();
 
-    // 常量
     private static final String PIXIV_BASE = "https://www.pixiv.net";
     private static final Duration CACHE_EXPIRATION = Duration.ofHours(6); // 缓存过期时间
     private static final String PIXIV_IMAGE_SUBFOLDER = "pixiv/images";
@@ -432,26 +431,6 @@ public class PixivServiceImpl implements PixivService {
     }
 
 
-    @Override
-    public boolean isPixivURL(String msg) {
-        Pattern pattern = Pattern.compile(PIXIV_BASE + "/artworks/(\\d+)|illust_id=(\\d+)");
-        return pattern.matcher(msg).find();
-    }
-
-    @Override
-    public String extractPID(String msg) {
-        if (msg == null) return null;
-        if (msg.matches("\\d+")) return msg;
-
-        Pattern pattern = Pattern.compile(PIXIV_BASE + "/artworks/(\\d+)|illust_id=(\\d+)");
-        Matcher matcher = pattern.matcher(msg);
-        if (matcher.find()) {
-            for (int i = 1; i <= matcher.groupCount(); i++) {
-                if (matcher.group(i) != null) return matcher.group(i);
-            }
-        }
-        return null;
-    }
 
     @Override
     public boolean isValidPixivPID(String pid) throws IOException {

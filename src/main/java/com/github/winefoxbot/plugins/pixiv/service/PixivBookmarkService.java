@@ -49,4 +49,27 @@ public interface PixivBookmarkService extends IService<PixivBookmark> {
      * @return 随机作品的 Optional
      */
     Optional<PixivBookmark> getRandomBookmark(Long userId, Long groupId);
+
+    /**
+     * 添加单个作品到收藏夹
+     * @param illustId 作品ID
+     * @param restrict 0: 公开, 1: 私人(非公开)
+     * @return 是否成功
+     */
+    boolean addBookmark(String illustId, Integer restrict);
+    /**
+     * 移除单个作品收藏
+     * 会自动查询该作品的 bookmark_id 并进行移除
+     * @param illustId 作品PID
+     * @return 是否成功（如果本就未收藏，也会返回 true）
+     */
+    boolean removeBookmark(String illustId);
+    /**
+     * 爬取指定用户的全部作品并加入收藏
+     * 该操作耗时较长，建议异步执行
+     * @param targetUserId 目标画师ID
+     * @return 提交的任务数量（作品总数）
+     */
+    int crawlAndBookmarkUser(String targetUserId);
+
 }

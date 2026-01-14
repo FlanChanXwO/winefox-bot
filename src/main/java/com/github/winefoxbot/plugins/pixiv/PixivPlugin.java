@@ -12,6 +12,7 @@ import com.github.winefoxbot.plugins.pixiv.service.PixivArtworkService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivRankPushScheduleService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivRankService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivService;
+import com.github.winefoxbot.plugins.pixiv.utils.PixivUtils;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Shiro;
@@ -180,10 +181,10 @@ public class PixivPlugin {
     public void getPixivPic(Bot bot, AnyMessageEvent event, Matcher matcher) {
         String arg = matcher.group(2);
         Integer messageId = event.getMessageId();
-        if (arg == null || (!pixivService.isPixivURL(arg) && !arg.matches("\\d+"))) {
+        if (arg == null || (!PixivUtils.isPixivArtworkUrl(arg) && !arg.matches("\\d+"))) {
             return; // 忽略无效命令
         }
-        String pid = pixivService.extractPID(arg);
+        String pid = PixivUtils.extractPID(arg);
         try {
             if (pid == null || !pixivService.isValidPixivPID(pid)) {
                 bot.sendMsg(event, MsgUtils.builder().reply(messageId).text("无效的 Pixiv PID 或 URL！").build(), false);

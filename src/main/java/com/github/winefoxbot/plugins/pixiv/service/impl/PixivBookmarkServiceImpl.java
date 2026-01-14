@@ -13,8 +13,6 @@ import com.github.winefoxbot.plugins.pixiv.config.PixivProperties;
 import com.github.winefoxbot.plugins.pixiv.mapper.PixivBookmarkMapper;
 import com.github.winefoxbot.plugins.pixiv.model.dto.bookmark.PixivApiBody;
 import com.github.winefoxbot.plugins.pixiv.model.dto.bookmark.PixivArtwork;
-import com.github.winefoxbot.plugins.pixiv.model.dto.bookmark.PixivUnmarkApiRequest;
-import com.github.winefoxbot.plugins.pixiv.model.dto.bookmark.PixivUnmarkApiResponse;
 import com.github.winefoxbot.plugins.pixiv.model.entity.PixivBookmark;
 import com.github.winefoxbot.plugins.pixiv.model.enums.PixivRatingLevel;
 import com.github.winefoxbot.plugins.pixiv.service.PixivBookmarkService;
@@ -28,7 +26,6 @@ import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.http.HttpHeaders;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,7 +34,6 @@ import org.springframework.util.CollectionUtils;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -56,12 +52,13 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
     private final OkHttpClient okHttpClient;
     private final ObjectMapper objectMapper;
     private final PixivProperties pixivProperties;
-    private final RedisTemplate<String,String> redisTemplate;
+    private final RedisTemplate<String, String> redisTemplate;
     private final ConfigManager configManager;
     private PixivBookmarkService self;
 
     private final AtomicBoolean isSyncInProgress = new AtomicBoolean(false);
     private final AtomicBoolean isLightSyncInProgress = new AtomicBoolean(false);
+    private final AtomicBoolean isMutipleAddingBookmark = new AtomicBoolean(false);
     private final Random random = new Random();
     private static final double INITIAL_WEIGHT = 100.0;
     private static final double WEIGHT_RESET_THRESHOLD = 20.0; // 平均权重低于20时重置权重保证随机性
@@ -134,6 +131,7 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
 
     /**
      * 根据 xRestrict 属性判断作品是否为 R18 或 R18-G。
+     *
      * @param bookmark PixivBookmark 对象
      * @return 如果是 R18 或 R18-G 则返回 true，否则返回 false。
      */
@@ -186,7 +184,7 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
         } catch (Exception e) {
             log.error("同步用户 [{}] 收藏夹时发生严重错误。", userId, e);
             // 可以在此抛出运行时异常，以便事务回滚
-             throw new RuntimeException("同步失败", e);
+            throw new RuntimeException("同步失败", e);
         } finally {
             isSyncInProgress.set(false);
         }
@@ -287,9 +285,12 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
                         }
                     }
 
-                    if (!newMixMembers.isEmpty()) zSetOps.add(CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_MIX, newMixMembers);
-                    if (!newSfwMembers.isEmpty()) zSetOps.add(CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_SFW, newSfwMembers);
-                    if (!newR18Members.isEmpty()) zSetOps.add(CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_R18, newR18Members);
+                    if (!newMixMembers.isEmpty())
+                        zSetOps.add(CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_MIX, newMixMembers);
+                    if (!newSfwMembers.isEmpty())
+                        zSetOps.add(CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_SFW, newSfwMembers);
+                    if (!newR18Members.isEmpty())
+                        zSetOps.add(CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_R18, newR18Members);
 
                     log.info("轻量同步：成功向 Redis ZSETs 新增了 {} 个 ID。", newBookmarks.size());
                 } catch (Exception e) {
@@ -309,8 +310,6 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
             isLightSyncInProgress.set(false);
         }
     }
-
-
 
 
     @Scheduled(cron = "${pixiv.bookmark.tracker.light-cron}")
@@ -525,7 +524,7 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
         // 使用最可靠的 userId 和 isMasked 字段
         if (dto.getAuthorId() == null || dto.getIsMasked()) {
             log.warn("检测到已删除或不可见的作品，将跳过。作品ID: {}", dto.getId());
-            unmarkArtwork(dto.getBookmarkData());
+            executeUnmarkRequest(dto.getBookmarkData().getId(), dto.getId());
             return null; // 返回 null，表示这是一个无效作品，不应处理
         }
 
@@ -550,72 +549,9 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
         return entity;
     }
 
-    @Async
-    protected void unmarkArtwork(PixivArtwork.BookMarkData bookMarkData) {
-        if (!pixivProperties.getBookmark().getAllowUnmarkExpiredArtworks()) {
-            return;
-        }
-        log.info("尝试取消收藏过期作品ID: {}", bookMarkData.getId());
-        PixivProperties.ApiProperties apiProps = pixivProperties.getApi();
-        PixivProperties.CookieProperties cookieProps = pixivProperties.getCookie();
-        String csrfToken = pixivProperties.getAuthorization().getXcsrfToken();
-        String phpsessid = cookieProps.getPhpsessid();
-        String pAbId = cookieProps.getPAbId();
-        if (csrfToken == null || csrfToken.isEmpty() ||
-                phpsessid == null || phpsessid.isEmpty() ||
-                pAbId == null || pAbId.isEmpty()) {
-            log.error("取消收藏失败，缺少必要的认证信息（X-CSRF-Token 或 Cookie）。");
-            return;
-        }
-        String cookie = String.format("PHPSESSID=%s; p_ab_id=%s;", phpsessid, pAbId);
-        // 构建请求
-        PixivUnmarkApiRequest unmarkRequest = new PixivUnmarkApiRequest();
-        unmarkRequest.setBookmarkId(bookMarkData.getId());
-
-        RequestBody formBody = new FormBody.Builder()
-                .add("bookmark_id", unmarkRequest.getBookmarkId())
-                .build();
-
-        Request request = new Request.Builder()
-                .url(apiProps.getUnmaskUrlTemplate())
-                .post(formBody)
-                .addHeader("Cookie", cookie)
-                .addHeader(HttpHeaders.ACCEPT, "application/json")
-                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                .addHeader("Referer", "https://www.pixiv.net/")
-                .addHeader("Origin", "https://www.pixiv.net") // 最好也加上 Origin
-                .addHeader("x-csrf-token", csrfToken) // <-- 添加关键的请求头！
-                .build();
-        try (Response response = okHttpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                log.error("取消收藏请求失败! 作品ID: {}, 响应码: {}, 响应消息: {}", bookMarkData.getId(), response.code(), response.message());
-            } else {
-                ResponseBody body = response.body();
-                if (body == null) {
-                    log.error("取消收藏请求响应体为空! 作品ID: {}", bookMarkData.getId());
-                    return;
-                }
-                String jsonStr = body.string();
-                JsonNode rootNode = objectMapper.readTree(jsonStr);
-                if (rootNode == null) {
-                    log.error("取消收藏请求响应JSON解析失败! 作品ID: {}, 响应内容: {}", bookMarkData.getId(), jsonStr);
-                    return;
-                }
-                Optional<PixivUnmarkApiResponse> pixivUnmarkApiResponse = Optional.ofNullable(objectMapper.treeToValue(rootNode, PixivUnmarkApiResponse.class));
-                if (pixivUnmarkApiResponse.isEmpty() || Boolean.TRUE.equals(pixivUnmarkApiResponse.get().getError())) {
-                    log.error("取消收藏请求返回错误! 作品ID: {}, 响应内容: {}", bookMarkData.getId(), jsonStr);
-                    return;
-                }
-                log.info("成功取消收藏作品ID: {}", bookMarkData.getId());
-            }
-        } catch (IOException e) {
-            log.error("取消收藏请求时发生IO异常! 作品ID: {}", bookMarkData.getId(), e);
-        }
-
-    }
-
     /**
      * 使用加权随机算法从 Redis ZSET 中获取一个 Bookmark ID。
+     *
      * @return 随机抽取的 Bookmark ID Optional
      */
     @Override
@@ -652,6 +588,7 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
 
     /**
      * 【已修改】使用加权随机算法从指定的 Redis ZSET 中获取一个 Bookmark ID。
+     *
      * @param zsetKey 要抽取的 Redis ZSET Key
      * @return 随机抽取的 Bookmark ID Optional
      */
@@ -681,6 +618,7 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
 
     /**
      * 【已修改】检查并可能重置特定 ZSET 权重的辅助方法
+     *
      * @param zsetKey 要检查的 Redis ZSET Key
      */
     private void checkAndResetWeightsIfNeeded(String zsetKey) {
@@ -749,4 +687,263 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
         return getRandomBookmark(0L, 0L);
     }
 
+
+    @Override
+    public boolean addBookmark(String illustId, Integer restrict) {
+        // 参数校验
+        if (illustId == null || illustId.isBlank()) return false;
+        int finalRestrict = (restrict != null && restrict == 1) ? 1 : 0; // 默认为0公开
+
+        PixivProperties.ApiProperties apiProps = pixivProperties.getApi();
+        PixivProperties.CookieProperties cookieProps = pixivProperties.getCookie();
+        String csrfToken = pixivProperties.getAuthorization().getXcsrfToken();
+
+        // 构造 Cookie 和 Headers
+        String cookie = String.format("PHPSESSID=%s; p_ab_id=%s;", cookieProps.getPhpsessid(), cookieProps.getPAbId());
+
+        // 构造 JSON Body
+        // {"illust_id":"139598615","restrict":0,"comment":"","tags":[]}
+        Map<String, Object> jsonBody = new HashMap<>();
+        jsonBody.put("illust_id", illustId);
+        jsonBody.put("restrict", finalRestrict);
+        jsonBody.put("comment", "");
+        jsonBody.put("tags", Collections.emptyList());
+        try {
+            String jsonString = objectMapper.writeValueAsString(jsonBody);
+            RequestBody body = RequestBody.create(jsonString, MediaType.parse("application/json; charset=utf-8"));
+
+            Request request = new Request.Builder()
+                    .url(apiProps.getAddmarkUrlTemplate()) // API 地址
+                    .post(body)
+                    .addHeader("Cookie", cookie)
+                    .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    .addHeader("Referer", "https://www.pixiv.net/artworks/" + illustId) // 动态 Referer
+                    .addHeader("Origin", "https://www.pixiv.net")
+                    .addHeader("x-csrf-token", csrfToken)
+                    .addHeader("content-type", "application/json; charset=utf-8")
+                    .build();
+
+            try (Response response = okHttpClient.newCall(request).execute()) {
+                String respStr = response.body() != null ? response.body().string() : "";
+                if (!response.isSuccessful()) {
+                    log.error("收藏作品失败 [{}], Code: {}, Body: {}", illustId, response.code(), respStr);
+                    return false;
+                }
+
+                // 检查 Pixiv 业务逻辑返回值 error: false
+                JsonNode root = objectMapper.readTree(respStr);
+                if (root.path("error").asBoolean(true)) {
+                    log.warn("收藏作品被 Pixiv 拒绝 [{}]: {}", illustId, root.path("message").asText());
+                    return false;
+                }
+
+                log.info("成功收藏作品: {}", illustId);
+                return true;
+            }
+        } catch (Exception e) {
+            log.error("收藏请求发生异常, ID: {}", illustId, e);
+            return false;
+        }
+    }
+
+
+    @Override
+    public boolean removeBookmark(String illustId) {
+        if (illustId == null || illustId.isBlank()) return false;
+
+        log.info("尝试移除作品收藏，PID: {}", illustId);
+
+        // 1. 获取 bookmarkId (取消收藏需要 收藏ID，而非作品ID)
+        String bookmarkId = getBookmarkIdByIllustId(illustId);
+
+        if (bookmarkId == null) {
+            log.info("作品 {} 未在收藏夹中，无需移除。", illustId);
+            return true; // 视为成功
+        }
+
+        // 2. 发送取消收藏请求
+        return executeUnmarkRequest(bookmarkId, illustId);
+    }
+
+    /**
+     * 辅助方法：通过作品ID查询收藏ID
+     */
+    private String getBookmarkIdByIllustId(String illustId) {
+        PixivProperties.CookieProperties cookieProps = pixivProperties.getCookie();
+        String cookie = String.format("PHPSESSID=%s; p_ab_id=%s;", cookieProps.getPhpsessid(), cookieProps.getPAbId());
+
+        // 查询作品详情接口，包含 bookmarkData
+        String url = "https://www.pixiv.net/ajax/illust/" + illustId;
+
+        Request request = new Request.Builder()
+                .url(url)
+                .get()
+                .addHeader("Cookie", cookie)
+                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .build();
+
+        try (Response response = okHttpClient.newCall(request).execute()) {
+            if (!response.isSuccessful() || response.body() == null) {
+                return null;
+            }
+            JsonNode root = objectMapper.readTree(response.body().string());
+            JsonNode bookmarkData = root.path("body").path("bookmarkData");
+
+            if (bookmarkData.isMissingNode() || bookmarkData.isNull()) {
+                return null; // 未收藏
+            }
+            return bookmarkData.path("id").asText(null);
+        } catch (Exception e) {
+            log.error("获取作品 {} 收藏信息失败", illustId, e);
+            return null;
+        }
+    }
+
+    /**
+     * 辅助方法：执行 API 取消收藏
+     */
+    private boolean executeUnmarkRequest(String bookmarkId, String originalPid) {
+        PixivProperties.ApiProperties apiProps = pixivProperties.getApi();
+        PixivProperties.CookieProperties cookieProps = pixivProperties.getCookie();
+        String csrfToken = pixivProperties.getAuthorization().getXcsrfToken();
+
+        String cookie = String.format("PHPSESSID=%s; p_ab_id=%s;", cookieProps.getPhpsessid(), cookieProps.getPAbId());
+
+        RequestBody formBody = new FormBody.Builder()
+                .add("bookmark_id", bookmarkId)
+                .build();
+        Request request = new Request.Builder()
+                .url(apiProps.getUnmarkUrlTemplate())
+                .post(formBody)
+                .addHeader("Cookie", cookie)
+                .addHeader(HttpHeaders.ACCEPT, "application/json")
+                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .addHeader("Referer", "https://www.pixiv.net/")
+                .addHeader("Origin", "https://www.pixiv.net")
+                .addHeader("x-csrf-token", csrfToken)
+                .build();
+
+        try (Response response = okHttpClient.newCall(request).execute()) {
+            if (response.isSuccessful()) {
+                log.info("成功移除收藏: PID={}, BookmarkID={}", originalPid, bookmarkId);
+                // 这里可以顺便把 Redis 中的缓存也清理掉，保持数据一致性
+                removeFromRedisCache(originalPid);
+                return true;
+            } else {
+                log.warn("移除收藏失败: Code={}", response.code());
+                return false;
+            }
+        } catch (Exception e) {
+            log.error("取消收藏请求异常", e);
+            return false;
+        }
+    }
+
+    /**
+     * 辅助方法：尝试清理 Redis 缓存（如果有）
+     */
+    private void removeFromRedisCache(String pid) {
+        try {
+            redisTemplate.opsForZSet().remove(CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_MIX, pid);
+            redisTemplate.opsForZSet().remove(CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_SFW, pid);
+            redisTemplate.opsForZSet().remove(CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_R18, pid);
+        } catch (Exception e) {
+            // 忽略缓存清理错误
+            log.error("清理 Redis 缓存时发生错误，PID={}", pid, e);
+        }
+    }
+
+
+    @Override
+    public int crawlAndBookmarkUser(String targetUserId) {
+        log.info("开始爬取并收藏画师 [{}] 的所有作品...", targetUserId);
+
+        if (isMutipleAddingBookmark.get()) {
+            throw new BusinessException("已有批量收藏操作在进行中，请稍后再试。");
+        }
+        isMutipleAddingBookmark.set(true);
+        try {
+
+            // 1. 获取画师所有作品 ID (利用 profile/all 接口)
+            // 接口地址: https://www.pixiv.net/ajax/user/{uid}/profile/all
+            String url = "https://www.pixiv.net/ajax/user/" + targetUserId + "/profile/all";
+            PixivProperties.CookieProperties cookieProps = pixivProperties.getCookie();
+            String cookie = String.format("PHPSESSID=%s; p_ab_id=%s;", cookieProps.getPhpsessid(), cookieProps.getPAbId());
+
+            Request request = new Request.Builder()
+                    .url(url)
+                    .get()
+                    .addHeader("Cookie", cookie)
+                    .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    .addHeader("Referer", "https://www.pixiv.net/users/" + targetUserId)
+                    .build();
+
+            List<String> allIllustIds = new ArrayList<>();
+
+            try (Response response = okHttpClient.newCall(request).execute()) {
+                if (!response.isSuccessful() || response.body() == null) {
+                    log.error("获取画师 [{}] 作品列表失败", targetUserId);
+                    return 0;
+                }
+                String jsonStr = response.body().string();
+                JsonNode root = objectMapper.readTree(jsonStr);
+
+                // 解析 body -> illusts (插画) 和 body -> manga (漫画)
+                JsonNode body = root.path("body");
+                JsonNode illusts = body.path("illusts");
+                JsonNode manga = body.path("manga");
+
+                if (illusts.isObject()) {
+                    illusts.fieldNames().forEachRemaining(allIllustIds::add);
+                }
+                if (manga.isObject()) {
+                    manga.fieldNames().forEachRemaining(allIllustIds::add);
+                }
+            } catch (Exception e) {
+                log.error("解析画师作品列表异常", e);
+                return 0;
+            }
+
+            if (allIllustIds.isEmpty()) {
+                log.info("画师 [{}] 没有作品或获取失败。", targetUserId);
+                return 0;
+            }
+
+            log.info("获取到画师 [{}] 共 {} 个作品，开始批量收藏...", targetUserId, allIllustIds.size());
+
+            // 2. 批量处理，为了避免触发反爬虫，需要串行并加延迟，或者控制并发度
+            // 这里使用虚拟线程+信号量控制并发，或者简单的串行+Sleep
+            // 考虑到 Pixiv 对写操作的风控较严，建议使用单线程串行+随机延迟
+            int successCount = 0;
+            int total = allIllustIds.size();
+
+            for (int i = 0; i < total; i++) {
+                String pid = allIllustIds.get(i);
+                try {
+                    boolean success = addBookmark(pid, 0); // 默认公开收藏
+                    if (success) successCount++;
+
+                    // 进度日志
+                    if ((i + 1) % 10 == 0) {
+                        log.info("爬取收藏进度: {}/{}, 成功: {}", i + 1, total, successCount);
+                    }
+
+                    // 关键：随机延迟 1.5秒 - 4秒，模拟人类操作
+                    long sleepTime = 1500 + random.nextInt(2500);
+                    Thread.sleep(sleepTime);
+
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    log.warn("爬取任务被中断");
+                    break;
+                } catch (Exception e) {
+                    log.error("处理作品 {} 时出错", pid, e);
+                }
+            }
+            log.info("画师 [{}] 作品批量收藏结束。共 {} 个，成功收藏 {} 个。", targetUserId, total, successCount);
+            return allIllustIds.size();
+        } finally {
+            isMutipleAddingBookmark.set(false);
+        }
+    }
 }

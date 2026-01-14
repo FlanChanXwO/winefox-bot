@@ -11,6 +11,7 @@ import com.github.winefoxbot.plugins.pixiv.model.entity.PixivBookmark;
 import com.github.winefoxbot.plugins.pixiv.service.PixivArtworkService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivBookmarkService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivService;
+import com.github.winefoxbot.plugins.pixiv.utils.PixivUtils;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Order;
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Component;
 import java.io.File;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
 
 import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.COMMAND_PREFIX_REGEX;
 import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.COMMAND_SUFFIX_REGEX;
@@ -109,5 +111,103 @@ public class PixivBookmarkPlugin {
             shiroSessionStateService.exitCommandMode(sessionKey);
         }
     }
+
+
+    @Async
+    @PluginFunction(name = "收藏P站作品",
+            description = "收藏单个Pixiv作品，支持PID或链接。用法：收藏 12345678 或 收藏 https://pixiv.net/artworks/...",
+            permission = Permission.SUPERADMIN,
+            autoGenerateHelp = true,
+            commands = {"/收藏"}
+    )
+    @AnyMessageHandler
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/收藏\\s*(.+)$")
+    public void addSingleBookmark(Bot bot, AnyMessageEvent event, Matcher matcher) {
+        String arg = matcher.group(1).trim();
+        // 解析 PID
+        String pid = PixivUtils.extractPID(arg);
+
+        if (pid == null) {
+            bot.sendMsg(event, "无法从输入中提取有效的 Pixiv 作品 ID。", false);
+            return;
+        }
+
+        bot.sendMsg(event, "正在收藏作品 ID: " + pid + " ...", false);
+        try {
+            boolean success = pixivBookmarkService.addBookmark(pid, 0); // 0 为公开
+            if (success) {
+                bot.sendMsg(event, "✅ 成功收藏作品: " + pid, false);
+            } else {
+                bot.sendMsg(event, "❌ 收藏失败，请检查日志 (可能是PID无效或Cookie过期)。", false);
+            }
+        } catch (Exception e) {
+            log.error("收藏指令执行异常", e);
+            bot.sendMsg(event, "操作发生异常: " + e.getMessage(), false);
+        }
+    }
+
+    @Async
+    @PluginFunction(name = "移除P站收藏",
+            description = "移除单个Pixiv作品收藏，支持PID或链接。用法：取消收藏 12345678",
+            permission = Permission.SUPERADMIN,
+            autoGenerateHelp = true,
+            commands = {"/取消收藏", "/移除收藏"}
+    )
+    @AnyMessageHandler
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/(取消|移除)收藏\\s*(.+)$")
+    public void removeSingleBookmark(Bot bot, AnyMessageEvent event, Matcher matcher) {
+        String arg = matcher.group(2).trim(); // group 1 是 (取消|移除)，group 2 是参数
+        // 解析 PID
+        String pid = PixivUtils.extractPID(arg);
+
+        if (pid == null) {
+            bot.sendMsg(event, "无法从输入中提取有效的 Pixiv 作品 ID。", false);
+            return;
+        }
+
+        bot.sendMsg(event, "正在移除作品收藏 ID: " + pid + " ...", false);
+        try {
+            boolean success = pixivBookmarkService.removeBookmark(pid);
+            if (success) {
+                bot.sendMsg(event, "🗑️ 成功移除收藏: " + pid, false);
+            } else {
+                bot.sendMsg(event, "❌ 移除失败，可能网络超时或 API 变更。", false);
+            }
+        } catch (Exception e) {
+            log.error("移除收藏指令执行异常", e);
+            bot.sendMsg(event, "操作发生异常: " + e.getMessage(), false);
+        }
+    }
+
+
+    @Async
+    @PluginFunction(name = "爬取画师收藏",
+            description = "爬取指定画师的所有作品并加入收藏。警告：大量请求可能触发风控。用法：爬取收藏 123456",
+            permission = Permission.SUPERADMIN, // 必须是超管权限
+            autoGenerateHelp = true,
+            commands = {"/全部收藏"}
+    )
+    @AnyMessageHandler
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/全部收藏\\s*(.+)$")
+    public void crawlUserBookmarks(Bot bot, AnyMessageEvent event, Matcher matcher) {
+        String arg = matcher.group(1).trim();
+        // 解析 uid
+        String uid = PixivUtils.extractUID(arg);
+
+        bot.sendMsg(event, "开始解析画师 [" + uid + "] 的作品列表，即将后台执行批量收藏...", false);
+
+        try {
+            int count = pixivBookmarkService.crawlAndBookmarkUser(uid);
+            if (count > 0) {
+                bot.sendMsg(event, "已获取到 " + count + " 个作品，已启动后台任务逐个收藏。请勿频繁操作。", false);
+            } else {
+                bot.sendMsg(event, "未找到该画师的作品，或获取列表失败。", false);
+            }
+        } catch (Exception e) {
+            log.error("爬取收藏指令执行异常", e);
+            bot.sendMsg(event, "启动任务失败: " + e.getMessage(), false);
+        }
+    }
+
 
 }
