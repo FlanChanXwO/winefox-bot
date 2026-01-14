@@ -182,7 +182,7 @@ public class PixivBookmarkPlugin {
 
     @Async
     @PluginFunction(name = "爬取画师收藏",
-            description = "爬取指定画师的所有作品并加入收藏。警告：大量请求可能触发风控。用法：爬取收藏 123456",
+            description = "爬取指定画师的所有作品并加入收藏。用法：爬取收藏 123456",
             permission = Permission.SUPERADMIN, // 必须是超管权限
             autoGenerateHelp = true,
             commands = {"/全部收藏"}
@@ -194,12 +194,12 @@ public class PixivBookmarkPlugin {
         // 解析 uid
         String uid = PixivUtils.extractUID(arg);
 
-        bot.sendMsg(event, "开始解析画师 [" + uid + "] 的作品列表，即将后台执行批量收藏...", false);
+        bot.sendMsg(event, "开始解析画师 [" + uid + "] 的作品列表，正在异步执行批量收藏...", false);
 
         try {
             int count = pixivBookmarkService.crawlAndBookmarkUser(uid);
             if (count > 0) {
-                bot.sendMsg(event, "已获取到 " + count + " 个作品，已启动后台任务逐个收藏。请勿频繁操作。", false);
+                bot.sendMsg(event, "已增加 " + count + " 个作品到鼠鼠の收藏。", false);
             } else {
                 bot.sendMsg(event, "未找到该画师的作品，或获取列表失败。", false);
             }
