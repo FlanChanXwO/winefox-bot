@@ -70,6 +70,14 @@ public interface PixivBookmarkService extends IService<PixivBookmark> {
      * @param targetUserId 目标画师ID
      * @return 提交的任务数量（作品总数）
      */
-    int crawlAndBookmarkUser(String targetUserId);
+    int crawlUserArtworksToBookmark(String targetUserId);
 
+
+    /**
+     * 转移（克隆）指定用户的公开收藏夹
+     * 获取目标用户的公开收藏，并将其加入到当前账号的收藏夹中。
+     * @param sourceUserId 来源用户的ID
+     * @return 预计处理的作品总数
+     */
+    int transferUserBookmarks(String sourceUserId);
 }

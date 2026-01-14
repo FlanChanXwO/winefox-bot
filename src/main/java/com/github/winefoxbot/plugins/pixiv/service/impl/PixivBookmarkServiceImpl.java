@@ -855,7 +855,7 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
 
 
     @Override
-    public int crawlAndBookmarkUser(String targetUserId) {
+    public int crawlUserArtworksToBookmark(String targetUserId) {
         log.info("开始爬取并收藏画师 [{}] 的所有作品...", targetUserId);
 
         if (isMutipleAddingBookmark.get()) {
@@ -946,4 +946,141 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
             isMutipleAddingBookmark.set(false);
         }
     }
+
+
+    @Override
+    public int transferUserBookmarks(String sourceUserId) {
+        log.info("开始获取用户 [{}] 的公开收藏列表...", sourceUserId);
+        if (isMutipleAddingBookmark.get()) {
+            throw new BusinessException("已有批量收藏操作在进行中，请稍后再试。");
+        }
+        isMutipleAddingBookmark.set(true);
+        try {
+            // 1. 获取所有公开收藏的 PID 列表
+            List<String> allBookmarkIds = fetchAllUserPublicBookmarks(sourceUserId);
+
+            if (allBookmarkIds.isEmpty()) {
+                log.warn("用户 [{}] 的公开收藏列表为空或获取失败（可能是隐私设置或网络问题）。", sourceUserId);
+                return 0;
+            }
+
+            int total = allBookmarkIds.size();
+            log.info("成功获取到用户 [{}] 的 {} 个收藏作品，准备开始后台转移任务...", sourceUserId, total);
+
+            int successCount = 0;
+            int skipCount = 0;
+
+            for (int i = 0; i < total; i++) {
+                String pid = allBookmarkIds.get(i);
+                try {
+                    // 这里可以加一个简单的检查：如果已经收藏过则跳过
+                    // 但为了简单和准确（有时想更新tag），直接调用 addBookmark
+                    // addBookmark 内部会处理请求
+
+                    boolean success = addBookmark(pid, 0); // 0 = 公开收藏
+                    if (success) {
+                        successCount++;
+                    } else {
+                        skipCount++;
+                    }
+
+                    // 进度日志 (每20个打印一次)
+                    if ((i + 1) % 20 == 0) {
+                        log.info("转移收藏进度: {}/{}, 成功: {}, 跳过/失败: {}", i + 1, total, successCount, skipCount);
+                    }
+
+                    // [关键风控] 随机延迟 2秒 - 5秒
+                    // 转移别人的收藏通常数量巨大，速度必须慢
+                    long sleepTime = 2000 + random.nextInt(3000);
+                    Thread.sleep(sleepTime);
+
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    log.warn("转移收藏任务被中断");
+                    break;
+                } catch (Exception e) {
+                    log.error("转移作品 {} 时出错", pid, e);
+                }
+            }
+            log.info("用户 [{}] 的收藏转移任务结束。总数: {}, 成功入库: {}", sourceUserId, total, successCount);
+            return total;
+        } finally {
+            isMutipleAddingBookmark.set(false);
+        }
+    }
+
+    /**
+     * 辅助方法：分页拉取某用户的所有公开收藏 PID
+     */
+    private List<String> fetchAllUserPublicBookmarks(String userId) {
+        List<String> resultIds = new ArrayList<>();
+        int offset = 0;
+        int limit = 48; // API 默认限制
+        boolean hasMore = true;
+
+        PixivProperties.CookieProperties cookieProps = pixivProperties.getCookie();
+        String cookie = String.format("PHPSESSID=%s; p_ab_id=%s;", cookieProps.getPhpsessid(), cookieProps.getPAbId());
+
+        while (hasMore) {
+            // API: ajax/users/{uid}/bookmarks/artworks
+            String url = String.format("https://www.pixiv.net/ajax/users/%s/bookmarks/artworks?tag=&offset=%d&limit=%d&rest=show",
+                    userId, offset, limit);
+
+            Request request = new Request.Builder()
+                    .url(url)
+                    .get()
+                    .addHeader("Cookie", cookie)
+                    .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    .addHeader("Referer", "https://www.pixiv.net/users/" + userId + "/bookmarks/artworks")
+                    .build();
+
+            try (Response response = okHttpClient.newCall(request).execute()) {
+                if (!response.isSuccessful() || response.body() == null) {
+                    log.error("拉取用户收藏分页失败: offset={}, code={}", offset, response.code());
+                    break;
+                }
+
+                String jsonStr = response.body().string();
+                JsonNode root = objectMapper.readTree(jsonStr);
+
+                if (root.path("error").asBoolean(true)) {
+                    log.warn("API 返回错误信息: {}", root.path("message").asText());
+                    break;
+                }
+
+                JsonNode body = root.path("body");
+                JsonNode works = body.path("works");
+                int total = body.path("total").asInt(0);
+
+                if (works.isEmpty() || !works.isArray()) {
+                    hasMore = false; // 没有更多作品了
+                } else {
+                    for (JsonNode work : works) {
+                        // 提取 PID (可以是字符串或数字)
+                        String pid = work.path("id").asText();
+                        // 简单校验是否为有效ID
+                        if (pid != null && !pid.isEmpty()) {
+                            resultIds.add(pid);
+                        }
+                    }
+
+                    offset += works.size();
+                    log.debug("已拉取 {} 个 PID, offset 现在为 {}", resultIds.size(), offset);
+
+                    // 如果当前获取的数量达到 total，或者本次获取的数量为0，则停止
+                    if (offset >= total || works.size() == 0) {
+                        hasMore = false;
+                    }
+
+                    // 分页拉取也要稍微慢一点，避免读操作风控
+                    Thread.sleep(500 + random.nextInt(500));
+                }
+            } catch (Exception e) {
+                log.error("拉取用户收藏列表异常", e);
+                break;
+            }
+        }
+        return resultIds;
+    }
+
 }

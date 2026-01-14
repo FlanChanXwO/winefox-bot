@@ -33,6 +33,9 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.COMMAND_PRE
 import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.COMMAND_SUFFIX_REGEX;
 
 
+/**
+ * @author FlanChan
+ */
 @Plugin(name = "Pixiv",
         description = "提供 Pixiv 图片获取与排行榜订阅等功能",
         permission = Permission.USER,
@@ -189,7 +192,7 @@ public class PixivBookmarkPlugin {
     )
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/全部收藏\\s*(.+)$")
-    public void crawlUserBookmarks(Bot bot, AnyMessageEvent event, Matcher matcher) {
+    public void crawlUserArtworks(Bot bot, AnyMessageEvent event, Matcher matcher) {
         String arg = matcher.group(1).trim();
         // 解析 uid
         String uid = PixivUtils.extractUID(arg);
@@ -197,7 +200,7 @@ public class PixivBookmarkPlugin {
         bot.sendMsg(event, "开始解析画师 [" + uid + "] 的作品列表，正在异步执行批量收藏...", false);
 
         try {
-            int count = pixivBookmarkService.crawlAndBookmarkUser(uid);
+            int count = pixivBookmarkService.crawlUserArtworksToBookmark(uid);
             if (count > 0) {
                 bot.sendMsg(event, "已增加 " + count + " 个作品到鼠鼠の收藏。", false);
             } else {
@@ -208,6 +211,42 @@ public class PixivBookmarkPlugin {
             bot.sendMsg(event, "启动任务失败: " + e.getMessage(), false);
         }
     }
+
+
+    @Async
+    @PluginFunction(name = "转移用户收藏",
+            description = "将指定用户的公开收藏全部转移到机器人账号。用法：转移收藏 12345 或 用户主页链接",
+            permission = Permission.SUPERADMIN,
+            autoGenerateHelp = true,
+            commands = {"/转移收藏", "/克隆收藏"}
+    )
+    @AnyMessageHandler
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/(转移|克隆)收藏\\s*(.+)$")
+    public void transferBookmarks(Bot bot, AnyMessageEvent event, Matcher matcher) {
+        String arg = matcher.group(2).trim();
+        // 解析 uid
+        String targetUserId = PixivUtils.extractUID(arg);
+
+        if (targetUserId == null) {
+            bot.sendMsg(event, "无法提取有效的用户 ID。请输入纯数字 ID 或用户主页链接。", false);
+            return;
+        }
+
+        bot.sendMsg(event, "🔍 正在扫描用户 [" + targetUserId + "] 的公开收藏列表，请稍候...", false);
+
+        try {
+            int count = pixivBookmarkService.transferUserBookmarks(targetUserId);
+            if (count > 0) {
+                bot.sendMsg(event, "📦 转移完成！共转移 " + count + " 个公开收藏。", false);
+            } else {
+                bot.sendMsg(event, "⚠️ 未找到该用户的公开收藏，可能是用户设置了隐私，或者 ID 错误。", false);
+            }
+        } catch (Exception e) {
+            log.error("转移收藏指令异常", e);
+            bot.sendMsg(event, "操作失败: " + e.getMessage(), false);
+        }
+    }
+
 
 
 }
