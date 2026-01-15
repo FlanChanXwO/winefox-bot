@@ -155,6 +155,7 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
     }
 
 
+    @Async
     @PluginFunction(
             name = "查看发言统计",
             description = "使用 /今日发言 命令查看本群的发言统计排名。",
