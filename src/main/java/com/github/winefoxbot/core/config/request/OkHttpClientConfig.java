@@ -1,6 +1,6 @@
-package com.github.winefoxbot.core.config.http;
+package com.github.winefoxbot.core.config.request;
 
-import com.github.winefoxbot.core.config.http.interceptor.RetryInterceptor;
+import com.github.winefoxbot.core.config.request.interceptor.RetryInterceptor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.ConnectionPool;
@@ -10,7 +10,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import okhttp3.brotli.BrotliInterceptor;
-import javax.net.ssl.*;
+
 import java.util.concurrent.TimeUnit;
 
 /**

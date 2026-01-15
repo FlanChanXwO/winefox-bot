@@ -1,11 +1,10 @@
 package com.github.winefoxbot.core.config.playwright;
 
-import com.github.winefoxbot.core.config.http.ProxyConfig;
+import com.github.winefoxbot.core.config.request.ProxyConfig;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.Proxy;
-import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;

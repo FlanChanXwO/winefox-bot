@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.config.http;
+package com.github.winefoxbot.core.config.request;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

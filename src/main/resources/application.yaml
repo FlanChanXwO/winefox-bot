@@ -135,6 +135,7 @@ request:
       - api.lolicon.app
       - i.pixiv.re
       - q2.qlogo.cn
+      - ginger25.top
       - multimedia.nt.qq.com.cn
       - 60s.viki.moe
       - bgm.tv
@@ -149,7 +150,7 @@ request:
 logging:
   level:
     root: info
-
+  config: classpath:logback.xml
 # MyBatis-Plus 配置
 mybatis-plus:
   mapper-locations: classpath:/mapper/**/*.xml

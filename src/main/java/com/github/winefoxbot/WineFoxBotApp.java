@@ -24,7 +24,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableCaching
 public class WineFoxBotApp {
 
-     public static void main(String[] args) {
+    public static void main(String[] args) {
         // 在启动Spring之前，首先运行脚本检查器
         // 它会判断运行环境，如果需要，会生成脚本并直接退出程序
         ScriptChecker.checkAndDeploy(WineFoxBotApp.class);

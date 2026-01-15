@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.config.http.interceptor;
+package com.github.winefoxbot.core.config.request.interceptor;
 
 import okhttp3.Interceptor;
 import okhttp3.Request;
