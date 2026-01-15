@@ -52,7 +52,7 @@ public class BitTorrentServiceImpl implements BitTorrentService {
         try (Page page = browser.newPage()) {
             page.navigate(bitTorrentConfig.getBaseUrl(), new Page.NavigateOptions().
                     setWaitUntil(WaitUntilState.NETWORKIDLE).
-                    setTimeout(10_000)
+                    setTimeout(30000)
             );
             return page.url();
         }
