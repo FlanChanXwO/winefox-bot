@@ -1,10 +1,12 @@
 package com.github.winefoxbot.core.config.inner;
 
 import lombok.NonNull;
+import org.docx4j.wml.R;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnThreading;
 import org.springframework.boot.thread.Threading;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -23,24 +25,15 @@ public class VirtualThreadConfig {
     private final static String SHIRO_VIRTUAL_THREAD_NAME_PREFIX = "virtual-shiro-";
 
     @Bean
-    public Executor virtualThreadExecutor() {
-        // 创建虚拟线程执行器，底层用的是 Java 21 的虚拟线程
-        // 这玩意儿比传统线程池强多了，性能提升不是一点半点
-        return Executors.newVirtualThreadPerTaskExecutor();
+    public Executor virtualThreadExecutor(ExecutorService executorService) {
+        return executorService;
     }
-    // 配置异步任务使用虚拟线程
 
 
     @Bean
-    public TaskExecutor taskExecutor() {
+    public TaskExecutor taskExecutor(ExecutorService executor) {
         // 返回虚拟线程执行器，@Async 注解会使用这个执行器
-        return new TaskExecutor() {
-            private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
-            @Override
-            public void execute(Runnable task) {
-                executor.submit(task);
-            }
-        };
+        return executor::submit;
     }
 
 
@@ -49,7 +42,7 @@ public class VirtualThreadConfig {
      * shiro框架使用的任务执行器
      * @return {@link ThreadPoolTaskExecutor}
      */
-    @Bean("shiroTaskExecutor")
+    @Bean(value = "shiroTaskExecutor",destroyMethod = "shutdown")
     @ConditionalOnThreading(Threading.VIRTUAL)
     public ThreadPoolTaskExecutor shiroTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
@@ -65,9 +58,6 @@ public class VirtualThreadConfig {
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy()); // 拒绝策略
         return executor;
     }
-
-
-
 
 
     /**
@@ -86,7 +76,14 @@ public class VirtualThreadConfig {
         return scheduler;
     }
 
-    @Bean
+
+    @Bean(destroyMethod = "close")
+    @Primary
+    public ExecutorService executorService() {
+        return Executors.newVirtualThreadPerTaskExecutor();
+    }
+
+    @Bean(destroyMethod = "close")
     public ScheduledExecutorService scheduledExecutorService() {
         return new ScheduledThreadPoolExecutor(SCHEDULED_POOL_SIZE, new ThreadFactory() {
             private final ThreadFactory virtualFactory = Thread.ofVirtual().factory();

@@ -1,9 +1,11 @@
 package com.github.winefoxbot.core.config.logging;
 
+import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.AppenderBase;
 import ch.qos.logback.core.encoder.Encoder;
 import com.github.winefoxbot.core.service.logging.WebSocketLogService;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 
 import java.nio.charset.StandardCharsets;
@@ -76,7 +78,7 @@ public class WebSocketLogAppender extends AppenderBase<ILoggingEvent> {
      */
     private static Encoder<ILoggingEvent> findEncoderInContext() {
         try {
-            ch.qos.logback.classic.LoggerContext loggerContext = (ch.qos.logback.classic.LoggerContext) org.slf4j.LoggerFactory.getILoggerFactory();
+            LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
             WebSocketLogAppender appender = (WebSocketLogAppender) loggerContext.getLogger("ROOT").getAppender("WEBSOCKET");
             return appender.getEncoder();
         } catch (Exception e) {

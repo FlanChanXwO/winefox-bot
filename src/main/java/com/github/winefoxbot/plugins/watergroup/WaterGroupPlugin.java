@@ -48,6 +48,7 @@ public class WaterGroupPlugin {
     private final WaterGroupPosterDrawService waterGroupPosterDrawService;
     private final WaterGroupScheduleService waterGroupScheduleService;
 
+    public static final ScopedValue<Long> CURRENT_GROUP_ID = ScopedValue.newInstance();
 
     @Async
     @GroupMessageHandler
@@ -170,20 +171,24 @@ public class WaterGroupPlugin {
         }
         bot.sendGroupMsg(groupId, "正在生成今日发言统计图片", false);
 
-        File image = null;
-        try {
-            image = waterGroupPosterDrawService.drawPoster(ranks);
-            bot.sendGroupMsg(groupId, MsgUtils.builder()
-                    .img(FileUtil.getFileUrlPrefix() + image.getAbsolutePath())
-                    .build(), false);
-        } catch (IOException e) {
-            log.error("生成发言统计图片失败", e);
-            bot.sendGroupMsg(groupId, "生成发言统计图片失败，请稍后再试。", false);
-        } finally {
-            if (image != null && image.exists()) {
-                image.delete();
+        ScopedValue.where(CURRENT_GROUP_ID, groupId).run(() -> {
+            File image = null;
+            try {
+                image = waterGroupPosterDrawService.drawPoster(ranks);
+                bot.sendGroupMsg(groupId, MsgUtils.builder()
+                        .img(FileUtil.getFileUrlPrefix() + image.getAbsolutePath())
+                        .build(), false);
+            } catch (IOException e) {
+                log.error("生成发言统计图片失败", e);
+                bot.sendGroupMsg(groupId, "生成发言统计图片失败，请稍后再试。", false);
+            } finally {
+                if (image != null && image.exists()) {
+                    image.delete();
+                }
             }
-        }
+        });
+
+
     }
 
 }

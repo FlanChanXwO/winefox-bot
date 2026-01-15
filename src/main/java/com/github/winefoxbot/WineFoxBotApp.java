@@ -1,5 +1,7 @@
 package com.github.winefoxbot;
 
+import com.github.winefoxbot.core.config.logging.LogbackApplicationListener;
+import com.github.winefoxbot.core.config.logging.LogbackContextInitializer;
 import com.github.winefoxbot.core.init.ScriptChecker;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
@@ -33,6 +35,11 @@ public class WineFoxBotApp {
         // 2. 或者脚本文件已经存在，不需要生成和退出
         // 此时，正常启动Spring应用
         SpringApplication app = new SpringApplication(WineFoxBotApp.class);
+        app.addInitializers(new LogbackContextInitializer());
+
+        // ** 2. 保持监听器 **
+        // 它会在应用就绪后，安全地将ApplicationContext传递给Appender
+        app.addListeners(new LogbackApplicationListener());
         app.setApplicationStartup(new BufferingApplicationStartup(1000));
         app.run(args);
     }

@@ -151,6 +151,7 @@ logging:
   level:
     root: info
   config: classpath:logback.xml
+
 # MyBatis-Plus 配置
 mybatis-plus:
   mapper-locations: classpath:/mapper/**/*.xml

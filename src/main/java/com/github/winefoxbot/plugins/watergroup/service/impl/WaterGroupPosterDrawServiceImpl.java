@@ -6,6 +6,7 @@ import com.github.winefoxbot.core.model.entity.ShiroGroupMember;
 import com.github.winefoxbot.core.model.entity.ShiroUser;
 import com.github.winefoxbot.core.service.shiro.ShiroGroupMembersService;
 import com.github.winefoxbot.core.service.shiro.ShiroUsersService;
+import com.github.winefoxbot.plugins.watergroup.WaterGroupPlugin;
 import com.github.winefoxbot.plugins.watergroup.model.dto.WaterGroupMemberStat;
 import com.github.winefoxbot.plugins.watergroup.model.entity.WaterGroupMessageStat;
 import com.github.winefoxbot.plugins.watergroup.service.WaterGroupPosterDrawService;
@@ -146,7 +147,7 @@ public class WaterGroupPosterDrawServiceImpl implements WaterGroupPosterDrawServ
             int height = (int) page.locator(".poster").boundingBox().height;
             page.setViewportSize(800, height);
 
-            File out = new File("water_group_rank.png");
+            File out = new File("water_group_rank_%s.png".formatted(WaterGroupPlugin.CURRENT_GROUP_ID.get()));
             page.screenshot(new Page.ScreenshotOptions()
                     .setPath(out.toPath())
                     .setFullPage(true) // 使用fullPage确保内容截全

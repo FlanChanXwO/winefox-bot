@@ -5,6 +5,7 @@ import com.github.winefoxbot.core.model.entity.GroupPushSchedule;
 import com.github.winefoxbot.core.service.push.GroupPushTaskExecutor;
 import com.github.winefoxbot.core.service.schedule.GroupPushScheduleService;
 import com.github.winefoxbot.core.utils.FileUtil;
+import com.github.winefoxbot.plugins.watergroup.WaterGroupPlugin;
 import com.github.winefoxbot.plugins.watergroup.model.entity.WaterGroupMessageStat;
 import com.github.winefoxbot.plugins.watergroup.model.entity.WaterGroupSchedule;
 import com.github.winefoxbot.plugins.watergroup.service.WaterGroupScheduleService;
@@ -23,12 +24,11 @@ import java.util.List;
 /**
  * @author FlanChan
  * 针对 unified `group_push_schedule` 的 WaterGroup 适配实现
-
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class WaterGroupScheduleServiceImpl implements WaterGroupScheduleService {
+        public class WaterGroupScheduleServiceImpl implements WaterGroupScheduleService {
 
     private final WaterGroupService waterGroupService;
     private final WaterGroupPosterDrawServiceImpl waterGroupPosterDrawService;
@@ -86,23 +86,25 @@ public class WaterGroupScheduleServiceImpl implements WaterGroupScheduleService 
                 bot.sendGroupMsg(groupId, "没有足够的数据生成统计", false);
                 return;
             }
+            ScopedValue.where(WaterGroupPlugin.CURRENT_GROUP_ID, groupId).run(() -> {
+                File image = null;
+                try {
+                    image = waterGroupPosterDrawService.drawPoster(ranks);
+                    bot.sendGroupMsg(groupId, "那么，这是今天的活跃榜~", false);
+                    bot.sendGroupMsg(groupId, MsgUtils.builder()
+                            .img(FileUtil.getFileUrlPrefix() + image.getAbsolutePath())
+                            .build(), false);
 
-            File image = null;
-            try {
-                image = waterGroupPosterDrawService.drawPoster(ranks);
-                bot.sendGroupMsg(groupId, "那么，这是今天的活跃榜~", false);
-                bot.sendGroupMsg(groupId, MsgUtils.builder()
-                        .img(FileUtil.getFileUrlPrefix() + image.getAbsolutePath())
-                        .build(), false);
-            } catch (IOException e) {
-                log.error("生成发言统计图片失败", e);
-                bot.sendGroupMsg(groupId, "生成发言统计图片失败，请稍后再试。", false);
-                throw new RuntimeException("生成图片失败", e);
-            } finally {
-                if (image != null && image.exists()) {
-                    image.delete();
+                } catch (IOException e) {
+                    log.error("生成发言统计图片失败", e);
+                    bot.sendGroupMsg(groupId, "生成发言统计图片失败，请稍后再试。", false);
+                    throw new RuntimeException("生成图片失败", e);
+                } finally {
+                    if (image != null && image.exists()) {
+                        image.delete();
+                    }
                 }
-            }
+            });
         });
     }
 
