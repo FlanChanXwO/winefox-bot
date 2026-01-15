@@ -43,7 +43,7 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-public class WaterGroupPlugin {
+    public class WaterGroupPlugin {
     private final WaterGroupService waterGroupService;
     private final WaterGroupPosterDrawService waterGroupPosterDrawService;
     private final WaterGroupScheduleService waterGroupScheduleService;
