@@ -35,7 +35,9 @@ public class SetuRandomImageTool {
             @ToolParam(required = true, description = "调用该工具所需的message_type，需要从json消息的message_type字段中获取,该参数必须为小写")
             String messageType,
             @ToolParam(required = false, description = "图片标签或关键词，例如'白丝'、'黑丝'、'碧蓝档案'等。如果用户没有指定，则为空。")
-            String tag
+            String tag,
+            @ToolParam(required = false,description = "请求图片数量，默认为1，最大不得超过10个")
+            int num
     ) {}
 
     public record SetuResponse(
@@ -63,10 +65,11 @@ public class SetuRandomImageTool {
                 Long configUserId = request.userId();
                 MessageType messageType = MessageType.fromValue(request.messageType.toLowerCase());
                 Long groupContextId = (messageType == MessageType.GROUP) ? request.sessionId() : null;
-
+                if (request.num <= 0 || request.num > 10) {
+                    return new SetuResponse(false, "请求图片数量必须在1到10之间");
+                }
                 // 调用 Service 新增的 ID 重载方法
-                setuService.processSetuRequest(bot, configUserId, groupContextId, request.tag());
-
+                setuService.processSetuRequest(bot, configUserId, groupContextId,request.num, request.tag);
                 return new SetuResponse(true, "已成功触发图片发送请求");
             } catch (Exception e) {
                 log.error("AI工具调用SetuService失败", e);

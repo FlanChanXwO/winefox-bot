@@ -1,5 +1,6 @@
 package com.github.winefoxbot.plugins.setu;
 
+import cn.hutool.core.util.NumberUtil;
 import com.github.winefoxbot.core.annotation.Limit;
 import com.github.winefoxbot.core.annotation.Plugin;
 import com.github.winefoxbot.core.annotation.PluginFunction;
@@ -40,21 +41,25 @@ public class SetuPlugin {
     @Async
     @PluginFunction(
             name = "随机福利图片获取",
-            description = "使用命令获取随机福利图片，可附加标签，如：来份碧蓝档案福利图",
-            commands = {"来份色图", "来张色图", "来份[标签]瑟图", "来个[标签]福利图", "来份[标签]涩图", "来点[标签]色图", "来点[标签]瑟图", "来点[标签]涩图", "来点[标签]福利图"}
+            description = "使用命令获取随机福利图片，可附加标签和数量限制（默认为1个，最大10个），如：来份碧蓝档案福利图",
+            commands = {"来份色图", "来张色图", "来份[标签]瑟图", "来个[标签]福利图", "来份[标签]涩图", "来点[标签]色图", "来点[标签]瑟图", "来点[标签]涩图", "来点[标签]福利图", "来10个[标签]色图","来5份色图" }
     )
     @Order(10)
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^(来(份|个|张|点))(\\S*?)(福利|色|瑟|涩|塞|)图$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^(来\\s*(.*)(份|个|张|点))(\\S*?)(福利|色|瑟|涩|塞|)图$")
     public void getRandomPicture(Bot bot, AnyMessageEvent event, Matcher matcher) {
         // 仅在私聊时进入命令模式，避免影响群聊体验
         if (event.getGroupId() == null) {
             String sessionKey = shiroSessionStateService.getSessionKey(event);
             shiroSessionStateService.enterCommandMode(sessionKey);
         }
-        String tag = matcher.group(3); // 获取标签
-
+        int num = NumberUtil.parseInt(matcher.group(2), 1);
+        if (0 >= num || num > 10) {
+            bot.sendMsg(event, "一次最多只能获取10张哦~", false);
+            return;
+        }
+        String tag = matcher.group(4); // 获取标签
         // 调用Service处理业务逻辑
-        setuService.processSetuRequest(bot, event, tag);
+        setuService.processSetuRequest(bot, event,num, tag);
     }
 }

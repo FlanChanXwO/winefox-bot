@@ -5,6 +5,7 @@ import com.github.winefoxbot.core.config.file.FileStorageProperties;
 import com.github.winefoxbot.core.constants.ConfigConstants;
 import com.github.winefoxbot.core.exception.bot.NetworkException;
 import com.github.winefoxbot.core.exception.bot.ResourceNotFoundException;
+import com.github.winefoxbot.core.exception.common.BusinessException;
 import com.github.winefoxbot.core.manager.ConfigManager;
 import com.github.winefoxbot.core.model.dto.SendMsgResult;
 import com.github.winefoxbot.core.service.file.FileStorageService;
@@ -18,7 +19,10 @@ import com.github.winefoxbot.plugins.setu.service.SetuService;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.PathNotFoundException;
 import com.mikuac.shiro.common.utils.MsgUtils;
+import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
+import com.mikuac.shiro.dto.action.common.ActionData;
+import com.mikuac.shiro.dto.action.common.MsgId;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import lombok.RequiredArgsConstructor;
@@ -31,15 +35,13 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.Supplier;
 
 /**
  * @author FlanChan
@@ -55,46 +57,62 @@ public class SetuServiceImpl implements SetuService {
     private final FileStorageProperties fileStorageProperties;
     private final ConfigManager configManager;
 
-    private static final int MAX_RETRIES = 3;
     private static final Duration IMAGE_CACHE_DURATION = Duration.ofHours(1);
+    private static final int MAX_ATTEMPTS = 3; // 最大尝试次数
+    private static final long RETRY_DELAY_MS = 500; // 每次重试的间隔时间（毫秒）
 
-    @Override
-    public void processSetuRequest(Bot bot, AnyMessageEvent event, String tag) {
-        processSetuRequestInternal(bot, event, event.getUserId(), event.getGroupId(), tag);
+
+    /**
+     * 图片源的封装类，用于统一处理字节数组和URI。
+     */
+    private record ImageSource(
+            byte[] bytes,
+            URI uri) {
+        ImageSource(URI uri) {
+            this(null, uri);
+        }
+        ImageSource(byte[] bytes) {
+            this(bytes, null);
+        }
+        boolean isBytes() {
+            return bytes != null;
+        }
     }
 
     @Override
-    public void processSetuRequest(Bot bot, Long userId, Long groupId, String tag) {
-        processSetuRequestInternal(bot, null, userId, groupId, tag);
+    public void processSetuRequest(Bot bot, AnyMessageEvent event, int num, String tag) {
+        processSetuRequestInternal(bot, event, event.getUserId(), event.getGroupId(), num, tag);
+    }
+
+    @Override
+    public void processSetuRequest(Bot bot, Long userId, Long groupId, int num, String tag) {
+        processSetuRequestInternal(bot, null, userId, groupId, num, tag);
     }
 
     /**
      * 内部统一处理方法
+     *
      * @param event 可能为 null，如果为 null 则无法使用部分依赖 Event 的高级功能（如抛出给用户的Bot异常、PDF上传等）
+     * @param num
      */
-    private void processSetuRequestInternal(Bot bot, AnyMessageEvent event, Long userId, Long groupId, String tag) {
+    private void processSetuRequestInternal(Bot bot, AnyMessageEvent event, Long userId, Long groupId, int num, String tag) {
         String contentMode = configManager.getOrDefault(ConfigConstants.AdultContent.SETU_CONTENT_MODE, userId, groupId, ConfigConstants.AdultContent.MODE_SFW);
         log.info("开始获取图片任务，标签: '{}', 内容模式: {}", tag, contentMode);
-
-        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        String apiUrl = buildApiUrl(tag, contentMode, num);
+        retryTemplate(() -> {
+            SetuApiResponse imageUrl;
             try {
-                String apiUrl = buildApiUrl(tag, contentMode);
-                log.info("第 {}/{} 次尝试, 请求URL: {}", attempt, MAX_RETRIES, apiUrl);
-                SetuApiResponse imageUrl = fetchImageUrlFromApi(apiUrl);
-                if (imageUrl == null) {
-                    log.warn("第 {} 次尝试失败：未能从API获取到有效的图片URL。", attempt);
-                    continue;
-                }
-                log.info("成功获取到图片URL: {}", imageUrl);
-
-                sendImage(bot, event, userId, groupId, imageUrl);
-                return;
-            } catch (Exception e) {
-                log.error("第 {}/{} 次尝试时发生异常", attempt, MAX_RETRIES, e);
+                imageUrl = fetchImageUrlFromApi(apiUrl);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
-        }
-
-        handleException(bot, event, "尝试多次后仍未能获取到图片，请稍后再试~");
+            if (imageUrl == null) {
+                throw new BusinessException("未能从API获取到有效的图片URL");
+            }
+            log.info("成功获取到图片URL: {}", imageUrl);
+            sendImage(bot, event, userId, groupId, imageUrl);
+            return null;
+        });
     }
 
     private void handleException(Bot bot, AnyMessageEvent event, String message) {
@@ -109,12 +127,12 @@ public class SetuServiceImpl implements SetuService {
     /**
      * 根据内容模式（sfw, r18, mix）构建请求API的URL
      */
-    private String buildApiUrl(String tag, String contentMode) {
+    private String buildApiUrl(String tag, String contentMode, int num) {
         HttpUrl.Builder urlBuilder = Objects.requireNonNull(HttpUrl.parse(setuApiConfig.getUrl())).newBuilder();
         SetuApiConfig.Params params = setuApiConfig.getParams();
 
         if (params.getNum() != null && params.getNum().getKey() != null) {
-            urlBuilder.addQueryParameter(params.getNum().getKey(), params.getNum().getValue());
+            urlBuilder.addQueryParameter(params.getNum().getKey(), String.valueOf(num));
         }
         if (params.getExcludeAI() != null && params.getExcludeAI().getKey() != null) {
             urlBuilder.addQueryParameter(params.getExcludeAI().getKey(), params.getExcludeAI().getValue());
@@ -182,7 +200,7 @@ public class SetuServiceImpl implements SetuService {
                     }
 
                     boolean enabledR18 = false;
-                    result = JsonPath.read(jsonBody,setuApiConfig.getResponse().getR18().getJsonPath());
+                    result = JsonPath.read(jsonBody, setuApiConfig.getResponse().getR18().getJsonPath());
                     if (result instanceof List<?> list) {
                         for (Object o : list) {
                             if (o != null) {
@@ -236,11 +254,14 @@ public class SetuServiceImpl implements SetuService {
                 handleException(bot, event, "图片获取失败，无法生成PDF");
             }
         } else {
-            for (String url : urls) {
-                sendSingleImage(bot, event, userId, groupId, url);
+            if (urls.size() > 1) {
+                sendFowardedImages(bot, userId, groupId, urls);
+            } else {
+                sendSingleImage(bot, event, userId, groupId, urls.getFirst());
             }
         }
     }
+
 
     private Path getOrDownloadImageFile(String url) {
         String cacheKey = generateCacheKeyFromUrl(url);
@@ -266,49 +287,183 @@ public class SetuServiceImpl implements SetuService {
         return null;
     }
 
-    private void sendSingleImage(Bot bot, AnyMessageEvent event, Long userId, Long groupId, String url) {
-        String cacheKey = generateCacheKeyFromUrl(url);
-        Path imagePath = fileStorageService.getFilePathByCacheKey(cacheKey);
-
-        if (imagePath != null) {
-            log.info("缓存命中！发送本地图片: {}", imagePath);
-            doSendImage(bot, event, groupId, userId, imagePath.toUri().toString(), false);
-            return;
-        }
-
-        log.info("缓存未命中，直接下载并发送: {}", url);
-        Request imageRequest = new Request.Builder().url(url).build();
-        try (Response imageResponse = httpClient.newCall(imageRequest).execute()) {
-            if (imageResponse.isSuccessful() && imageResponse.body() != null) {
-                byte[] imageBytes = imageResponse.body().bytes();
-                doSendImage(bot, event, groupId, userId, imageBytes, true);
-                CompletableFuture.runAsync(() -> fileStorageService.saveFileByCacheKey(cacheKey, imageBytes, IMAGE_CACHE_DURATION));
-            } else {
-                log.error("图片下载失败, URL: {}", url);
+    /**
+     * 发送单张图片。
+     * 优先从缓存获取，否则下载并发送。下载后的图片会异步存入缓存。
+     */
+    public void sendSingleImage(Bot bot, AnyMessageEvent event, Long userId, Long groupId, String url) {
+        // 使用CompletableFuture以非阻塞方式获取图片
+        getImage(url).thenAccept(imageSource -> {
+            if (imageSource != null) {
+                // 执行带重试的发送操作
+                retryTemplate(() -> {
+                    doSendImage(bot, event, groupId, userId, imageSource);
+                    return null; // 发送成功，返回null
+                });
             }
-        } catch (Exception e) {
-            log.error("发送单个图片时出错: {}", url, e);
+        }).exceptionally(ex -> {
+            log.error("获取或发送单张图片失败: {}", url, ex);
+            return null;
+        });
+    }
+
+    /**
+     * 以合并转发的方式发送多张图片。
+     * 会并发下载所有图片，然后合并发送。
+     */
+    public void sendFowardedImages(Bot bot, Long userId, Long groupId, List<String> urls) {
+        try (ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor()) {
+            // 并发获取所有图片
+            List<CompletableFuture<ImageSource>> futures = urls.stream()
+                    .map(url -> getImage(url, executorService))
+                    .toList();
+
+            // 等待所有图片下载完成
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+            // 从future结果中提取图片消息字符串
+            List<String> msgs = futures.stream()
+                    .map(CompletableFuture::join)
+                    .filter(Objects::nonNull)
+                    .map(this::buildImageMsg)
+                    .toList();
+
+            if (msgs.isEmpty()) {
+                log.warn("没有可发送的图片, URL列表: {}", urls);
+                return;
+            }
+
+            // 生成转发消息体
+            List<Map<String, Object>> forwardMsg = ShiroUtils.generateForwardMsg(
+                    bot.getSelfId(),
+                    bot.getLoginInfo().getData().getNickname(),
+                    msgs
+            );
+
+            // 执行带重试的发送操作
+            retryTemplate(() -> {
+                int retCode;
+                ActionData<MsgId> resp;
+                if (groupId != null) {
+                    resp = bot.sendGroupForwardMsg(groupId, forwardMsg);
+                } else {
+                    resp = bot.sendPrivateForwardMsg(userId, forwardMsg);
+                }
+                retCode = resp.getRetCode();
+                if (retCode != 0) {
+                    throw new BusinessException("合并转发图片发送失败，返回码: " + retCode);
+                }
+                return retCode;
+            });
         }
     }
 
     /**
-     * 底层发送图片方法，兼容有Event和无Event的情况
+     * 核心图片获取逻辑：先检查缓存，如果未命中则从URL下载。
+     *
+     * @param url 图片URL
+     * @return CompletableFuture<ImageSource> 包含图片源的异步结果
      */
-    private void doSendImage(Bot bot, AnyMessageEvent event, Long groupId, Long userId, Object imageSource, boolean isBytes) {
-        String msg = isBytes
-                ? MsgUtils.builder().img((byte[]) imageSource).build()
-                : MsgUtils.builder().img((String) imageSource).build();
+    private CompletableFuture<ImageSource> getImage(String url) {
+        // 默认在ForkJoinPool的公共池中执行
+        return getImage(url, Executors.newVirtualThreadPerTaskExecutor());
+    }
 
-        if (event != null) {
-            SendMsgUtil.sendMsgByEvent(bot,event, msg, false);
-        } else {
-            if (groupId != null) {
-                SendMsgUtil.sendGroupMsg(bot, groupId, msg, false);
-            } else {
-                SendMsgUtil.sendPrivateMsg(bot, userId, msg, false);
+    private CompletableFuture<ImageSource> getImage(String url, Executor executor) {
+        return CompletableFuture.supplyAsync(() -> {
+            String cacheKey = generateCacheKeyFromUrl(url);
+            Path imagePath = fileStorageService.getFilePathByCacheKey(cacheKey);
+
+            if (imagePath != null) {
+                log.info("缓存命中: {}", imagePath);
+                return new ImageSource(imagePath.toUri());
             }
+
+            log.info("缓存未命中，下载: {}", url);
+            Request request = new Request.Builder().url(url).build();
+            // 使用重试模板执行下载
+            return retryTemplate(() -> {
+                try (Response response = httpClient.newCall(request).execute()) {
+                    if (!response.isSuccessful() || response.body() == null) {
+                        throw new IOException("图片下载失败, URL: " + url + ", Code: " + response.code());
+                    }
+                    byte[] imageBytes = response.body().bytes();
+                    // 异步缓存
+                    CompletableFuture.runAsync(() ->
+                            fileStorageService.saveFileByCacheKey(cacheKey, imageBytes, Duration.ofHours(1))
+                    );
+                    return new ImageSource(imageBytes);
+                } catch (IOException e) {
+                    log.error("图片下载异常: URL={}", url, e);
+                    return null;
+                }
+            });
+        }, executor);
+    }
+
+    /**
+     * 底层发送图片的统一方法。
+     */
+    private void doSendImage(Bot bot, AnyMessageEvent event, Long groupId, Long userId, ImageSource imageSource) {
+        String msg = buildImageMsg(imageSource);
+        if (event != null) {
+            SendMsgUtil.sendMsgByEvent(bot, event, msg, false);
+        } else if (groupId != null) {
+            SendMsgUtil.sendGroupMsg(bot, groupId, msg, false);
+        } else {
+            SendMsgUtil.sendPrivateMsg(bot, userId, msg, false);
         }
     }
+
+    /**
+     * 根据图片源构建Mirai消息字符串。
+     */
+    private String buildImageMsg(ImageSource imageSource) {
+        MsgUtils builder = MsgUtils.builder();
+        if (imageSource.isBytes()) {
+            return builder.img(imageSource.bytes).build();
+        } else {
+            return builder.img(imageSource.uri.toString()).build();
+        }
+    }
+
+    /**
+     * 手动实现的通用重试模板。
+     * @param action 需要执行并可能需要重试的操作，它应该在失败时抛出异常。
+     * @return 操作的执行结果。
+     * @param <T> 结果类型
+     */
+    private <T> T retryTemplate(Supplier<T> action) {
+        int attempts = 0;
+        while (attempts < MAX_ATTEMPTS) {
+            attempts++;
+            try {
+                return action.get(); // 尝试执行操作
+            } catch (Exception e) {
+                // 如果是最后一次尝试，则记录错误并退出循环
+                if (attempts >= MAX_ATTEMPTS) {
+                    log.error("操作在 {} 次尝试后最终失败", MAX_ATTEMPTS, e);
+                    // 向上抛出异常或根据业务需求返回null/默认值
+                    // throw new RuntimeException("操作最终失败", e);
+                    return null;
+                }
+
+                log.warn("操作失败，将在 {}ms 后进行第 {}/{} 次重试. 错误: {}", RETRY_DELAY_MS, attempts + 1, MAX_ATTEMPTS, e.getMessage());
+
+                try {
+                    // 线程等待，准备下一次重试
+                    Thread.sleep(RETRY_DELAY_MS);
+                } catch (InterruptedException ie) {
+                    // 如果在等待时线程被中断，则停止重试并恢复中断状态
+                    Thread.currentThread().interrupt();
+                    log.error("重试等待被中断，操作终止", ie);
+                    break; // 退出循环
+                }
+            }
+        }
+        return null; // 所有尝试都失败且未抛出异常（例如在中断后）
+    }
+
 
     private void sendAsPdfFile(Bot bot, AnyMessageEvent event, java.util.List<Path> imagePaths) {
         final Path pdfPath = PdfUtil.wrapImageIntoPdf(imagePaths, fileStorageProperties.getLocal().getBasePath() + File.separator + "setu_tmp");
