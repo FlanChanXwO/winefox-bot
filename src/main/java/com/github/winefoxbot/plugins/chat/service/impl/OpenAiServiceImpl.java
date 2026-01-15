@@ -237,6 +237,10 @@ public class OpenAiServiceImpl implements OpenAiService {
             return "";
         }
         String trimmed = content.trim();
+        // 过滤无效内容
+        if (trimmed.contains("[图片]")) {
+            return "";
+        }
 
         // 尝试寻找最外层的 JSON 对象范围（从第一个 { 到最后一个 }）
         // 这样可以防御性地处理：
