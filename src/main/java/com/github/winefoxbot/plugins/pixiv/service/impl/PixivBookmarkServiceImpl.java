@@ -194,7 +194,7 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
      * 定时任务入口。
      * 解决了事务自调用警告的问题。
      */
-    @Scheduled(cron = "${pixiv.bookmark.tracker.full-cron}")
+    @Scheduled(cron = "${winefoxbot.plugins.pixiv.bookmark.tracker.full-cron}")
     @Override
     public void scheduleSyncBookmarks() {
         if (!pixivProperties.getBookmark().getTracker().getEnabled()) {
@@ -312,7 +312,7 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
     }
 
 
-    @Scheduled(cron = "${pixiv.bookmark.tracker.light-cron}")
+    @Scheduled(cron = "${winefoxbot.plugins.pixiv.bookmark.tracker.light-cron}")
     @Override
     public void scheduleSyncLatestBookmarks() {
         if (!pixivProperties.getBookmark().getTracker().getEnabled()) {
