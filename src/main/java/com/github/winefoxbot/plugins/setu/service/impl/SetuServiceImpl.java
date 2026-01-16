@@ -41,7 +41,6 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.function.Supplier;
 
 /**
  * @author FlanChan
@@ -58,8 +57,6 @@ public class SetuServiceImpl implements SetuService {
     private final ConfigManager configManager;
 
     private static final Duration IMAGE_CACHE_DURATION = Duration.ofHours(1);
-    private static final int MAX_ATTEMPTS = 3; // 最大尝试次数
-    private static final long RETRY_DELAY_MS = 500; // 每次重试的间隔时间（毫秒）
 
 
     /**
@@ -99,20 +96,17 @@ public class SetuServiceImpl implements SetuService {
         String contentMode = configManager.getOrDefault(ConfigConstants.AdultContent.SETU_CONTENT_MODE, userId, groupId, ConfigConstants.AdultContent.MODE_SFW);
         log.info("开始获取图片任务，标签: '{}', 内容模式: {}", tag, contentMode);
         String apiUrl = buildApiUrl(tag, contentMode, num);
-        retryTemplate(() -> {
-            SetuApiResponse imageUrl;
-            try {
-                imageUrl = fetchImageUrlFromApi(apiUrl);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            if (imageUrl == null) {
-                throw new BusinessException("未能从API获取到有效的图片URL");
-            }
-            log.info("成功获取到图片URL: {}", imageUrl);
-            sendImage(bot, event, userId, groupId, imageUrl);
-            return null;
-        });
+        SetuApiResponse imageUrl;
+        try {
+            imageUrl = fetchImageUrlFromApi(apiUrl);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        if (imageUrl == null) {
+            throw new BusinessException("未能从API获取到有效的图片URL");
+        }
+        log.info("成功获取到图片URL: {}", imageUrl);
+        sendImage(bot, event, userId, groupId, imageUrl);
     }
 
     private void handleException(Bot bot, AnyMessageEvent event, String message) {
@@ -295,11 +289,7 @@ public class SetuServiceImpl implements SetuService {
         // 使用CompletableFuture以非阻塞方式获取图片
         getImage(url).thenAccept(imageSource -> {
             if (imageSource != null) {
-                // 执行带重试的发送操作
-                retryTemplate(() -> {
-                    doSendImage(bot, event, groupId, userId, imageSource);
-                    return null; // 发送成功，返回null
-                });
+                doSendImage(bot, event, groupId, userId, imageSource);
             }
         }).exceptionally(ex -> {
             log.error("获取或发送单张图片失败: {}", url, ex);
@@ -341,20 +331,17 @@ public class SetuServiceImpl implements SetuService {
             );
 
             // 执行带重试的发送操作
-            retryTemplate(() -> {
-                int retCode;
-                ActionData<MsgId> resp;
-                if (groupId != null) {
-                    resp = bot.sendGroupForwardMsg(groupId, forwardMsg);
-                } else {
-                    resp = bot.sendPrivateForwardMsg(userId, forwardMsg);
-                }
-                retCode = resp.getRetCode();
-                if (retCode != 0) {
-                    throw new BusinessException("合并转发图片发送失败，返回码: " + retCode);
-                }
-                return retCode;
-            });
+            int retCode;
+            ActionData<MsgId> resp;
+            if (groupId != null) {
+                resp = bot.sendGroupForwardMsg(groupId, forwardMsg);
+            } else {
+                resp = bot.sendPrivateForwardMsg(userId, forwardMsg);
+            }
+            retCode = resp.getRetCode();
+            if (retCode != 0) {
+                throw new BusinessException("合并转发图片发送失败，返回码: " + retCode);
+            }
         }
     }
 
@@ -382,22 +369,20 @@ public class SetuServiceImpl implements SetuService {
             log.info("缓存未命中，下载: {}", url);
             Request request = new Request.Builder().url(url).build();
             // 使用重试模板执行下载
-            return retryTemplate(() -> {
-                try (Response response = httpClient.newCall(request).execute()) {
-                    if (!response.isSuccessful() || response.body() == null) {
-                        throw new IOException("图片下载失败, URL: " + url + ", Code: " + response.code());
-                    }
-                    byte[] imageBytes = response.body().bytes();
-                    // 异步缓存
-                    CompletableFuture.runAsync(() ->
-                            fileStorageService.saveFileByCacheKey(cacheKey, imageBytes, Duration.ofHours(1))
-                    );
-                    return new ImageSource(imageBytes);
-                } catch (IOException e) {
-                    log.error("图片下载异常: URL={}", url, e);
-                    return null;
+            try (Response response = httpClient.newCall(request).execute()) {
+                if (!response.isSuccessful() || response.body() == null) {
+                    throw new IOException("图片下载失败, URL: " + url + ", Code: " + response.code());
                 }
-            });
+                byte[] imageBytes = response.body().bytes();
+                // 异步缓存
+                CompletableFuture.runAsync(() ->
+                        fileStorageService.saveFileByCacheKey(cacheKey, imageBytes, Duration.ofHours(1))
+                );
+                return new ImageSource(imageBytes);
+            } catch (IOException e) {
+                log.error("图片下载异常: URL={}", url, e);
+                return null;
+            }
         }, executor);
     }
 
@@ -425,43 +410,6 @@ public class SetuServiceImpl implements SetuService {
         } else {
             return builder.img(imageSource.uri.toString()).build();
         }
-    }
-
-    /**
-     * 手动实现的通用重试模板。
-     * @param action 需要执行并可能需要重试的操作，它应该在失败时抛出异常。
-     * @return 操作的执行结果。
-     * @param <T> 结果类型
-     */
-    private <T> T retryTemplate(Supplier<T> action) {
-        int attempts = 0;
-        while (attempts < MAX_ATTEMPTS) {
-            attempts++;
-            try {
-                return action.get(); // 尝试执行操作
-            } catch (Exception e) {
-                // 如果是最后一次尝试，则记录错误并退出循环
-                if (attempts >= MAX_ATTEMPTS) {
-                    log.error("操作在 {} 次尝试后最终失败", MAX_ATTEMPTS, e);
-                    // 向上抛出异常或根据业务需求返回null/默认值
-                    // throw new RuntimeException("操作最终失败", e);
-                    return null;
-                }
-
-                log.warn("操作失败，将在 {}ms 后进行第 {}/{} 次重试. 错误: {}", RETRY_DELAY_MS, attempts + 1, MAX_ATTEMPTS, e.getMessage());
-
-                try {
-                    // 线程等待，准备下一次重试
-                    Thread.sleep(RETRY_DELAY_MS);
-                } catch (InterruptedException ie) {
-                    // 如果在等待时线程被中断，则停止重试并恢复中断状态
-                    Thread.currentThread().interrupt();
-                    log.error("重试等待被中断，操作终止", ie);
-                    break; // 退出循环
-                }
-            }
-        }
-        return null; // 所有尝试都失败且未抛出异常（例如在中断后）
     }
 
 
