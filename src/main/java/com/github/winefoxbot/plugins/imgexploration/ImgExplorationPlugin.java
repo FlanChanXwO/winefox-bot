@@ -182,14 +182,7 @@ public class ImgExplorationPlugin {
             List<SearchResultItemDTO> items = session.getData();
             if (listIndex >= 0 && listIndex < items.size()) {
                 SearchResultItemDTO item = items.get(listIndex);
-
-                String reply = "序号 [%d] 的来源:\n标题: %s\n链接: %s".formatted(index, item.title(), item.url());
-                // 如果有来源信息，也可以加上
-                if (item.source() != null) {
-                    reply += "\n来源: " + item.source();
-                }
-
-                bot.sendMsg(event, reply, false);
+                bot.sendMsg(event, item.url(), false);
             } else {
                 bot.sendMsg(event, "序号 %d 超出范围 (1-%d)".formatted(index, items.size()), false);
             }
