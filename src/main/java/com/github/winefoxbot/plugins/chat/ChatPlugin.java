@@ -45,7 +45,6 @@ import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
 
 @Plugin(
         name = "娱乐功能",
-        description = "提供私聊和群聊的智能聊天回复功能，以及戳一戳的互动回应。",
         permission = Permission.USER,
         order = 6)
 @Shiro

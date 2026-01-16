@@ -29,7 +29,7 @@ import java.util.regex.Matcher;
  */
 @Shiro
 @Slf4j
-@Plugin(name = "酒狐日报", description = "酒狐日报，获取每天的新番，IT资讯，科技动态等内容推送",order = 10)
+@Plugin(name = "酒狐日报", order = 10)
 @Component
 @RequiredArgsConstructor
 public class DailyReportPlugin {

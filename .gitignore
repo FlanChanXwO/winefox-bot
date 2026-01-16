@@ -34,3 +34,4 @@ build/
 /src/main/resources/application.yaml
 /src/main/resources/application-secret.yaml
 /src/test/
+/src/main/resources/google-cookies.json

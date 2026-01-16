@@ -135,15 +135,6 @@ public class HelpDocLoader {
             }
             existingGroup.setIcon(pluginAnnotation.iconPath());
         }
-
-        // 规则3 (已修复): 如果注解中定义了 description, 就用注解的
-        if (StringUtils.hasText(pluginAnnotation.description())) {
-            if (!pluginAnnotation.description().equals(existingGroup.getDescription())) {
-                log.debug("Updating group '{}' description from @Plugin on class {}.",
-                        existingGroup.getName(), sourceClass.getSimpleName());
-            }
-            existingGroup.setDescription(pluginAnnotation.description());
-        }
     }
 
 

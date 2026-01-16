@@ -10,7 +10,7 @@ import org.springframework.validation.annotation.Validated;
 
 @Data
 @Configuration
-@ConfigurationProperties(prefix = "setu.api")
+@ConfigurationProperties(prefix = "winefoxbot.plugins.setu.api")
 // @EnableConfigurationProperties(...)  <-- 移除这一行
 @Slf4j
 @Validated

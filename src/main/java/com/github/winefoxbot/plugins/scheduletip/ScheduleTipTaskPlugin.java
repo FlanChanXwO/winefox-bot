@@ -30,7 +30,6 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
  */
 @Plugin(
         name = "实用功能",
-        description = "提供定时提醒功能，用户可以设置定时提醒消息，支持多种时间格式。",
         iconPath = "icon/实用工具.png",
         order = 5)
 @Shiro

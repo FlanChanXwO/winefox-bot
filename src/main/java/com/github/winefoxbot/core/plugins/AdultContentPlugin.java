@@ -22,7 +22,6 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
 
 @Plugin(
         name = "配置管理",
-        description = "提供群组内的配置管理服务",
         permission = Permission.ADMIN, // 默认需要管理员权限
         iconPath = "icon/配置.png",
         order = 99

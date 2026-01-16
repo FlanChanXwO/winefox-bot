@@ -9,7 +9,7 @@ import java.util.List;
 
 @Data
 @Component
-@ConfigurationProperties(prefix = "fortune")
+@ConfigurationProperties(prefix = "winefoxbot.plugins.fortune")
 @Validated
 public class FortuneConfig {
 

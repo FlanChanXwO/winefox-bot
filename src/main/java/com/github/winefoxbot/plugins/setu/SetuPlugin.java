@@ -23,7 +23,6 @@ import java.util.regex.Matcher;
 
 @Plugin(
         name = "娱乐功能",
-        description = "提供娱乐方式",
         permission = Permission.USER,
         iconPath = "icon/娱乐功能.png",
         order = 7

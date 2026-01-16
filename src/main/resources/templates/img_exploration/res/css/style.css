@@ -1,0 +1,164 @@
+@font-face {
+    font-family: 'NotoSansSC-Regular';
+    src: local('Noto Sans SC Regular'), local('Microsoft YaHei');
+}
+
+@font-face {
+    font-family: 'NotoSansSC-Bold';
+    src: local('Noto Sans SC Bold'), local('Microsoft YaHei Bold');
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'NotoSansSC-Regular', sans-serif;
+    color: #e0e0e0;
+    width: 850px;
+}
+
+.container {
+    width: 850px;
+    padding: 25px;
+    /* 容器背景稍亮 */
+    background-color: #1e1e1e;
+    box-sizing: border-box;
+}
+
+/* --- Header --- */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    /* 头部深色卡片 */
+    background-color: #2d2d2d;
+    padding: 20px 30px;
+    border-radius: 8px;
+    border: 1px solid #3d3d3d;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.title-main {
+    text-align: center;
+    flex-grow: 1;
+}
+
+.title-en {
+    font-family: 'NotoSansSC-Bold', sans-serif;
+    font-size: 14px;
+    color: #757575; /* 暗淡的文字 */
+    letter-spacing: 3px;
+    text-transform: uppercase;
+}
+
+.title-cn {
+    font-size: 28px;
+    font-weight: bold;
+    margin: 5px 0 0 0;
+    /* 这里的蓝色调整为更柔和的青蓝色 */
+    color: #64b5f6;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* --- Result List --- */
+.result-card {
+    /* 卡片背景 */
+    background-color: #2d2d2d;
+    border: 1px solid #3d3d3d;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    display: flex;
+    position: relative;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.thumb-wrapper {
+    flex: 0 0 160px;
+    height: 160px;
+    border-radius: 6px;
+    overflow: hidden;
+    background-color: #000;
+    border: 1px solid #444;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.thumb-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.info-wrapper {
+    flex: 1;
+    padding-left: 25px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* 来源标签 - 暗黑版 */
+.source-tag {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    font-size: 12px;
+    color: #aaa;
+    background: #383838;
+    padding: 4px 12px;
+    border-radius: 4px;
+    border: 1px solid #444;
+}
+
+.source-highlight {
+    color: #64b5f6;
+    font-weight: bold;
+}
+
+.title-text {
+    font-size: 18px;
+    font-family: 'NotoSansSC-Bold', sans-serif;
+    color: #fff; /* 纯白标题 */
+    margin-bottom: 12px;
+    padding-right: 140px; /* 避开标签 */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.row {
+    font-size: 14px;
+    color: #bbb;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+}
+
+.label {
+    color: #757575;
+    font-size: 12px;
+    width: 70px;
+    display: inline-block;
+}
+
+.link-text {
+    color: #81d4fa; /* 链接色 */
+    text-decoration: none;
+    font-size: 12px;
+}
+
+/* 相似度颜色逻辑 */
+.sim-high { color: #ef5350; font-weight: bold; font-size: 1.1em; } /* 柔和红 */
+.sim-med { color: #fdd835; } /* 柔和黄 */
+.sim-low { color: #bdbdbd; }
+
+.footer {
+    margin-top: 40px;
+    text-align: center;
+    color: #555;
+    font-size: 12px;
+    border-top: 1px solid #333;
+    padding-top: 15px;
+}

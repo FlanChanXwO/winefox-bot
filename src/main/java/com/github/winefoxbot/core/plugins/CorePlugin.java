@@ -36,7 +36,6 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
  */
 @Plugin(
         name = "核心功能",
-        description = "提供应用重启、版本查看与更新等核心功能",
         permission = Permission.USER,
         iconPath = "icon/core.png",
         order = 1

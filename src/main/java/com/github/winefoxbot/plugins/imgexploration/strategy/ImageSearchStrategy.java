@@ -19,8 +19,7 @@ public interface ImageSearchStrategy {
     /**
      * 执行搜索
      * @param imgUrl 图片的 URL (通常是 ImgOps 的桥接 URL)
-     * @param apiKey API Key (部分服务需要，如 SauceNAO)
      * @return 搜索结果列表
      */
-    CompletableFuture<List<SearchResultItemDTO>> search(String imgUrl, String apiKey);
+    CompletableFuture<List<SearchResultItemDTO>> search(String imgUrl);
 }

@@ -29,11 +29,11 @@ public class AutoSwitchProxySelector extends ProxySelector {
                     : Proxy.Type.SOCKS;
             this.globalProxy = new Proxy(type, new InetSocketAddress(proxyConfig.getHost(), proxyConfig.getPort()));
             this.noProxyHosts = proxyConfig.getNoProxyHosts();
-            log.info("全局代理选择器已初始化: {}://{}:{}", type, proxyConfig.getHost(), proxyConfig.getPort());
+            log.info("代理选择器已初始化: {}://{}:{}", type, proxyConfig.getHost(), proxyConfig.getPort());
         } else {
             this.globalProxy = Proxy.NO_PROXY;
             this.noProxyHosts = Collections.emptyList();
-            log.info("全局代理选择器已初始化: 直连模式 (无代理)");
+            log.info("代理选择器已初始化: 直连模式 (无代理)");
         }
     }
 

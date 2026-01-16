@@ -19,10 +19,6 @@ public @interface Plugin {
      * @return 功能组的具体名称，例如 "管理功能" 或 "娱乐功能"
      */
     String name();
-    /**
-     * @return 功能组的详细描述，说明其用途和用法
-     */
-    String description();
 
     /**
      * @return 功能组的排序值，数值越小越靠前显示

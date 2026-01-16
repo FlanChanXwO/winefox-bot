@@ -32,6 +32,9 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * @author FlanChan
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -57,9 +60,8 @@ public class WaterGroupPosterDrawServiceImpl implements WaterGroupPosterDrawServ
         // 排序
         stats.sort(Comparator.comparingInt(WaterGroupMessageStat::getMsgCount).reversed());
 
-        // ======================= 性能优化开始 =======================
         List<Long> userIds = stats.stream().map(WaterGroupMessageStat::getUserId).distinct().toList();
-        Long groupId = stats.isEmpty() ? null : stats.get(0).getGroupId();
+        Long groupId = stats.isEmpty() ? null : stats.getFirst().getGroupId();
 
         Map<Long, ShiroUser> userMap = Collections.emptyMap();
         Map<Long, ShiroGroupMember> memberMap = Collections.emptyMap();
@@ -140,7 +142,7 @@ public class WaterGroupPosterDrawServiceImpl implements WaterGroupPosterDrawServ
         Browser.NewPageOptions pageOptions = new Browser.NewPageOptions();
         pageOptions.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
         try (Page page = browser.newPage(pageOptions)) {
-            page.setViewportSize(800, 100); // 初始视口可以小一点，后面会根据内容自适应
+            page.setViewportSize(800, 100);
             page.setContent(html, new Page.SetContentOptions()
                     .setWaitUntil(WaitUntilState.LOAD));
             // 获取 poster 元素的高度，并设置为视口高度，确保截图完整

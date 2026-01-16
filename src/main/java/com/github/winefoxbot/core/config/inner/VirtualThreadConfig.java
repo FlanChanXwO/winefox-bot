@@ -18,11 +18,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Configuration
 public class VirtualThreadConfig {
 
-    private final static String COMMON_VIRTUAL_THREAD_NAME_PREFIX = "virtual-common-";
-    private final static String SCHEDULED_VIRTUAL_THREAD_NAME_PREFIX = "virtual-schedule-";
+    private final static String COMMON_VIRTUAL_THREAD_NAME_PREFIX = "virtual-thread-common-";
+    private final static String SCHEDULED_VIRTUAL_THREAD_NAME_PREFIX = "virtual-thread-schedule-";
     private final static String TASK_SCHEDULE_THREAD_NAME_PREFIX = "virtual-task-schedule-";
     private final static int SCHEDULED_POOL_SIZE = 1000;
-    private final static String SHIRO_VIRTUAL_THREAD_NAME_PREFIX = "virtual-shiro-";
+    private final static String SHIRO_VIRTUAL_THREAD_NAME_PREFIX = "virtual-thread-shiro-";
 
     @Bean
     public Executor virtualThreadExecutor(ExecutorService executorService) {

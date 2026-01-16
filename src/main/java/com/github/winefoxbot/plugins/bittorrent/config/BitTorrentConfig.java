@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
  */
 @Data
 @Configuration
-@ConfigurationProperties(prefix = "bittorrent")
+@ConfigurationProperties(prefix = "winefoxbot.plugins.bittorrent")
 public class BitTorrentConfig {
     /**
      * 是否启用磁力链搜索功能

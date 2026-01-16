@@ -44,7 +44,7 @@ public class PlaywrightConfig {
     /**
      * 是否以无头模式运行
      */
-    private boolean headless = true;
+    private Boolean headless = true;
 
     /**
      * 全局设备像素缩放因子

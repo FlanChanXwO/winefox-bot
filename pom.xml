@@ -11,7 +11,7 @@
 
     <groupId>com.github</groupId>
     <artifactId>winefox-bot</artifactId>
-    <version>1.9.45</version>
+    <version>1.10.0</version>
 
     <name>winefox-bot</name>
     <description>WineFox Bot 基于 Spring Boot 和 Shiro 的 QQ 机器人</description>
@@ -42,7 +42,15 @@
         <commons-compress.version>1.28.0</commons-compress.version>
         <oshi.version>6.9.2</oshi.version>
         <ognl.version>3.1.15</ognl.version>
+        <google-search-result-sdk.version>v2.0.0</google-search-result-sdk.version>
     </properties>
+
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
 
     <dependencies>
         <!-- spring web 依赖 -->
@@ -238,6 +246,13 @@
             <groupId>com.microsoft.playwright</groupId>
             <artifactId>playwright</artifactId>
             <version>${playwright.version}</version> <!-- 建议使用最新版本 -->
+        </dependency>
+        <!-- google 搜索结果获取 sdk -->
+        <!-- Source: https://mvnrepository.com/artifact/com.github.serpapi/google-search-results-java -->
+        <dependency>
+            <groupId>com.github.serpapi</groupId>
+            <artifactId>google-search-results-java</artifactId>
+            <version>${google-search-result-sdk.version}</version>
         </dependency>
         <!-- 获取操作系统信息 -->
         <dependency>

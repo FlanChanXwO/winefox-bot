@@ -1,251 +1,203 @@
 package com.github.winefoxbot.plugins.imgexploration.strategy.impl;
 
+import com.github.winefoxbot.plugins.imgexploration.config.ImgExplorationConfig;
 import com.github.winefoxbot.plugins.imgexploration.model.dto.SearchResultItemDTO;
 import com.github.winefoxbot.plugins.imgexploration.strategy.ImageSearchStrategy;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.*;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
+import okhttp3.OkHttpClient; // 引入 OkHttp
+import okhttp3.Request;
+import okhttp3.Response;
 import org.springframework.stereotype.Component;
+import serpapi.SerpApiSearch;
+import serpapi.SerpApiSearchException;
 
-import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * @author FlanChan
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class GoogleLensStrategy implements ImageSearchStrategy {
 
     private final ExecutorService virtualThreadExecutor;
-    private final OkHttpClient httpClient;
+    private final ImgExplorationConfig imgExplorationConfig;
 
-    // 预编译正则，提高性能
-    private static final Pattern ID_PATTERN = Pattern.compile("\\['(.*?)'\\]");
-    private static final Pattern BASE64_PATTERN = Pattern.compile("data:image/jpeg;base64,(.*?)'");
+    // 1. 注入你的 OkHttpClient Bean
+    private final OkHttpClient okHttpClient;
+
+    private final AtomicInteger currentKeyIndex = new AtomicInteger(0);
+
+    // 自定义 SDK 类，强制使用 google_lens 引擎
+    public static class GoogleLensSDKSearch extends SerpApiSearch {
+        public GoogleLensSDKSearch(Map<String, String> parameter) {
+            super(parameter, "google_lens");
+        }
+    }
 
     @Override
     public String getServiceName() {
-        return "Google";
+        return "GoogleLens(Multi-Key)";
     }
 
     @Override
-    public CompletableFuture<List<SearchResultItemDTO>> search(String imgUrl, String apiKey) {
+    public CompletableFuture<List<SearchResultItemDTO>> search(String imgUrl) {
         return CompletableFuture.supplyAsync(() -> {
             List<SearchResultItemDTO> resultList = new ArrayList<>();
-            // 创建一个不自动跳转的 Client，模拟 Python 的手动处理 Redirect
-            OkHttpClient noRedirectClient = httpClient.newBuilder()
-                    .proxySelector(httpClient.proxySelector())
-                    .followRedirects(false)
-                    .followSslRedirects(false)
-                    .build();
 
-            // 简单的内存 Cookie 存储
-            Map<String, String> cookies = new HashMap<>();
+            String effectiveApiKey;
+            try {
+                effectiveApiKey = selectViableApiKey();
+            } catch (RuntimeException e) {
+                log.error("Search aborted: {}", e.getMessage());
+                throw e;
+            }
+
+            if (isLocalFile(imgUrl)) {
+                log.error("SerpApi SDK does not support local file paths: {}", imgUrl);
+                return resultList;
+            }
 
             try {
-                log.info("Google Lens searching for: {}", imgUrl);
+                log.info("Starting Google Lens search with key ...{}", effectiveApiKey.substring(Math.max(0, effectiveApiKey.length() - 4)));
 
-                // --- Step 1: Upload by URL ---
-                HttpUrl initialUrl = HttpUrl.parse("https://lens.google.com/uploadbyurl").newBuilder()
-                        .addQueryParameter("url", imgUrl)
-                        .build();
+                Map<String, String> parameter = new HashMap<>();
+                parameter.put("api_key", effectiveApiKey);
+                parameter.put("engine", "google_lens"); // 显式声明引擎
+                parameter.put("url", imgUrl);
+                parameter.put("hl", "zh-cn");
 
-                Request request1 = buildRequest(initialUrl.toString(), null, cookies);
+                // 使用自定义类发起请求 (注意：这一步还是会走 SDK 内部的 HTTP 逻辑)
+                GoogleLensSDKSearch search = new GoogleLensSDKSearch(parameter);
+                JsonObject results = search.getJson();
 
-                String redirectUrl;
-                try (Response response1 = noRedirectClient.newCall(request1).execute()) {
-                    updateCookies(response1, cookies);
-                    // Python logic: self.__google_cookies.update(google_lens.headers)
-                    // redirect_url = google_lens.headers.get("location")
-                    redirectUrl = response1.header("Location");
+                if (results.has("visual_matches")) {
+                    JsonArray matches = results.getAsJsonArray("visual_matches");
+                    int limit = Math.min(matches.size(), 8);
 
-                    if (redirectUrl == null) {
-                        log.warn("Google Lens did not return a redirect location.");
-                        return resultList;
-                    }
-                }
+                    for (int i = 0; i < limit; i++) {
+                        try {
+                            JsonObject match = matches.get(i).getAsJsonObject();
+                            String title = getJsonString(match, "title");
+                            String link = getJsonString(match, "link");
+                            String source = getJsonString(match, "source");
+                            String thumbnail = getJsonString(match, "thumbnail");
 
-                // --- Step 2: Follow Redirect ---
-                // Python logic: header["referer"] = str(google_lens.url)
-                Request request2 = buildRequest(redirectUrl, initialUrl.toString(), cookies);
-                String mainPageHtml;
-                try (Response response2 = noRedirectClient.newCall(request2).execute()) {
-                    updateCookies(response2, cookies);
-                    if (response2.body() == null) return resultList;
-                    mainPageHtml = response2.body().string();
-                }
+                            if (title.isBlank() || link.isBlank()) continue;
 
-                // --- Step 3: Parse Main Page & Find "Visual Matches" Link ---
-                Document mainDoc = Jsoup.parse(mainPageHtml);
-                // Python XPath: //span[text()='查看完全匹配的结果']/ancestor::a[1]
-                // Jsoup 对应写法:
-                Element matchLink = mainDoc.select("span:containsOwn(查看完全匹配的结果)").first();
+                            // 2. 调用修改后的下载方法，使用 OkHttp
+                            byte[] imgBytes = downloadImageBytes(thumbnail);
 
-                if (matchLink != null) {
-                    Element anchor = matchLink.closest("a");
-                    if (anchor != null) {
-                        String href = anchor.attr("href");
-                        String fullMatchUrl = "https://www.google.com" + href;
-
-                        // --- Step 4: Fetch Full Match Page ---
-                        Request request3 = buildRequest(fullMatchUrl, null, cookies);
-                        String fullMatchHtml;
-                        try (Response response3 = noRedirectClient.newCall(request3).execute()) {
-                            if (response3.body() == null) return resultList;
-                            fullMatchHtml = response3.body().string();
-                        }
-
-                        // --- Step 5: Extract Images and Data ---
-                        Document fullMatchDoc = Jsoup.parse(fullMatchHtml);
-
-                        // 解析 Script 中的 Base64 图片映射
-                        Map<String, String> idBase64Mapping = parseBase64Image(fullMatchDoc);
-
-                        // Python XPath: //div[@id='search']/div/div/div
-                        Elements resItems = fullMatchDoc.select("#search > div > div > div");
-
-                        for (Element item : resItems) {
-                            try {
-                                Element aTag = item.selectFirst("a");
-                                if (aTag == null) continue;
-
-                                String link = aTag.attr("href");
-
-                                Element imgTag = aTag.selectFirst("img");
-                                if (imgTag == null) continue;
-                                String imgId = imgTag.id();
-
-                                // Title XPath: .//a/div/div[2]/div[1]/text()
-                                // Jsoup 结构化选择可能稍微不同，这里尝试通过 CSS 选择器定位
-                                // 通常结构是 a -> div -> div -> div(title)
-                                String title = "";
-                                Element titleDiv = aTag.selectFirst("div > div:nth-child(2) > div:nth-child(1)");
-                                if (titleDiv != null) {
-                                    title = titleDiv.text();
-                                }
-
-                                String imgBase64 = idBase64Mapping.get(imgId);
-                                byte[] imgBytes = null;
-                                if (imgBase64 != null) {
-                                    imgBytes = Base64.getDecoder().decode(imgBase64);
-                                }
-
-                                if (imgBytes != null) {
-                                    // 假设 SearchResultItemDTO 是一个 Record 或 DTO
-                                    // 这里适配你之前的 SearchResultItemDTO 结构
-                                    SearchResultItemDTO resultItem = new SearchResultItemDTO(
-                                            title,
-                                            link,
-                                            "", // thumbnail url 为空，因为我们直接拿到了 bytes
-                                            imgBytes,
-                                            "Google",
-                                            "", // similarity
-                                            "", // description
-                                            ""  // domain
-                                    );
-                                    resultList.add(resultItem);
-                                }
-                            } catch (Exception e) {
-                                log.warn("Error parsing individual Google Lens item", e);
+                            if (imgBytes != null && imgBytes.length > 0) {
+                                resultList.add(new SearchResultItemDTO(title, link, source, imgBytes, "Google Lens"));
                             }
+                        } catch (Exception e) {
+                            log.warn("Error parsing item", e);
                         }
+                    }
+                } else {
+                    log.info("No visual matches found.");
+                    if (results.has("error")) {
+                        log.error("SerpApi Error: {}", results.get("error").getAsString());
                     }
                 }
 
-                log.info("Google result count: {}", resultList.size());
-                return resultList;
-
+            } catch (SerpApiSearchException e) {
+                log.error("SerpApi SDK execution failed", e);
             } catch (Exception e) {
-                log.error("Google Lens search failed", e);
-                // 如有必要，可在此处将错误页面写入文件以便调试，类似于 Python 代码中的 open("Googlelens_error_page.html"...)
-                return new ArrayList<>();
+                log.error("Unexpected error", e);
             }
+            return resultList;
         }, virtualThreadExecutor);
     }
 
+    private synchronized String selectViableApiKey() {
+        List<String> keys = imgExplorationConfig.getSerpApikeys();
+        if (keys == null || keys.isEmpty()) throw new RuntimeException("No API keys configured");
+
+        int startIdx = currentKeyIndex.get() % keys.size();
+        int loopCount = 0;
+
+        while (loopCount < keys.size()) {
+            int actualIndex = (startIdx + loopCount) % keys.size();
+            String candidateKey = keys.get(actualIndex);
+
+            // 检查 Key 余额
+            int searchesLeft = getRemainingSearches(candidateKey);
+
+            if (searchesLeft > 0) {
+                currentKeyIndex.set(actualIndex);
+                return candidateKey;
+            }
+            loopCount++;
+        }
+        throw new RuntimeException("All API keys exhausted!");
+    }
+
     /**
-     * 构建包含特定 Header 的请求
+     * 使用 OkHttpClient 检查剩余次数
      */
-    private Request buildRequest(String url, String referer, Map<String, String> cookies) {
-        Request.Builder builder = new Request.Builder()
+    private int getRemainingSearches(String apiKey) {
+        String url = "https://serpapi.com/account?api_key=" + apiKey;
+        Request request = new Request.Builder()
                 .url(url)
-                .header("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
-                .header("accept-encoding", "gzip, deflate, br, zstd") // OkHttp 默认会自动处理 gzip，但加上也没事
-                .header("accept-language", "zh-CN,zh-HK;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6") // 关键：必须是中文，否则 Step 3 的文本匹配会失败
-                .header("cache-control", "no-cache")
-                .header("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
+                .get()
+                .build();
 
-        if (referer != null) {
-            builder.header("referer", referer);
-        }
-
-        if (!cookies.isEmpty()) {
-            StringBuilder cookieHeader = new StringBuilder();
-            for (Map.Entry<String, String> entry : cookies.entrySet()) {
-                if (cookieHeader.length() > 0) cookieHeader.append("; ");
-                cookieHeader.append(entry.getKey()).append("=").append(entry.getValue());
-            }
-            builder.header("Cookie", cookieHeader.toString());
-        }
-
-        return builder.build();
-    }
-
-    /**
-     * 从响应头更新 Cookie Map
-     */
-    private void updateCookies(Response response, Map<String, String> cookies) {
-        List<String> setCookies = response.headers("Set-Cookie");
-        for (String cookieStr : setCookies) {
-            // 简单的 Cookie 解析逻辑
-            String[] parts = cookieStr.split(";", 2);
-            String[] nameValue = parts[0].split("=", 2);
-            if (nameValue.length == 2) {
-                cookies.put(nameValue[0].trim(), nameValue[1].trim());
-            }
-        }
-    }
-
-    /**
-     * 从 HTML 文档中解析 id 和对应的图片 base64
-     * 对应 Python: parseBase64Image(document: etree.Element)
-     */
-    private Map<String, String> parseBase64Image(Document document) {
-        Map<String, String> resDic = new HashMap<>();
-        Elements scripts = document.select("script[nonce]");
-
-        for (Element script : scripts) {
-            String funcText = script.html();
-            if (funcText.isEmpty()) continue;
-
-            Matcher idMatch = ID_PATTERN.matcher(funcText);
-            String id = idMatch.find() ? idMatch.group(1) : null;
-
-            Matcher base64Match = BASE64_PATTERN.matcher(funcText);
-            String b64 = base64Match.find() ? base64Match.group(1) : null;
-
-            if (b64 != null) {
-                // Python: replace(r"\x3d", "=")
-                b64 = b64.replace("\\x3d", "=");
-            }
-
-            if (id != null && b64 != null) {
-                if (id.contains("','")) {
-                    for (String dimg : id.split("','")) {
-                        resDic.put(dimg, b64);
-                    }
-                } else {
-                    resDic.put(id, b64);
+        // 必须使用 try-with-resources 自动关闭 ResponseBody，避免连接泄漏
+        try (Response response = okHttpClient.newCall(request).execute()) {
+            if (response.isSuccessful() && response.body() != null) {
+                String responseBody = response.body().string();
+                // 依然使用 Gson 解析
+                JsonObject json = JsonParser.parseString(responseBody).getAsJsonObject();
+                if (json.has("total_searches_left")) {
+                    return json.get("total_searches_left").getAsInt();
                 }
             }
+        } catch (Exception e) {
+            log.warn("Check quota failed for key ending in ...{}", apiKey.substring(Math.max(0, apiKey.length() - 4)), e);
         }
-        return resDic;
+        return -1;
+    }
+
+    /**
+     * 使用 OkHttpClient 下载图片
+     */
+    private byte[] downloadImageBytes(String imageUrl) {
+        if (imageUrl == null || imageUrl.isBlank()) return null;
+
+        Request request = new Request.Builder()
+                .url(imageUrl)
+                .get()
+                .build();
+
+        try (Response response = okHttpClient.newCall(request).execute()) {
+            if (response.isSuccessful() && response.body() != null) {
+                return response.body().bytes();
+            }
+        } catch (Exception ignored) {
+            // 下载失败忽略，不中断流程
+        }
+        return null;
+    }
+
+    private boolean isLocalFile(String url) {
+        return url == null || url.startsWith("file:") || !url.startsWith("http");
+    }
+
+    private String getJsonString(JsonObject obj, String key) {
+        if (obj.has(key) && !obj.get(key).isJsonNull()) return obj.get(key).getAsString();
+        return "";
     }
 }

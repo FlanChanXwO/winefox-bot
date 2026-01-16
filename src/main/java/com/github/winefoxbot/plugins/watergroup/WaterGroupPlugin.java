@@ -36,7 +36,6 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
  */
 @Plugin(
         name = "发言统计",
-        description = "提供群发言统计功能，包括发言计数、每日发言统计图片生成与定时推送等",
         permission = Permission.USER,
         order = 12)
 @Shiro

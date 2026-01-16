@@ -38,10 +38,16 @@ public class YandexStrategy implements ImageSearchStrategy {
     }
 
     @Override
-    public CompletableFuture<List<SearchResultItemDTO>> search(String imgUrl, String apiKey) {
+    public CompletableFuture<List<SearchResultItemDTO>> search(String imgUrl) {
         return CompletableFuture.supplyAsync(() -> {
             log.info("Yandex searching...");
             List<SearchResultItemDTO> results = new ArrayList<>();
+
+            // 暂时不可用
+            if (true) {
+                return results;
+            }
+
             try {
                 HttpUrl httpUrl = HttpUrl.parse(BASE_URL);
                 HttpUrl.Builder builder = httpUrl.newBuilder();

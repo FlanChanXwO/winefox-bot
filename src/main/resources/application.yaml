@@ -39,72 +39,7 @@ spring:
     openai:
       chat:
         completions-path: /v1/chat/completions
-setu:
-  api:
-    # 1. 基础信息
-    url: "https://api.lolicon.app/setu/v2"
-    # 响应类型：有json和image两种可选
-    response-type: json #建议使用 json 类型，便于后续扩展功能
-    # jsonPath 表达式，用于从 API 响应中提取图片 URL
-    json-path: "$.data[*].urls.original"
 
-    # 2. API 查询参数配置
-    params:
-      # 获取图片数量的参数
-      # 对应的 URL 参数: num=1
-      # 目前只支持参数1
-      num:
-        key: "num"
-        value: "1"
-
-      # 排除 AI 作品的参数
-      # 对应的 URL 参数: excludeAI=true
-      excludeAI:
-        key: "excludeAI"
-        value: "true"
-      # 按标签搜索的参数
-      # 对应的 URL 参数: tag=... (值是动态的，这里只定义 key)
-      tag:
-        key: "tag"
-        # value: "" # 值是动态传入的，可以不配置或留空
-      # R18 (成人内容) 开关参数
-      # 开启时 URL 参数: r18=1
-      # 关闭时 URL 参数: r18=0
-      mode:
-        key: "r18"
-        safe-mode-value: 0
-        r18-mode-value: 1
-        mix-mode-value: 2
-    response:
-      r18: # 从返回的响应中获取
-        key: "r18"
-        value: "true"
-        json-path: "$.data[*].r18"
-
-fortune:
-  api: "custom" # 使用自定义模式
-  # api: "lolicon" # 或者使用预设的 lolicon (代码中已剔除R18参数)
-
-  allow-refresh-jrys: false
-  auto-refresh-jrys: true
-
-  # 自定义 API 配置示例 (以 lolicon 为例，但通过 custom 配置)
-  custom-api:
-    url: "https://api.lolicon.app/setu/v2"
-    response-type: JSON
-    json-path: "$.data[0].urls.original"
-    params:
-      static-params:
-        - key: "num"
-          value: "1"
-        - key: "r18"
-          value: "0" # 强制非 R18
-        - key: "tag"
-          value: "碧蓝档案"
-        - key: "excludeAI"
-          value: "true"
-        - key: "size"
-          value: "original"
 
 # B站解析功能配置
 analysis-bilibili:
@@ -224,12 +159,79 @@ jobrunr:
   jobs:
     default-number-of-retries: 5
 
-pixiv:
-  # API 相关配置
-  api:
-    # URL模板，{userId}, {offset}, {limit}, {tag} 将被替换
-    limit-per-page: 100 # P站API每页返回的最大数量（最大100）
-    bookmark-url-template: "https://www.pixiv.net/ajax/user/{userId}/illusts/bookmarks?tag={tag}&offset={offset}&limit={limit}&rest=show&lang=zh"
-    addmark-url-template: "https://www.pixiv.net/ajax/illusts/bookmarks/add" # 收藏的URL模板
-    unmark-url-template: "https://www.pixiv.net/ajax/illusts/bookmarks/delete" # 取消收藏的URL模板
-    download-mirror-host: "i.pixiv.re" # Pixiv图片下载镜像
+winefoxbot:
+  plugins:
+    pixiv:
+      # API 相关配置
+      api:
+        # URL模板，{userId}, {offset}, {limit}, {tag} 将被替换
+        limit-per-page: 100 # P站API每页返回的最大数量（最大100）
+        bookmark-url-template: "https://www.pixiv.net/ajax/user/{userId}/illusts/bookmarks?tag={tag}&offset={offset}&limit={limit}&rest=show&lang=zh"
+        addmark-url-template: "https://www.pixiv.net/ajax/illusts/bookmarks/add" # 收藏的URL模板
+        unmark-url-template: "https://www.pixiv.net/ajax/illusts/bookmarks/delete" # 取消收藏的URL模板
+        download-mirror-host: "i.pixiv.re" # Pixiv图片下载镜像
+    setu:
+      api:
+        # 1. 基础信息
+        url: "https://api.lolicon.app/setu/v2"
+        # 响应类型：有json和image两种可选
+        response-type: json #建议使用 json 类型，便于后续扩展功能
+        # jsonPath 表达式，用于从 API 响应中提取图片 URL
+        json-path: "$.data[*].urls.original"
+
+        # 2. API 查询参数配置
+        params:
+          # 获取图片数量的参数
+          # 对应的 URL 参数: num=1
+          # 目前只支持参数1
+          num:
+            key: "num"
+            value: "1"
+
+          # 排除 AI 作品的参数
+          # 对应的 URL 参数: excludeAI=true
+          excludeAI:
+            key: "excludeAI"
+            value: "true"
+          # 按标签搜索的参数
+          # 对应的 URL 参数: tag=... (值是动态的，这里只定义 key)
+          tag:
+            key: "tag"
+            # value: "" # 值是动态传入的，可以不配置或留空
+          # R18 (成人内容) 开关参数
+          # 开启时 URL 参数: r18=1
+          # 关闭时 URL 参数: r18=0
+          mode:
+            key: "r18"
+            safe-mode-value: 0
+            r18-mode-value: 1
+            mix-mode-value: 2
+        response:
+          r18: # 从返回的响应中获取
+            key: "r18"
+            value: "true"
+            json-path: "$.data[*].r18"
+    fortune:
+      api: "custom" # 使用自定义模式
+      # api: "lolicon" # 或者使用预设的 lolicon (代码中已剔除R18参数)
+
+      allow-refresh-jrys: false
+      auto-refresh-jrys: true
+
+      # 自定义 API 配置示例 (以 lolicon 为例，但通过 custom 配置)
+      custom-api:
+        url: "https://api.lolicon.app/setu/v2"
+        response-type: JSON
+        json-path: "$.data[0].urls.original"
+        params:
+          static-params:
+            - key: "num"
+              value: "1"
+            - key: "r18"
+              value: "0" # 强制非 R18
+            - key: "tag"
+              value: "碧蓝档案"
+            - key: "excludeAI"
+              value: "true"
+            - key: "size"
+              value: "original"

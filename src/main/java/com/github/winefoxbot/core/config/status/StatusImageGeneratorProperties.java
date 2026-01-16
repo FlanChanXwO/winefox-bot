@@ -9,7 +9,7 @@ import java.util.List;
 
 @Data
 @Component
-@ConfigurationProperties(prefix = "winefox.status")
+@ConfigurationProperties(prefix = "winefoxbot.plugins.status")
 public class StatusImageGeneratorProperties {
 
     /**
