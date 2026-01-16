@@ -156,21 +156,6 @@
       ]
     },
     {
-      "name": "实用功能",
-      "order": 4,
-      "icon": "icon/实用工具.png",
-      "documentation": [
-        {
-          "name": "搜图",
-          "description": "使用 SauceNAO/ascii2d 等引擎搜索图片来源。\n用法1: /搜图 <附上图片>\n用法2: 直接发送 /搜图，然后按提示发送图片。",
-          "permission": "普通功能",
-          "commands": [
-            "/搜图"
-          ]
-        }
-      ]
-    },
-    {
       "name": "鹿管功能",
       "order": 5,
       "icon": "icon/鹿.png",
