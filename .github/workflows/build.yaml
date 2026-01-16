@@ -36,7 +36,7 @@ jobs:
           echo "release_asset_name=${RELEASE_ASSET_NAME}" >> $GITHUB_OUTPUT
 
       - name: Build JAR with Maven
-        run: mvn -B package spring-boot:repackage --file pom.xml
+        run: mvn -B package spring-boot:repackage --file pom.xml -s .mvn/settings.xml
 
       - name: Rename JAR and Zip Libs
         run: |
