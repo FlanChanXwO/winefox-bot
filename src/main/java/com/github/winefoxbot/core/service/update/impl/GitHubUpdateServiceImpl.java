@@ -204,16 +204,6 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
                 .header("Accept", "application/vnd.github.v3+json")
                 .header("User-Agent", "WineFox-Bot-Updater");
 
-        String token = updateProperties.getGithubToken();
-        if (StringUtils.hasText(token)) {
-            log.info("检测到 GitHub Token，将用于认证请求。");
-            log.info("DIAGNOSTIC - Using GitHub Token: [{}]", token);
-            log.info("检测到 GitHub Token，将用于认证请求。");
-            requestBuilder.header("Authorization", "token " + token);
-        } else {
-            log.warn("未配置 GitHub Token。如果仓库是私有的，请求将会失败。");
-        }
-
         try (Response response = okHttpClient.newCall(requestBuilder.build()).execute()) {
             ResponseBody body = response.body();
             if (body == null) {
@@ -249,13 +239,6 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
                 .url(downloadUrl)
                 .header("Accept", "application/octet-stream")
                 .header("User-Agent", "WineFox-Bot-Updater");
-
-        String token = updateProperties.getGithubToken();
-        if (StringUtils.hasText(token)) {
-            requestBuilder.header("Authorization", "token " + token);
-        } else {
-            throw new IOException("无法下载私有仓库文件：未配置 GitHub Token。");
-        }
 
         try (Response response = okHttpClient.newCall(requestBuilder.build()).execute()) {
             if (!response.isSuccessful()) {
