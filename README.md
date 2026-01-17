@@ -1,11 +1,10 @@
 <div align="center">
     <a href="https://github.com/FlanChanXwO/winefox-bot">
-    <!-- 请替换为你实际的Logo图片链接 -->
-    <img src="https://via.placeholder.com/310x310.png?text=WineFox+Bot" width="310" alt="logo"></a>
+    <img src="https://github.com/FlanChanXwO/winefox-bot/blob/main/assets/logo.png" width="310" alt="logo"></a>
 
 ## ✨ 酒狐BOT (WineFoxBot) ✨
 
-[![LICENSE](https://img.shields.io/github/license/FlanChanXwO/winefox-bot.svg)](./LICENSE)
+[![LICENSE](https://img.shields.io/github/license/FlanChanXwO/winefox-bot.svg)](https://github.com/FlanChanXwO/winefox-bot/blob/main/LICENSE)
 [![Java Support](https://img.shields.io/badge/Java-25%2B-ed8b00?logo=openjdk&logoColor=white)](https://www.oracle.com/java/technologies/downloads/#java25)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.x-6db33f?logo=spring&logoColor=white)](https://spring.io/projects/spring-boot)
 [![OneBot](https://img.shields.io/badge/OneBot-v11-black)](https://github.com/botuniverse/onebot-11)
@@ -15,7 +14,7 @@
 <br/>
 集成了 AI 深度对话、图片搜寻以及一些实用功能的二次元综合助理。
 
-[📖 配置文档](./docs/CONFIG.md) | [🐛 提交 Issue](https://github.com/FlanChanXwO/winefox-bot/issues)
+[🐛 提交 PR](https://github.com/FlanChanXwO/winefox-bot/pulls) | [🐛 提交 Issue](https://github.com/FlanChanXwO/winefox-bot/issues)
 
 </div>
 
@@ -40,7 +39,7 @@
 ## 💿 安装与部署
 
 ### 环境要求
-*   **JDK**: OpenJDK 25+ (必需，使用虚拟线程)
+*   **JDK**: OpenJDK 25+
 *   **Docker**: 用于快速部署中间件
 
 ### 1. 启动基础中间件
@@ -89,7 +88,7 @@ control.bat start
 ## 🎨 帮助文档展示（不包含外部插件）
 
 <div align="center">
-    <img src="assets/help_image.png" width="300" alt="帮助菜单">
+    <img src="https://github.com/FlanChanXwO/winefox-bot/blob/main/assets/help_image.png" width="300" alt="帮助菜单">
     <br>
     <i>酒狐本体可用命令帮助菜单</i>
 </div>
@@ -108,10 +107,10 @@ control.bat start
 欢迎提交 [Pull Request](https://github.com/FlanChanXwO/winefox-bot/pulls) 或 [Issue](https://github.com/FlanChanXwO/winefox-bot/issues)！
 
 ## 📄 开源协议
-[GNU Affero General Public License v3.0](./LICENSE)
+[GNU Affero General Public License v3.0](https://github.com/FlanChanXwO/winefox-bot/blob/main/LICENSE)
 
 ## 🙏 致谢
 感谢以下开源项目和社区的支持：
-*   [ShiroBot](https://github.com/MisakaTAT/Shiro)
+*   [Shiro](https://github.com/MisakaTAT/Shiro)
 *   [NapCatQQ](https://github.com/NapNeko/NapCatQQ)
 *   [酒狐模型](https://github.com/TartaricAcid/WineFoxModel)
