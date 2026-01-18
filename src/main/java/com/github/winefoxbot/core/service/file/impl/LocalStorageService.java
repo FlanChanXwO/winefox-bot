@@ -485,7 +485,7 @@ public class LocalStorageService implements FileStorageService {
                     }
                 }
 
-                log.info("Loaded {} valid file records from {}. Stale/expired records cleaned up.", fileRecords.size(), recordFilePath);
+                log.info("Loaded {} valid file records from {}. State/expired records cleaned up.", fileRecords.size(), recordFilePath);
 
                 // 在保存记录之前，检查并删除空的父目录
                 if (!parentDirectoriesToCheck.isEmpty()) {

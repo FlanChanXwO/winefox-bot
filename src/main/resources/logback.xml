@@ -1,26 +1,46 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <!-- 引入 Spring Boot 的默认配置 -->
     <include resource="org/springframework/boot/logging/logback/base.xml"/>
-    <!-- 1. 定义我们的 WebSocket Appender -->
-        <appender name="WEBSOCKET" class="com.github.winefoxbot.core.config.logging.WebSocketLogAppender">
-            <!-- 定义日志输出格式 -->
-            <encoder>
-                <pattern>
-                    {
-                    "timestamp": "%d{yyyy-MM-dd HH:mm:ss.SSS}",
-                    "level": "%level",
-                    "thread": "%thread",
-                    "logger": "%logger{36}",
-                    "message": "%msg"
-                    }%n
-                </pattern>
-            </encoder>
-        </appender>
+
+    <!-- 1. 定义 WebSocket Appender (保持不变) -->
+    <appender name="WEBSOCKET" class="com.github.winefoxbot.core.config.logging.WebSocketLogAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+    </appender>
+
+    <!-- 2. 新增：历史全量日志文件 (按天滚动) -->
+    <appender name="FILE_HISTORY" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- 正在写入的文件名 -->
+        <file>logs/history/app.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- 归档文件名: logs/history/app-2026-01-18.log -->
+            <fileNamePattern>logs/history/app-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory> <!-- 保留30天 -->
+        </rollingPolicy>
+        <!-- 依然使用 JSON 格式，方便后端读取后直接传给前端 -->
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+    </appender>
+
+    <!-- 3. 新增：错误日志文件 (只存 ERROR) -->
+    <appender name="FILE_ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/error/error.log</file>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/error/error-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+    </appender>
 
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="WEBSOCKET" />
+        <!-- 启用文件输出 -->
+        <appender-ref ref="FILE_HISTORY" />
+        <appender-ref ref="FILE_ERROR" />
     </root>
 
 </configuration>

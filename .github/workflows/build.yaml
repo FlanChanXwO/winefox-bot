@@ -35,6 +35,35 @@ jobs:
           echo "fat_jar_name=${FAT_JAR_NAME}" >> $GITHUB_OUTPUT
           echo "release_asset_name=${RELEASE_ASSET_NAME}" >> $GITHUB_OUTPUT
 
+      - name: Download and Integrate Latest WebUI
+        env:
+          # 使用内置 Token 即可读取公共仓库的 Release
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "⬇️ Fetching latest WebUI from FlanChanXwo/winefox-bot-webui..."
+          
+          # 1. 下载：从指定仓库下载最新的包含 "-static.zip" 后缀的文件
+          # --clobber 表示覆盖下载，--output 指定临时文件名
+          gh release download --repo FlanChanXwo/winefox-bot-webui \
+            --pattern "*-static.zip" \
+            --output webui.zip \
+            --clobber
+          
+          # 2. 准备目录：创建 Spring Boot 标准静态资源目录
+          # 注意：GitHub Actions checkout 下来的代码通常是干净的，但 mkdir -p 保证目录存在
+          mkdir -p src/main/resources/static
+          
+          # 3. 解压：将 zip 包解压到 static 目录中
+          # -o 覆盖已存在文件，-d 指定目标目录
+          unzip -o webui.zip -d src/main/resources/static
+          
+          # 4. 清理：删除下载的 zip 包，保持环境整洁
+          rm webui.zip
+          
+          # 5. (可选) 验证一下文件是否就位
+          echo "✅ WebUI installed. Listing files in static:"
+          ls -F src/main/resources/static/
+
       - name: Build JAR with Maven
         run: mvn -B package spring-boot:repackage --file pom.xml -s .mvn/settings.xml
 

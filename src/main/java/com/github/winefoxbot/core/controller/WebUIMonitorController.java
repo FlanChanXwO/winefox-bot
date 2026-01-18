@@ -1,8 +1,8 @@
 package com.github.winefoxbot.core.controller;
 
 
-import com.github.winefoxbot.core.model.dto.webui.SystemStatusDTO;
-import com.github.winefoxbot.core.service.webui.SystemMonitorService;
+import com.github.winefoxbot.core.model.vo.webui.resp.SystemStatusResponse;
+import com.github.winefoxbot.core.service.webui.WebUISystemMonitorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,10 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class WebUIMonitorController {
 
     @Autowired
-    private SystemMonitorService monitorService;
+    private WebUISystemMonitorService monitorService;
 
     @GetMapping("/status")
-    public SystemStatusDTO getStatus() {
+    public SystemStatusResponse getStatus() {
         return monitorService.getSystemStatus();
     }
 }

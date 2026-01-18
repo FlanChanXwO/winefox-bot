@@ -6,7 +6,9 @@ import com.github.winefoxbot.core.actionpath.napcat.SetSelfLongNickActionPath;
 import com.github.winefoxbot.core.config.app.WineFoxBotProperties;
 import com.github.winefoxbot.core.model.dto.BotInfoDTO;
 import com.github.winefoxbot.core.model.dto.RestartInfo;
+import com.github.winefoxbot.core.model.enums.LogEventType;
 import com.github.winefoxbot.core.model.enums.MessageType;
+import com.github.winefoxbot.core.service.connectionlogs.WinefoxBotConnectionLogsService;
 import com.github.winefoxbot.core.service.shiro.ShiroBotsService;
 import com.github.winefoxbot.core.utils.Base64Utils;
 import com.github.winefoxbot.core.utils.ResourceLoader;
@@ -30,6 +32,9 @@ import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * @author FlanChan
+ */
 @Primary
 @Component
 @RequiredArgsConstructor
@@ -38,6 +43,7 @@ public class BotStatusEventListener extends CoreEvent {
 
     private final ShiroBotsService shiroBotsService;
     private final WineFoxBotProperties wineFoxBotProperties;
+    private final WinefoxBotConnectionLogsService connectionLogsService;
     private final ObjectMapper objectMapper;
     private final AtomicBoolean restartNoticeSent = new AtomicBoolean(false);
     private static final String RESTART_INFO_FILE = "restart-info.json";
@@ -63,22 +69,22 @@ public class BotStatusEventListener extends CoreEvent {
      * 保存或更新 Bot 信息到数据库
      * @param bot
      */
-    @Async
-    protected void saveOrUpdateBotInfo(Bot bot) {
+    private void saveOrUpdateBotInfo(Bot bot) {
         log.info("正在保存或更新 Bot {} 的信息...", bot.getSelfId());
         if (shiroBotsService.saveOrUpdateBotInfo(bot)) {
             log.info("Bot {} 的信息已保存或更新。", bot.getSelfId());
         } else {
             log.warn("Bot {} 的信息保存或更新失败！", bot.getSelfId());
         }
+        // 记录连接日志
+        connectionLogsService.saveLog(bot.getSelfId(), LogEventType.CONNECT);
     }
 
     /**
      * 检查并发送重启成功通知
      * @param bot 当前上线的 Bot 实例
      */
-    @Async
-    protected void handleRestartNotice(Bot bot) {
+    private void handleRestartNotice(Bot bot) {
         // 如果已经发送过通知，则直接返回
         if (!restartNoticeSent.compareAndSet(false, true)) {
             return;
@@ -130,6 +136,7 @@ public class BotStatusEventListener extends CoreEvent {
     public void offline(long account) {
         // 客户端离线事件
         log.warn("Bot {} 离线了", account);
+        connectionLogsService.saveLog(account, LogEventType.DISCONNECT);
     }
 
     @Override

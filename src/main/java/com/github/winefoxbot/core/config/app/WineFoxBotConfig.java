@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 @Data
-@EnableConfigurationProperties({WineFoxBotProperties.class, WineFoxBotRobotProperties.class,WineFoxBotAppProperties.class,WineFoxBotAppUpdateProperties.class})
+@EnableConfigurationProperties({WineFoxBotProperties.class, WineFoxBotRobotProperties.class,WineFoxBotAppProperties.class,WineFoxBotAppUpdateProperties.class, WineFoxBotDataProperties.class})
 public class WineFoxBotConfig {
 
     public final static String COMMAND_PREFIX = "/";

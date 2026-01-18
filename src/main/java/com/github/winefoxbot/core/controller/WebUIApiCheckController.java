@@ -1,7 +1,7 @@
 package com.github.winefoxbot.core.controller;
 
 import com.github.winefoxbot.core.config.app.WineFoxBotAppProperties;
-import com.github.winefoxbot.core.model.dto.webui.HealthStatus;
+import com.github.winefoxbot.core.model.vo.webui.resp.HealthStatusResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,8 +21,8 @@ public class WebUIApiCheckController {
     private final WineFoxBotAppProperties properties;
 
     @GetMapping("/ping")
-    public HealthStatus ping() {
-        return new HealthStatus(
+    public HealthStatusResponse ping() {
+        return new HealthStatusResponse(
                 "winefox-bot",
                 properties.getVersion()
         );

@@ -139,6 +139,15 @@ jobrunr:
     default-number-of-retries: 5
 
 winefoxbot:
+  webui:
+    # 唯一的恢复码，用于紧急重置或登录，建议随机生成长字符串
+     recovery-code: "114514"
+     admin:
+       # 默认用户名
+       username: "admin"
+       # 默认密码
+       password: "admin"
+     jwt-secret: "winefoxbot-webui-secret-key"
   plugins:
     status:
       # Bot 的名称，会显示在图片中

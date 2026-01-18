@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.common;
+package com.github.winefoxbot.core.model.vo.common;
 
 import java.time.Instant;
 
