@@ -11,6 +11,7 @@ set "WINDOW_TITLE=WineFox-Bot-Console"
 set "BASE_DIR=%~dp0"
 if "%BASE_DIR:~-1%"=="\" set "BASE_DIR=%BASE_DIR:~0,-1%"
 
+:: 参数检查
 set "command=%~1"
 if "%command%"=="" goto usage
 
@@ -31,7 +32,7 @@ if %errorlevel% equ 0 (
     echo [INFO] Bot is already running.
     goto :eof
 )
-echo [INFO] Starting %APP_NAME% in new window...
+echo [INFO] Launching %APP_NAME% in a new window...
 start "%WINDOW_TITLE%" cmd /k "%BASE_DIR%\%DAEMON_SCRIPT%"
 goto :eof
 
@@ -50,15 +51,16 @@ goto :eof
 :status
 tasklist /V /FI "WINDOWTITLE eq %WINDOW_TITLE%*" | find /I "cmd.exe" >nul
 if %errorlevel% equ 0 (
-    echo [STATUS] RUNNING
+    echo [STATUS] RUNNING - Check the "%WINDOW_TITLE%" window.
 ) else (
     echo [STATUS] STOPPED
 )
 goto :eof
 
 :logs
-echo [INFO] Windows version runs in a separate console window.
-echo [INFO] Please check the "WineFox-Bot-Console" window for real-time logs.
+echo.
+echo [INFO] Logs are displayed in the separate "%WINDOW_TITLE%" window.
+echo [INFO] Please switch to that window to view real-time output.
 goto :eof
 
 :usage

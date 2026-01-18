@@ -5,16 +5,16 @@ WORK_DIR="."
 APP_NAME="winefox-bot-shiro"
 DAEMON_SCRIPT_NAME="start-daemon.sh"
 
-# 日志目录 (脚本本身不再写入，仅供 logs 命令读取 Java 生成的日志)
+# 日志与PID配置
 LOG_DIR="./logs"
+# 1. 修改：固定日志文件名，不再包含日期
+LOG_FILE="${LOG_DIR}/${APP_NAME}.log"
 PID_FILE="./${APP_NAME}.pid"
 # ==================================================
 
 # --- 初始化 ---
 cd "$WORK_DIR" || exit 1
 WORK_DIR=$(pwd)
-
-# 确保日志目录存在 (给 Java 应用用)
 mkdir -p "$LOG_DIR"
 
 # 获取PID
@@ -32,7 +32,7 @@ get_pid() {
     fi
 }
 
-# 启动 (不再生成 Shell 日志文件，输出丢弃至 /dev/null)
+# 启动
 start() {
     if get_pid > /dev/null; then
         echo "${APP_NAME} 已经在运行 (PID: $(get_pid))."
@@ -41,8 +41,8 @@ start() {
 
     echo "正在启动 ${APP_NAME} ..."
 
-    # > /dev/null 2>&1 : 不再生成 nohup.out 或 日期日志文件
-    nohup setsid ./${DAEMON_SCRIPT_NAME} > /dev/null 2>&1 &
+    # 2. 修改：使用追加模式 (>>) 写入固定的日志文件
+    nohup setsid ./${DAEMON_SCRIPT_NAME} >> "${LOG_FILE}" 2>&1 &
 
     local new_pid=$!
     sleep 1
@@ -50,8 +50,9 @@ start() {
     if ps -p "$new_pid" > /dev/null 2>&1; then
         echo "$new_pid" > "$PID_FILE"
         echo "${APP_NAME} 启动成功 (PID: ${new_pid})."
+        echo "日志输出至: ${LOG_FILE}"
     else
-        echo "启动失败，进程未驻留。"
+        echo "启动失败。"
         return 1
     fi
 }
@@ -87,25 +88,22 @@ status() {
     pid=$(get_pid)
     if [ -n "$pid" ]; then
         echo "${APP_NAME} 正在运行 (PID: ${pid})."
-        echo "Java 进程: $(pgrep -g "$pid" java | tr '\n' ' ')"
+        echo "日志文件: ${LOG_FILE}"
     else
         echo "${APP_NAME} 未运行."
     fi
 }
 
-# 查看日志 (简化：直接实时追踪最新的日志文件)
+# 查看日志
 logs() {
-    # 查找 logs 目录下修改时间最新的 .log 文件
-    local latest_log
-    latest_log=$(ls -t "${LOG_DIR}"/*.log 2>/dev/null | head -n 1)
-
-    if [ -z "$latest_log" ]; then
-        echo "未找到日志文件 (目录 ${LOG_DIR} 为空)."
+    if [ ! -f "$LOG_FILE" ]; then
+        echo "日志文件不存在: ${LOG_FILE}"
         return 1
     fi
 
-    echo "正在实时追踪最新日志: ${latest_log}"
-    tail -f "$latest_log"
+    echo "正在实时追踪日志: ${LOG_FILE} (按 Ctrl+C 退出)"
+    # 3. 修改：直接 tail -f 固定文件
+    tail -f "$LOG_FILE"
 }
 
 # 重启
