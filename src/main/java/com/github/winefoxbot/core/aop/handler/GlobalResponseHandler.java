@@ -11,7 +11,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 /**
  * @author FlanChan
  */
-@RestControllerAdvice(basePackages = "com.flanchan.webui.controller")
+@RestControllerAdvice(basePackages = "com.github.winefoxbot.core.controller")
 public class GlobalResponseHandler implements ResponseBodyAdvice<Object> {
 
     @Override
