@@ -221,3 +221,41 @@ COMMENT ON TABLE public.fortune_data IS '今日运势数据表';
 COMMENT ON COLUMN public.fortune_data.user_id IS '用户ID';
 COMMENT ON COLUMN public.fortune_data.star_num IS '运势星级';
 COMMENT ON COLUMN public.fortune_data.fortune_date IS '运势归属日期';
+
+
+CREATE TABLE IF NOT EXISTS webui_admin (
+    -- 使用 BIGINT 作为主键，以支持未来大量用户。SERIAL8 是 BIGSERIAL 的别名，自动创建序列。
+                                           id SERIAL PRIMARY KEY,
+
+    -- 用户名，必须唯一，用于登录。使用 TEXT 或 VARCHAR 都可以，TEXT更灵活。
+    -- 添加 UNIQUE 约束以确保用户名的唯一性，并为快速查找创建索引。
+                                           username TEXT NOT NULL UNIQUE,
+
+    -- 存储Bcrypt或Argon2算法生成的加盐哈希值。
+    -- 长度通常在60个字符左右，但设置为255以提供足够的余量。
+                                           password VARCHAR(255) NOT NULL,
+
+    -- 用户角色，用于权限控制。可以根据需要扩展，例如 'viewer', 'editor'。
+                                           role TEXT NOT NULL DEFAULT 'admin',
+
+    -- 记录创建时间，默认为当前事务的时间戳。
+                                           created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    -- 记录最后更新时间。可以使用触发器自动更新，此处为简化暂不添加。
+                                           updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    -- 用于强制用户首次登录时修改密码。
+    -- TRUE 表示需要修改，FALSE 表示已修改或无需修改。
+                                           password_needs_change BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+INSERT INTO webui_admin (username, password, role, password_needs_change)
+VALUES
+    (
+        'admin',
+        -- admin
+        '$2a$10$gP4/3T4.3VL5i92158zXyuaGfB3qFf9I.tYm2r.I./qgE.6D/bDGC',
+        'super_admin',
+        TRUE  -- 推荐设置为 TRUE，强制首次登录时修改这个弱密码。
+    )
+ON CONFLICT (username) DO NOTHING;
