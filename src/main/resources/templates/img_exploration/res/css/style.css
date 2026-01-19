@@ -147,6 +147,8 @@ body {
     color: #81d4fa; /* 链接色 */
     text-decoration: none;
     font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* 相似度颜色逻辑 */
