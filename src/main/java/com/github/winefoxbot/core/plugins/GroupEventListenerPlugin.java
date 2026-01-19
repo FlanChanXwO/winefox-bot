@@ -6,9 +6,7 @@ import com.github.winefoxbot.core.model.enums.BotReplyTemplateType;
 import com.github.winefoxbot.core.model.enums.GroupAdminChangeType;
 import com.github.winefoxbot.core.model.enums.GroupMemberDecreaseType;
 import com.github.winefoxbot.core.service.reply.TextReplyService;
-import com.github.winefoxbot.core.service.shiro.ShiroGroupMembersService;
-import com.github.winefoxbot.core.service.shiro.ShiroGroupsService;
-import com.github.winefoxbot.core.service.shiro.ShiroMessagesService;
+import com.github.winefoxbot.core.service.shiro.*;
 import com.github.winefoxbot.core.utils.BotUtils;
 import com.mikuac.shiro.annotation.*;
 import com.mikuac.shiro.annotation.common.Order;
@@ -16,6 +14,7 @@ import com.mikuac.shiro.annotation.common.Shiro;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.notice.*;
+import com.mikuac.shiro.dto.event.request.GroupAddRequestEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -35,7 +34,6 @@ public class GroupEventListenerPlugin {
 
 
     @GroupMsgDeleteNoticeHandler
-    @Order(1)
     public void handleGroupMessageDelete(GroupMsgDeleteNoticeEvent event) {
         Integer messageId = event.getMessageId();
         shiroMessagesService.removeByMessageId(messageId);
@@ -44,6 +42,7 @@ public class GroupEventListenerPlugin {
 
     private final TextReplyService textReplyService;
     private final ShiroGroupMembersService shiroGroupMembersService;
+    private final ShiroGroupRequestsService shiroGroupRequestsService;
     private final ShiroGroupsService groupsService;
 
     /**
@@ -53,7 +52,6 @@ public class GroupEventListenerPlugin {
      * @param event
      */
     @GroupIncreaseHandler
-    @Order(1)
     public void handleGroupIncrease(Bot bot, GroupIncreaseNoticeEvent event) {
         Long groupId = event.getGroupId();
         Long userId = event.getUserId();
@@ -62,6 +60,7 @@ public class GroupEventListenerPlugin {
             log.info("Bot {} 被添加到群 {}", botId, groupId);
             return;
         }
+        log.info("群成员 {} 加入群 {}", userId, groupId);
         String username = BotUtils.getGroupMemberNickname(bot, groupId, userId);
         // 获取模板
         TextReply reply = textReplyService.getReply(new TextReplyParams(username, BotReplyTemplateType.WELCOME));
@@ -75,7 +74,6 @@ public class GroupEventListenerPlugin {
      * @param event
      */
     @GroupDecreaseHandler
-    @Order(1)
     public void handleGroupDecrease(Bot bot, GroupDecreaseNoticeEvent event) {
         Long groupId = event.getGroupId();
         Long userId = event.getUserId();
@@ -106,7 +104,6 @@ public class GroupEventListenerPlugin {
     }
 
     @GroupAdminHandler
-    @Order(1)
     public void handleGroupAdmin(Bot bot, GroupAdminNoticeEvent event) {
         Long groupId = event.getGroupId();
         Long userId = event.getUserId();
@@ -132,7 +129,6 @@ public class GroupEventListenerPlugin {
 
 
     @GroupCardChangeNoticeHandler
-    @Order(1)
     public void handleGroupCardChange(GroupCardChangeNoticeEvent event) {
         Long groupId = event.getGroupId();
         Long userId = event.getUserId();
@@ -166,6 +162,12 @@ public class GroupEventListenerPlugin {
 
     private void sendReply(Bot bot, TextReply reply, Long groupId) {
         sendReply(bot, reply, groupId, null, false);
+    }
+
+    @GroupAddRequestHandler
+    public void handleGroupAddRequest(Bot bot, GroupAddRequestEvent event) {
+        log.info("收到群添加请求: {}", event);
+        shiroGroupRequestsService.saveGroupAddRequest( event);
     }
 
 

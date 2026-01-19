@@ -1,0 +1,18 @@
+package com.github.winefoxbot.core.annotation.plugin;
+
+import org.springframework.stereotype.Component;
+
+import java.lang.annotation.*;
+
+/**
+ * 标记一个类为插件的配置类
+ * prefix: 配置项的前缀，例如 "daily_report"
+ */
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Component // 让 Spring 能扫描到
+public @interface PluginConfig {
+    String prefix(); // 必须指定前缀，防止冲突
+
+    String name();   // 给人看的配置组名称，如 "酒狐日报配置"
+}

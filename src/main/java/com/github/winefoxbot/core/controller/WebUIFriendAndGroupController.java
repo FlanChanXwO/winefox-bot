@@ -25,8 +25,8 @@ public class WebUIFriendAndGroupController {
 
     @GetMapping("/stats/{botId}")
     public FriendAndGroupStatsResponse getFriendAndGroupStats(@PathVariable Long botId) {
-        long friendCount = friendsService.count(new LambdaQueryWrapper<>(ShiroFriends.class).eq(ShiroFriends::getBotId, botId));
-        long groupCount = groupsService.count(new LambdaQueryWrapper<>(ShiroGroup.class).eq(ShiroGroup::getSelfId, botId));
+        long friendCount = friendsService.count(friendsService.lambdaQuery().eq(ShiroFriends::getBotId,botId));
+        long groupCount = groupsService.count(groupsService.lambdaQuery().eq(ShiroGroup::getSelfId,botId));
         return new FriendAndGroupStatsResponse(friendCount, groupCount);
     }
 }

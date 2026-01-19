@@ -1,9 +1,9 @@
 package com.github.winefoxbot.plugins.pixiv;
 
-import com.github.winefoxbot.core.annotation.Limit;
-import com.github.winefoxbot.core.annotation.Plugin;
-import com.github.winefoxbot.core.annotation.PluginFunction;
-import com.github.winefoxbot.core.exception.bot.PluginExecutionException;
+import com.github.winefoxbot.core.annotation.common.Limit;
+import com.github.winefoxbot.core.annotation.plugin.Plugin;
+import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
+import com.github.winefoxbot.core.exception.bot.BotException;
 import com.github.winefoxbot.core.model.enums.Permission;
 import com.github.winefoxbot.core.service.shiro.ShiroSessionStateService;
 import com.github.winefoxbot.plugins.pixiv.model.dto.common.PixivArtworkInfo;
@@ -15,14 +15,13 @@ import com.github.winefoxbot.plugins.pixiv.utils.PixivUtils;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Order;
-import com.mikuac.shiro.annotation.common.Shiro;
 import com.mikuac.shiro.core.Bot;
+import com.mikuac.shiro.core.BotPlugin;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import com.mikuac.shiro.enums.MsgTypeEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.util.List;
@@ -41,9 +40,7 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.COMMAND_SUF
         iconPath = "icon/pixiv.png",
         order = 13
 )
-@Component
 @Slf4j
-@Shiro
 @RequiredArgsConstructor
 public class PixivBookmarkPlugin {
     private final PixivService pixivService;
@@ -68,7 +65,7 @@ public class PixivBookmarkPlugin {
             pixivBookmarkService.syncBookmarks();
             bot.sendMsg(event, "Pixiv 收藏夹同步完成！", false);
         } catch (Exception e) {
-            throw new PluginExecutionException(bot, event, "同步 Pixiv 收藏夹失败: " + e.getMessage(), e);
+            throw new BotException("同步 Pixiv 收藏夹失败: " + e.getMessage());
         }
     }
 
@@ -108,7 +105,7 @@ public class PixivBookmarkPlugin {
             log.info("用户 [{}] 的随机收藏发送完成，作品ID: {}。", event.getUserId(), pid);
         } catch (Exception e) {
             log.error("网络异常，获取随机收藏失败: {}", e.getMessage(), e);
-            throw new PluginExecutionException(bot, event, "获取随机收藏失败", e);
+            throw new BotException("获取随机收藏失败");
         } finally {
             shiroSessionStateService.exitCommandMode(sessionKey);
         }

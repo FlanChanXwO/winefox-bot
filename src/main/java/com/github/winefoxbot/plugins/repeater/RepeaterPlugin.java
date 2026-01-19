@@ -1,7 +1,7 @@
 package com.github.winefoxbot.plugins.repeater;
 
-import com.github.winefoxbot.core.annotation.Plugin;
-import com.github.winefoxbot.core.annotation.PluginFunction;
+import com.github.winefoxbot.core.annotation.plugin.Plugin;
+import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.github.winefoxbot.core.model.enums.Permission;
 import com.mikuac.shiro.annotation.GroupMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
@@ -35,9 +35,7 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
         iconPath = "icon/娱乐功能.png",
         order = 7
 )
-@Shiro
 @Slf4j
-@Component
 public class RepeaterPlugin {
 
     private final Map<Long, Set<Long>> repeaterFollowers = new ConcurrentHashMap<>();

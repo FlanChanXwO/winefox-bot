@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.winefoxbot.core.mapper.ShiroFriendsMapper">
+
+    <!-- 批量插入或更新 -->
+    <insert id="insertOrUpdateBatch">
+        INSERT INTO shiro_friends (
+        bot_id,
+        friend_id,
+        nickname,
+        last_updated
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+            #{item.botId},
+            #{item.friendId},
+            <!-- 这里处理 lastUpdated，如果为空则取当前时间 -->
+            <choose>
+                <when test="item.lastUpdated != null">#{item.lastUpdated}</when>
+                <otherwise>NOW()</otherwise>
+            </choose>
+            )
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+        nickname = VALUES(nickname),
+        last_updated = VALUES(last_updated)
+    </insert>
+
+</mapper>

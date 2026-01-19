@@ -13,7 +13,9 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
+ * WineFoxBot Application
  * @author FlanChan
+ * @since 2025/11/1
  */
 @EnableAsync
 @EnableScheduling
@@ -27,18 +29,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class WineFoxBotApp {
 
     public static void main(String[] args) {
-        // 在启动Spring之前，首先运行脚本检查器
-        // 它会判断运行环境，如果需要，会生成脚本并直接退出程序
         ScriptChecker.checkAndDeploy(WineFoxBotApp.class);
-        // 如果程序能运行到这里，说明：
-        // 1. 是在IDE中运行的
-        // 2. 或者脚本文件已经存在，不需要生成和退出
-        // 此时，正常启动Spring应用
         SpringApplication app = new SpringApplication(WineFoxBotApp.class);
         app.addInitializers(new LogbackContextInitializer());
-
-        // ** 2. 保持监听器 **
-        // 它会在应用就绪后，安全地将ApplicationContext传递给Appender
         app.addListeners(new LogbackApplicationListener());
         app.setApplicationStartup(new BufferingApplicationStartup(1000));
         app.run(args);

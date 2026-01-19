@@ -1,9 +1,9 @@
 package com.github.winefoxbot.plugins.chat;
 
-import com.github.winefoxbot.core.annotation.Block;
-import com.github.winefoxbot.core.annotation.Limit;
-import com.github.winefoxbot.core.annotation.Plugin;
-import com.github.winefoxbot.core.annotation.PluginFunction;
+import com.github.winefoxbot.core.annotation.common.Block;
+import com.github.winefoxbot.core.annotation.common.Limit;
+import com.github.winefoxbot.core.annotation.plugin.Plugin;
+import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.github.winefoxbot.core.model.enums.MessageType;
 import com.github.winefoxbot.core.model.enums.Permission;
 import com.github.winefoxbot.core.service.reply.VoiceReplyService;
@@ -18,7 +18,6 @@ import com.mikuac.shiro.annotation.*;
 import com.mikuac.shiro.annotation.common.Order;
 import com.mikuac.shiro.annotation.common.Shiro;
 import com.mikuac.shiro.common.utils.MsgUtils;
-import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
@@ -47,9 +46,7 @@ import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
         name = "娱乐功能",
         permission = Permission.USER,
         order = 6)
-@Shiro
 @ConditionalOnClass(OpenAiService.class)
-@Component
 @Slf4j
 @RequiredArgsConstructor
 public class ChatPlugin {

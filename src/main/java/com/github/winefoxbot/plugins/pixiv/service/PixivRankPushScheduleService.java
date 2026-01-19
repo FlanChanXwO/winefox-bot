@@ -19,6 +19,4 @@ public interface PixivRankPushScheduleService {
 
     List<PixivRankPushSchedule> getSchedulesByGroupId(Long groupId);
 
-    PixivRankPushSchedule getSchedule(Long groupId, PixivRankPushMode rankType);
-
 }

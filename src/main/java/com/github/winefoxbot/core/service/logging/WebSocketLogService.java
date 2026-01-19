@@ -30,11 +30,9 @@ public class WebSocketLogService {
         messagingTemplate.convertAndSend("/topic/logs", logMessage);
     }
 
+    // 新增：给 Controller 提供获取历史记录的方法
     public Collection<String> getHistory() {
         // 返回一个不可变的副本，防止并发修改异常
-        List<String> logs = List.copyOf(logHistoryBuffer);
-        // 清空历史记录缓冲区
-        logHistoryBuffer.clear();
-        return logs;
+        return List.copyOf(logHistoryBuffer);
     }
 }

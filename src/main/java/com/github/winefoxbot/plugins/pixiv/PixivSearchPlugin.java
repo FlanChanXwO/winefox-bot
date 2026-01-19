@@ -1,7 +1,7 @@
 package com.github.winefoxbot.plugins.pixiv;
 
-import com.github.winefoxbot.core.annotation.Plugin;
-import com.github.winefoxbot.core.annotation.PluginFunction;
+import com.github.winefoxbot.core.annotation.plugin.Plugin;
+import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.github.winefoxbot.core.model.enums.MessageType;
 import com.github.winefoxbot.core.model.enums.Permission;
 import com.github.winefoxbot.core.service.shiro.ShiroSessionStateService;
@@ -46,8 +46,6 @@ import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
         iconPath = "icon/pixiv.png",
         order = 13
 )
-@Shiro
-@Component
 @RequiredArgsConstructor
 @Slf4j
 public class PixivSearchPlugin {

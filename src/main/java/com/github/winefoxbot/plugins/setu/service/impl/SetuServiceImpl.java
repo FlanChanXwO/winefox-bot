@@ -3,8 +3,7 @@ package com.github.winefoxbot.plugins.setu.service.impl;
 import cn.hutool.core.util.URLUtil;
 import com.github.winefoxbot.core.config.file.FileStorageProperties;
 import com.github.winefoxbot.core.constants.ConfigConstants;
-import com.github.winefoxbot.core.exception.bot.NetworkException;
-import com.github.winefoxbot.core.exception.bot.ResourceNotFoundException;
+import com.github.winefoxbot.core.exception.bot.BotException;
 import com.github.winefoxbot.core.exception.common.BusinessException;
 import com.github.winefoxbot.core.manager.ConfigManager;
 import com.github.winefoxbot.core.model.dto.SendMsgResult;
@@ -107,15 +106,6 @@ public class SetuServiceImpl implements SetuService {
         }
         log.info("成功获取到图片URL: {}", imageUrl);
         sendImage(bot, event, userId, groupId, imageUrl);
-    }
-
-    private void handleException(Bot bot, AnyMessageEvent event, String message) {
-        // 如果有 Event，抛出 Bot 异常通知用户；如果没有，说明是 AI 调用，抛出 RuntimeException 让 Tool 捕获
-        if (event != null) {
-            throw new NetworkException(bot, event, message, null);
-        } else {
-            throw new RuntimeException(message);
-        }
     }
 
     /**
@@ -245,7 +235,7 @@ public class SetuServiceImpl implements SetuService {
             if (!imagePaths.isEmpty()) {
                 sendAsPdfFile(bot, event, imagePaths);
             } else {
-                handleException(bot, event, "图片获取失败，无法生成PDF");
+                throw new BotException("未能获取到任何图片文件以生成PDF");
             }
         } else {
             if (urls.size() > 1) {
@@ -416,7 +406,7 @@ public class SetuServiceImpl implements SetuService {
     private void sendAsPdfFile(Bot bot, AnyMessageEvent event, java.util.List<Path> imagePaths) {
         final Path pdfPath = PdfUtil.wrapImageIntoPdf(imagePaths, fileStorageProperties.getLocal().getBasePath() + File.separator + "setu_tmp");
         if (pdfPath == null) {
-            throw new ResourceNotFoundException(bot, event, "PDF文件生成失败", null);
+            throw new BotException("生成PDF文件失败");
         }
         String fileName = pdfPath.getFileName().toString();
         log.info("准备上传PDF文件: {}", pdfPath);

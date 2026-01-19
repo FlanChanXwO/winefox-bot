@@ -27,9 +27,10 @@ public class MybatisPlusMetaObjectHandler implements MetaObjectHandler {
         this.strictInsertFill(metaObject, "createdAt", LocalDateTime.class, now);
         this.strictInsertFill(metaObject, "updatedAt", LocalDateTime.class, now);
         this.strictInsertFill(metaObject, "createTime", LocalDateTime.class, now);
-        this.strictUpdateFill(metaObject, "updateTime", LocalDateTime.class, now);
+        this.strictInsertFill(metaObject, "updateTime", LocalDateTime.class, now);
         this.strictInsertFill(metaObject, "time", LocalDateTime.class, now);
         this.strictInsertFill(metaObject, "lastUpdated", LocalDateTime.class, now);
+        this.strictInsertFill(metaObject, "lastRunAt", LocalDateTime.class, now);
     }
 
     /**
@@ -43,5 +44,6 @@ public class MybatisPlusMetaObjectHandler implements MetaObjectHandler {
         this.strictUpdateFill(metaObject, "updatedAt", LocalDateTime.class, now);
         this.strictUpdateFill(metaObject, "updateTime", LocalDateTime.class, now);
         this.strictUpdateFill(metaObject,"lastUpdated", LocalDateTime.class, now);
+        this.strictUpdateFill(metaObject,"lastRunAt", LocalDateTime.class, now);
     }
 }

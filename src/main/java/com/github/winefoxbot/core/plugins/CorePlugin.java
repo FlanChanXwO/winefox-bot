@@ -1,9 +1,9 @@
 package com.github.winefoxbot.core.plugins;
 
-import com.github.winefoxbot.core.annotation.Plugin;
-import com.github.winefoxbot.core.annotation.PluginFunction;
+import com.github.winefoxbot.core.annotation.plugin.Plugin;
+import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.github.winefoxbot.core.config.app.WineFoxBotProperties;
-import com.github.winefoxbot.core.exception.bot.PluginExecutionException;
+import com.github.winefoxbot.core.exception.bot.BotException;
 import com.github.winefoxbot.core.model.dto.GitHubRelease;
 import com.github.winefoxbot.core.model.enums.Permission;
 import com.github.winefoxbot.core.service.helpdoc.HelpImageService;
@@ -11,7 +11,6 @@ import com.github.winefoxbot.core.service.status.StatusImageService;
 import com.github.winefoxbot.core.service.update.GitHubUpdateService;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
-import com.mikuac.shiro.annotation.common.Shiro;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
@@ -20,7 +19,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.time.ZoneId;
@@ -40,8 +38,6 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
         iconPath = "icon/core.png",
         order = 1
 )
-@Shiro
-@Component
 @Slf4j
 @RequiredArgsConstructor
 public class CorePlugin {
@@ -244,7 +240,7 @@ public class CorePlugin {
             byte[] bytes = statusImageService.generateStatusImage();
             bot.sendMsg(event, MsgUtils.builder().img(bytes).build(), false);
         } catch (IOException | InterruptedException e) {
-            throw new PluginExecutionException(bot,event, "状态丢失了...", e);
+            throw new BotException("状态丢失了...");
         }
     }
 }

@@ -1,7 +1,7 @@
 package com.github.winefoxbot.core.plugins;
 
-import com.github.winefoxbot.core.annotation.Plugin;
-import com.github.winefoxbot.core.annotation.PluginFunction;
+import com.github.winefoxbot.core.annotation.plugin.Plugin;
+import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.github.winefoxbot.core.constants.ConfigConstants;
 import com.github.winefoxbot.core.manager.ConfigManager;
 import com.github.winefoxbot.core.model.enums.Permission;
@@ -26,8 +26,6 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
         iconPath = "icon/配置.png",
         order = 99
 )
-@Shiro
-@Component
 @Slf4j
 @RequiredArgsConstructor
 public class AdultContentPlugin {

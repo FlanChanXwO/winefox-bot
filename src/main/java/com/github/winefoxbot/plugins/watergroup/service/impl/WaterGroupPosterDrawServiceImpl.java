@@ -144,8 +144,7 @@ public class WaterGroupPosterDrawServiceImpl implements WaterGroupPosterDrawServ
         try (Page page = browser.newPage(pageOptions)) {
             page.setViewportSize(800, 100);
             page.setContent(html, new Page.SetContentOptions()
-                    .setWaitUntil(WaitUntilState.NETWORKIDLE)
-                    .setTimeout(60000.0));
+                    .setWaitUntil(WaitUntilState.LOAD));
             // 获取 poster 元素的高度，并设置为视口高度，确保截图完整
             int height = (int) page.locator(".poster").boundingBox().height;
             page.setViewportSize(800, height);

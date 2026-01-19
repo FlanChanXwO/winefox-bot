@@ -2,7 +2,7 @@ package com.github.winefoxbot.plugins.watergroup.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.github.winefoxbot.core.annotation.RedissonLock;
+import com.github.winefoxbot.core.annotation.common.RedissonLock;
 import com.github.winefoxbot.plugins.watergroup.mapper.WaterGroupMessageStatMapper;
 import com.github.winefoxbot.plugins.watergroup.model.entity.WaterGroupMessageStat;
 import com.github.winefoxbot.plugins.watergroup.service.WaterGroupService;

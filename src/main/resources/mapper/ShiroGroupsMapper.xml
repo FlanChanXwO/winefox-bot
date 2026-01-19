@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.winefoxbot.core.mapper.ShiroGroupsMapper">
+
+    <!-- 批量插入或更新 -->
+    <insert id="insertOrUpdateBatch">
+        INSERT INTO shiro_groups (
+        group_id,
+        group_name,
+        group_avatar_url,
+        self_id,
+        member_count,
+        max_member_count,
+        group_level,
+        last_updated
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+            #{item.groupId},
+            #{item.groupName},
+            #{item.groupAvatarUrl},
+            #{item.selfId},
+            #{item.memberCount},
+            #{item.maxMemberCount},
+            #{item.groupLevel},
+            <!-- 这里处理 lastUpdated，如果为空则取当前时间 -->
+            <choose>
+                <when test="item.lastUpdated != null">#{item.lastUpdated}</when>
+                <otherwise>NOW()</otherwise>
+            </choose>
+            )
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+        group_name = VALUES(group_name),
+        group_avatar_url = VALUES(group_avatar_url),
+        self_id = VALUES(self_id),
+        last_updated = VALUES(last_updated),
+        member_count = VALUES(member_count),
+        max_member_count = VALUES(max_member_count),
+        group_level = VALUES(group_level)
+    </insert>
+
+</mapper>

@@ -1,7 +1,7 @@
 package com.github.winefoxbot.plugins.scheduletip;
 
-import com.github.winefoxbot.core.annotation.Plugin;
-import com.github.winefoxbot.core.annotation.PluginFunction;
+import com.github.winefoxbot.core.annotation.plugin.Plugin;
+import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Shiro;
@@ -32,8 +32,6 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
         name = "实用功能",
         iconPath = "icon/实用工具.png",
         order = 5)
-@Shiro
-@Component
 @RequiredArgsConstructor
 public class ScheduleTipTaskPlugin {
 

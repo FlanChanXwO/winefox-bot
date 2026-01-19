@@ -11,7 +11,13 @@ import lombok.Getter;
  */
 @Getter
 public enum GroupAddRequestType implements BaseEnum<String> {
+    /**
+     * 新成员加群
+     */
     ADD("add"),
+    /**
+     * BOT被邀请入群
+     */
     INVITE("invite");
 
     @EnumValue

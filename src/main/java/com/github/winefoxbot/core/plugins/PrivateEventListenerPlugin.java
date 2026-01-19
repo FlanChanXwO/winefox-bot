@@ -22,7 +22,6 @@ public class PrivateEventListenerPlugin {
     private final ShiroMessagesService shiroMessagesService;
 
     @PrivateMsgDeleteNoticeHandler
-    @Order(1)
     public void handlePrivateMessageDelete(PrivateMsgDeleteNoticeEvent event) {
         Integer messageId = event.getMessageId();
         shiroMessagesService.removeByMessageId(messageId);

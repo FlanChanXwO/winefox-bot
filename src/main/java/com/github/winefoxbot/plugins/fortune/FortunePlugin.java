@@ -1,7 +1,7 @@
 package com.github.winefoxbot.plugins.fortune;
 
-import com.github.winefoxbot.core.annotation.Plugin;
-import com.github.winefoxbot.core.annotation.PluginFunction;
+import com.github.winefoxbot.core.annotation.plugin.Plugin;
+import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.github.winefoxbot.core.config.app.WineFoxBotRobotProperties;
 import com.github.winefoxbot.core.model.enums.Permission;
 import com.github.winefoxbot.core.utils.BotUtils;
@@ -28,8 +28,6 @@ import java.util.Objects;
         iconPath = "icon/娱乐功能.png",
         order = 7
 )
-@Component
-@Shiro
 @Slf4j
 @RequiredArgsConstructor
 public class FortunePlugin {

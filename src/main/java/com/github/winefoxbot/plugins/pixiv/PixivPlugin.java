@@ -1,7 +1,7 @@
 package com.github.winefoxbot.plugins.pixiv;
 
-import com.github.winefoxbot.core.annotation.Plugin;
-import com.github.winefoxbot.core.annotation.PluginFunction;
+import com.github.winefoxbot.core.annotation.plugin.Plugin;
+import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.github.winefoxbot.core.model.enums.Permission;
 import com.github.winefoxbot.core.utils.CronFormatter;
 import com.github.winefoxbot.core.utils.FileUtil;
@@ -44,9 +44,7 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
         iconPath = "icon/pixiv.png",
         order = 13
 )
-@Component
 @Slf4j
-@Shiro
 @RequiredArgsConstructor
 public class PixivPlugin {
 

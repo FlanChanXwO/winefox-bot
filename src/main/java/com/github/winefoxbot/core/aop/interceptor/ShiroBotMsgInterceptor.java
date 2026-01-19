@@ -16,7 +16,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @Slf4j
 public class ShiroBotMsgInterceptor implements BotMessageEventInterceptor {
-
     private final ShiroBotAfterCompletionMsgHandler shiroBotAfterCompletionMsgHandler;
 
     @Override

@@ -1,7 +1,7 @@
 package com.github.winefoxbot.core.aop.handler;
 
-import cn.hutool.core.util.RandomUtil;
-import com.github.winefoxbot.core.annotation.RedissonLock; // 确保这是你定义的注解路径
+import cn.hutool.json.JSONArray;
+import com.github.winefoxbot.core.annotation.common.RedissonLock; // 确保这是你定义的注解路径
 import com.github.winefoxbot.core.model.entity.ShiroGroup;
 import com.github.winefoxbot.core.model.entity.ShiroMessage;
 import com.github.winefoxbot.core.model.entity.ShiroUser;
@@ -15,6 +15,8 @@ import com.github.winefoxbot.core.utils.BotUtils;
 import com.github.winefoxbot.core.utils.MessageConverter;
 import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
+import com.mikuac.shiro.dto.action.common.ActionData;
+import com.mikuac.shiro.dto.action.response.GroupInfoResp;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import com.mikuac.shiro.dto.event.message.MessageEvent;
@@ -25,6 +27,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+
+import java.util.Optional;
 
 @Slf4j
 @Component
@@ -43,6 +47,10 @@ public class ShiroBotAfterCompletionMsgHandler {
 
     @Async
     public void handle(Bot bot, MessageEvent event) {
+        saveMsg(bot, event);
+    }
+
+    private void saveMsg(Bot bot, MessageEvent event) {
         try {
             // 判断消息方向
             Long selfId = bot.getSelfId();
@@ -62,11 +70,11 @@ public class ShiroBotAfterCompletionMsgHandler {
             if (event instanceof GroupMessageEvent groupEvent) {
                 // 保存群组信息
                 ShiroGroup group = extractGroupFromEvent(bot, groupEvent);
-                self.saveGroupSafe(group);
-
+                if (group != null) {
+                    self.saveGroupSafe(group);
+                }
                 // 保存群成员信息
                 self.saveGroupMemberSafe(groupEvent);
-
                 message.setSessionId(groupEvent.getGroupId());
             } else {
                 // 私聊处理
@@ -83,7 +91,6 @@ public class ShiroBotAfterCompletionMsgHandler {
             self.saveMessageSafe(message);
 
             log.debug("Saved {} message ID: {}, Session: {}", direction, message.getMessageId(), message.getSessionId());
-
         } catch (Exception e) {
             log.error("Error handling message event. event: {}", event, e);
         }
@@ -137,16 +144,23 @@ public class ShiroBotAfterCompletionMsgHandler {
             case null, default -> -1L;
         };
 
-        if (msgId == -1L) {
-            msgId = RandomUtil.randomLong();
+        if (msgId < 0) {
+            return null;
         }
 
+        Long selfId = bot.getSelfId();
+        Long userId = event.getUserId();
+        MessageType messageType = MessageType.fromValue(event.getMessageType());
+        JSONArray jsonMessage = MessageConverter.parseCQToJSONArray(event.getRawMessage());
+        String jsonString = jsonMessage.toJSONString(1);
+        log.info("[{}] | [{}] | {} : {}", direction.getValue(), messageType.getValue(), userId, jsonString.substring(0, Math.min(jsonString.length(), 1000)));
+
         message.setMessageId(msgId);
-        message.setSelfId(bot.getSelfId());
-        message.setMessageType(MessageType.fromValue(event.getMessageType()));
-        message.setUserId(event.getUserId());
-        message.setMessage(MessageConverter.parseCQToJSONArray(event.getRawMessage()));
-        message.setPlainText(MessageConverter.getPlainTextMessage(event.getMessage()));
+        message.setSelfId(selfId);
+        message.setMessageType(messageType);
+        message.setUserId(userId);
+        message.setMessage(jsonMessage);
+        message.setPlainText(MessageConverter.getPlainTextMessage(jsonMessage));
         message.setDirection(direction);
         return message;
     }
@@ -167,18 +181,12 @@ public class ShiroBotAfterCompletionMsgHandler {
     }
 
     private ShiroGroup extractGroupFromEvent(Bot bot, GroupMessageEvent event) {
-        ShiroGroup group = new ShiroGroup();
+        ShiroGroup group = null;
         Long groupId = event.getGroupId();
-        group.setGroupId(groupId);
-        group.setSelfId(event.getSelfId());
-        group.setGroupAvatarUrl(ShiroUtils.getGroupAvatar(groupId, 0));
-
-        try {
-            String groupName = BotUtils.getGroupName(bot, groupId);
-            group.setGroupName(groupName);
-        } catch (Exception e) {
-            log.debug("Failed to fetch group name for groupId: {}", groupId);
-            group.setGroupName("Unknown Group");
+        Long selfId = event.getSelfId();
+        Optional<ActionData<GroupInfoResp>> groupInfoOpt = Optional.ofNullable(bot.getGroupInfo(groupId, false));
+        if (groupInfoOpt.isPresent() && groupInfoOpt.get().getRetCode() == 0) {
+            group = ShiroGroup.convertToShiroGroup(groupInfoOpt.get().getData(), selfId);
         }
         return group;
     }

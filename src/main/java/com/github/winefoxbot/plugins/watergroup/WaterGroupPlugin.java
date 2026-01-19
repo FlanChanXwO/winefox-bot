@@ -1,7 +1,7 @@
 package com.github.winefoxbot.plugins.watergroup;
 
-import com.github.winefoxbot.core.annotation.Plugin;
-import com.github.winefoxbot.core.annotation.PluginFunction;
+import com.github.winefoxbot.core.annotation.plugin.Plugin;
+import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.github.winefoxbot.core.model.enums.Permission;
 import com.github.winefoxbot.core.utils.FileUtil;
 import com.github.winefoxbot.plugins.watergroup.model.entity.WaterGroupMessageStat;
@@ -38,8 +38,6 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
         name = "发言统计",
         permission = Permission.USER,
         order = 12)
-@Shiro
-@Component
 @Slf4j
 @RequiredArgsConstructor
     public class WaterGroupPlugin {
