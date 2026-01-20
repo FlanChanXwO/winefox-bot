@@ -2,7 +2,7 @@
 
 package com.github.winefoxbot.core.config.logging;
 
-import org.springframework.boot.context.event.ApplicationReadyEvent; // <-- 修改导入
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
 
 /**

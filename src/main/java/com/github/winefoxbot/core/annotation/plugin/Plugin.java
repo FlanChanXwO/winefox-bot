@@ -1,5 +1,6 @@
 package com.github.winefoxbot.core.annotation.plugin;
 
+import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
 import com.github.winefoxbot.core.model.enums.Permission;
 import com.mikuac.shiro.annotation.common.Shiro;
 import org.springframework.stereotype.Component;
@@ -29,6 +30,12 @@ public @interface Plugin {
      */
     int order() default Integer.MAX_VALUE;
 
+    String description() default "暂无描述";
+
+    String version() default "1.0.0";
+
+    String author() default "FlanChanXwO"; // 【新增】作者
+
     /**
      * 功能组的图标
      * 从类加载路径读取
@@ -46,4 +53,16 @@ public @interface Plugin {
      * @return 是否隐藏所有功能在帮助文档
      */
     boolean hidden() default false;
+
+    /**
+     * 是否为内置插件，内置插件无法卸载
+     */
+    boolean builtIn() default true;
+
+    /**
+     * 指定该插件对应的配置类
+     * 必须继承 BasePluginConfig
+     * 默认为 Void.class 表示该插件没有配置
+     */
+    Class<? extends BasePluginConfig> config() default BasePluginConfig.None.class;
 }

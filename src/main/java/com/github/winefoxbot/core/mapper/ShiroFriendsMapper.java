@@ -1,7 +1,7 @@
 package com.github.winefoxbot.core.mapper;
 
-import com.github.winefoxbot.core.model.entity.ShiroFriends;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.github.winefoxbot.core.model.entity.ShiroFriends;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;

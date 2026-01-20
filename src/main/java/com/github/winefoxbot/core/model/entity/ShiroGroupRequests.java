@@ -1,13 +1,10 @@
 package com.github.winefoxbot.core.model.entity;
 
 import cn.hutool.core.date.LocalDateTimeUtil;
-import com.baomidou.mybatisplus.annotation.*;
-
-import java.io.Serializable;
-import java.time.LocalDateTime;
-import java.util.Date;
-import java.util.Optional;
-
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.model.enums.GroupAddRequestType;
 import com.github.winefoxbot.core.model.enums.RequestStatus;
@@ -19,6 +16,10 @@ import com.mikuac.shiro.dto.action.response.GroupInfoResp;
 import com.mikuac.shiro.dto.action.response.StrangerInfoResp;
 import com.mikuac.shiro.dto.event.request.GroupAddRequestEvent;
 import lombok.Data;
+
+import java.io.Serializable;
+import java.time.LocalDateTime;
+import java.util.Optional;
 
 /**
  * @TableName shiro_group_requests

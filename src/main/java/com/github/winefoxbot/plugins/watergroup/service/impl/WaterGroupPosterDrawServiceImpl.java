@@ -2,11 +2,11 @@ package com.github.winefoxbot.plugins.watergroup.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.model.entity.ShiroGroupMember;
 import com.github.winefoxbot.core.model.entity.ShiroUser;
 import com.github.winefoxbot.core.service.shiro.ShiroGroupMembersService;
 import com.github.winefoxbot.core.service.shiro.ShiroUsersService;
-import com.github.winefoxbot.plugins.watergroup.WaterGroupPlugin;
 import com.github.winefoxbot.plugins.watergroup.model.dto.WaterGroupMemberStat;
 import com.github.winefoxbot.plugins.watergroup.model.entity.WaterGroupMessageStat;
 import com.github.winefoxbot.plugins.watergroup.service.WaterGroupPosterDrawService;
@@ -14,6 +14,7 @@ import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.ScreenshotScale;
 import com.microsoft.playwright.options.WaitUntilState;
+import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -46,7 +47,7 @@ public class WaterGroupPosterDrawServiceImpl implements WaterGroupPosterDrawServ
     private final ResourceLoader resourceLoader;
 
     @Override
-    public File drawPoster(List<WaterGroupMessageStat> stats) throws IOException {
+    public File drawPoster(List<WaterGroupMessageStat> stats) {
         if (CollectionUtils.isEmpty(stats)) {
             // 如果没有统计数据，可以返回一个表示空状态的图片或直接返回
             return null;
@@ -102,7 +103,7 @@ public class WaterGroupPosterDrawServiceImpl implements WaterGroupPosterDrawServ
                         stat.setAvtarUrl(user.getAvatarUrl());
                     } else {
                         // 设置一个默认头像URL
-                        stat.setAvtarUrl("https://via.placeholder.com/64");
+                        stat.setAvtarUrl("");
                     }
                     return stat;
                 }).toList();
@@ -144,17 +145,16 @@ public class WaterGroupPosterDrawServiceImpl implements WaterGroupPosterDrawServ
         try (Page page = browser.newPage(pageOptions)) {
             page.setViewportSize(800, 100);
             page.setContent(html, new Page.SetContentOptions()
-                    .setWaitUntil(WaitUntilState.LOAD));
+                    .setWaitUntil(WaitUntilState.NETWORKIDLE).setTimeout(30000));
             // 获取 poster 元素的高度，并设置为视口高度，确保截图完整
             int height = (int) page.locator(".poster").boundingBox().height;
             page.setViewportSize(800, height);
-
-            File out = new File("water_group_rank_%s.png".formatted(WaterGroupPlugin.CURRENT_GROUP_ID.get()));
+            GroupMessageEvent messageEvent = (GroupMessageEvent) BotContext.CURRENT_MESSAGE_EVENT.get();
+            File out = new File("water_group_rank_%s.png".formatted(messageEvent.getGroupId()));
             page.screenshot(new Page.ScreenshotOptions()
                     .setPath(out.toPath())
                     .setFullPage(true) // 使用fullPage确保内容截全
                     .setScale(ScreenshotScale.CSS));
-
             return out;
         }
     }

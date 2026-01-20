@@ -53,7 +53,7 @@ public class WebUILogController {
             Path dirPath = Paths.get(System.getProperty("user.dir"), "logs", subDir);
 
             if (!Files.exists(dirPath)) {
-                return Result.success(Collections.emptyList());
+                return Result.ok(Collections.emptyList());
             }
 
             Set<String> dates = new HashSet<>();
@@ -84,9 +84,9 @@ public class WebUILogController {
             // 3. 排序 (最新的在前)
             List<String> sortedDates = dates.stream()
                     .sorted(Comparator.reverseOrder())
-                    .collect(Collectors.toList());
+                    .toList();
 
-            return Result.success(sortedDates);
+            return Result.ok(sortedDates);
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -124,14 +124,14 @@ public class WebUILogController {
 
             if (!Files.exists(path)) {
                 // 如果文件不存在，返回空列表
-                return Result.success(Collections.emptyList());
+                return Result.ok(Collections.emptyList());
             }
 
             try (Stream<String> lines = Files.lines(path, StandardCharsets.UTF_8)) {
                 // 限制一下行数，防止文件太大把内存撑爆 (比如只取最后 2000 行)
                 // 或者直接返回全部，取决于你文件大小
-                List<String> logList = lines.collect(Collectors.toList());
-                return Result.success(logList);
+                List<String> logList = lines.toList();
+                return Result.ok(logList);
             }
 
         } catch (IOException e) {

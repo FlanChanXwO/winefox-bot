@@ -1,11 +1,11 @@
 package com.github.winefoxbot.plugins.fortune.service;
 
-import com.github.winefoxbot.plugins.fortune.model.entity.FortuneData;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.github.winefoxbot.core.model.enums.MessageType;
+import com.github.winefoxbot.plugins.fortune.model.entity.FortuneData;
+import com.github.winefoxbot.plugins.fortune.model.vo.FortuneRenderVO;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
-import com.github.winefoxbot.core.model.enums.MessageType;
-import com.github.winefoxbot.plugins.fortune.model.vo.FortuneRenderVO;
 
 /**
 * @author FlanChan

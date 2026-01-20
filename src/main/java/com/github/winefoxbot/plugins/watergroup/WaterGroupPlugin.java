@@ -2,16 +2,19 @@ package com.github.winefoxbot.plugins.watergroup;
 
 import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
+import com.github.winefoxbot.core.model.entity.ShiroScheduleTask;
 import com.github.winefoxbot.core.model.enums.Permission;
+import com.github.winefoxbot.core.model.enums.PushTargetType;
+import com.github.winefoxbot.core.service.schedule.ShiroScheduleTaskService;
+import com.github.winefoxbot.core.utils.CronFormatter;
 import com.github.winefoxbot.core.utils.FileUtil;
+import com.github.winefoxbot.plugins.watergroup.config.WaterGroupConfig;
+import com.github.winefoxbot.plugins.watergroup.job.WaterGroupStatsJob;
 import com.github.winefoxbot.plugins.watergroup.model.entity.WaterGroupMessageStat;
-import com.github.winefoxbot.plugins.watergroup.model.entity.WaterGroupSchedule;
 import com.github.winefoxbot.plugins.watergroup.service.WaterGroupPosterDrawService;
-import com.github.winefoxbot.plugins.watergroup.service.WaterGroupScheduleService;
 import com.github.winefoxbot.plugins.watergroup.service.WaterGroupService;
 import com.mikuac.shiro.annotation.GroupMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
-import com.mikuac.shiro.annotation.common.Shiro;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
@@ -19,7 +22,6 @@ import com.mikuac.shiro.enums.MsgTypeEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,15 +39,16 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
 @Plugin(
         name = "发言统计",
         permission = Permission.USER,
-        order = 12)
+        order = 12,
+        config = WaterGroupConfig.class
+)
 @Slf4j
 @RequiredArgsConstructor
-    public class WaterGroupPlugin {
+public class WaterGroupPlugin {
     private final WaterGroupService waterGroupService;
     private final WaterGroupPosterDrawService waterGroupPosterDrawService;
-    private final WaterGroupScheduleService waterGroupScheduleService;
-
-    public static final ScopedValue<Long> CURRENT_GROUP_ID = ScopedValue.newInstance();
+    // 注入新的调度服务
+    private final ShiroScheduleTaskService scheduleService;
 
     @Async
     @GroupMessageHandler
@@ -68,13 +71,27 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(开启|打开|启动)群发言统计每天定时推送" + COMMAND_SUFFIX_REGEX)
     public void enableWaterGroupStatsPush(Bot bot, GroupMessageEvent event) {
         Long groupId = event.getGroupId();
-        if (waterGroupScheduleService.checkScheduled(groupId)) {
+
+        // 检查任务是否已存在
+        ShiroScheduleTask existingTask = scheduleService.getTaskConfig(bot.getSelfId(), PushTargetType.GROUP, groupId, WaterGroupStatsJob.class);
+        if (existingTask != null && Boolean.TRUE.equals(existingTask.getIsEnabled())) {
             bot.sendGroupMsg(groupId, "群发言统计每天定时推送功能已开启，无需重复开启！", false);
             return;
         }
+
         LocalTime sendTime = LocalTime.of(22, 0);
-        waterGroupScheduleService.scheduleDailyPush(groupId, sendTime);
-        // 向用户发送确认消息
+        String cron = "0 %d %d * * *".formatted(sendTime.getMinute(), sendTime.getHour());
+
+        // 调度任务
+        scheduleService.scheduleHandler(
+                bot.getSelfId(),
+                PushTargetType.GROUP,
+                groupId,
+                cron,
+                WaterGroupStatsJob.class,
+                null
+        );
+
         bot.sendGroupMsg(groupId, "已开启群发言统计每天定时推送！将在每天的%s".formatted(sendTime.toString()), false);
     }
 
@@ -89,24 +106,35 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "修改发言统计推送时间\\s+(\\d{2}:\\d{2})" + COMMAND_SUFFIX_REGEX)
     public void modifyWaterGroupStatsPushTime(Bot bot, GroupMessageEvent event, Matcher matcher) {
         Long groupId = event.getGroupId();
-        if (!waterGroupScheduleService.checkScheduled(groupId)) {
-            bot.sendGroupMsg(groupId, "群发言统计每天定时推送功能未开启，无法修改推送时间！请先使用 /开启群发言-统计每天定时推送 命令开启该功能。", false);
+
+        // 检查任务是否存在
+        ShiroScheduleTask existingTask = scheduleService.getTaskConfig(bot.getSelfId(), PushTargetType.GROUP, groupId, WaterGroupStatsJob.class);
+        if (existingTask == null) {
+            bot.sendGroupMsg(groupId, "群发言统计每天定时推送功能未开启，无法修改推送时间！请先使用 /开启群发言统计每天定时推送 命令开启该功能。", false);
             return;
         }
 
-        // 使用 group(1) 直接获取时间字符串 "22:00"，干净利落
         String timeString = matcher.group(1);
-
         LocalTime newTime;
         try {
             newTime = LocalTime.parse(timeString);
         } catch (DateTimeParseException e) {
-            // 这个捕获现在主要用于防御 "25:70" 这种无效但格式正确的时间
             bot.sendGroupMsg(groupId, "时间值无效，请使用有效的 HH:mm 格式，例如 22:00。", false);
             return;
         }
 
-        waterGroupScheduleService.editDailyPush(groupId, newTime);
+        String cron = "0 %d %d * * *".formatted(newTime.getMinute(), newTime.getHour());
+
+        // 更新任务（scheduleHandler 会覆盖旧配置）
+        scheduleService.scheduleHandler(
+                bot.getSelfId(),
+                PushTargetType.GROUP,
+                groupId,
+                cron,
+                WaterGroupStatsJob.class,
+                null
+        );
+
         bot.sendGroupMsg(groupId, "已修改发言统计推送时间为每天的 %s".formatted(newTime.toString()), false);
     }
 
@@ -123,13 +151,10 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(关闭|停止|取消)群发言统计每天定时推送" + COMMAND_SUFFIX_REGEX)
     public void disableWaterGroupStatsPush(Bot bot, GroupMessageEvent event) {
         Long groupId = event.getGroupId();
-        if (!waterGroupScheduleService.checkScheduled(groupId)) {
-            bot.sendGroupMsg(groupId, "群发言统计每天定时推送功能未开启，无需重复关闭！", false);
-            return;
-        }
-        // 调用配置服务，设置开关为 false
-        waterGroupScheduleService.unscheduleDailyPush(groupId);
-        // 向用户发送确认消息
+
+        // 删除任务
+        scheduleService.cancelTask(bot.getSelfId(), PushTargetType.GROUP, groupId, WaterGroupStatsJob.class);
+
         bot.sendGroupMsg(groupId, "已关闭发言统计定时推送！", false);
     }
 
@@ -143,12 +168,16 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "每日发言统计推送状态" + COMMAND_SUFFIX_REGEX)
     public void checkWaterGroupStatsPushStatus(Bot bot, GroupMessageEvent event) {
         Long groupId = event.getGroupId();
-        WaterGroupSchedule waterGroupSchedule = waterGroupScheduleService.getScheduleJob(groupId);
-        if (waterGroupSchedule == null) {
+
+        ShiroScheduleTask task = scheduleService.getTaskConfig(bot.getSelfId(), PushTargetType.GROUP, groupId, WaterGroupStatsJob.class);
+
+        if (task == null || !task.getIsEnabled()) {
             bot.sendGroupMsg(groupId, "本群的发言统计推送状态：未开启", false);
             return;
         }
-        bot.sendGroupMsg(groupId, "本群的发言统计推送状态：已开启，推送时间为每天的 %s".formatted(waterGroupSchedule.getTime().toString()), false);
+
+        String readableTime = CronFormatter.parseCronToDescription(task.getCronExpression());
+        bot.sendGroupMsg(groupId, "本群的发言统计推送状态：已开启，推送时间为每天的 %s".formatted(readableTime), false);
     }
 
 
@@ -169,24 +198,24 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
         }
         bot.sendGroupMsg(groupId, "正在生成今日发言统计图片", false);
 
-        ScopedValue.where(CURRENT_GROUP_ID, groupId).run(() -> {
-            File image = null;
-            try {
-                image = waterGroupPosterDrawService.drawPoster(ranks);
-                bot.sendGroupMsg(groupId, MsgUtils.builder()
-                        .img(FileUtil.getFileUrlPrefix() + image.getAbsolutePath())
-                        .build(), false);
-            } catch (IOException e) {
-                log.error("生成发言统计图片失败", e);
-                bot.sendGroupMsg(groupId, "生成发言统计图片失败，请稍后再试。", false);
-            } finally {
-                if (image != null && image.exists()) {
-                    image.delete();
+        File image = null;
+        try {
+            image = waterGroupPosterDrawService.drawPoster(ranks);
+            bot.sendGroupMsg(groupId, MsgUtils.builder()
+                    .img(FileUtil.getFileUrlPrefix() + image.getAbsolutePath())
+                    .build(), false);
+        } catch (IOException e) {
+            log.error("生成发言统计图片失败", e);
+            bot.sendGroupMsg(groupId, "生成发言统计图片失败，请稍后再试。", false);
+        } finally {
+            if (image != null && image.exists()) {
+                if (image.delete()) {
+                    log.debug("临时文件删除成功: {}", image.getAbsolutePath());
+                } else {
+                    log.warn("临时文件删除失败: {}", image.getAbsolutePath());
                 }
             }
-        });
-
-
+        }
     }
 
 }

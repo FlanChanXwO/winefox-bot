@@ -50,9 +50,12 @@ public class HelpDocLoader {
         HelpData configData = docConfiguration.getHelpData();
         if (configData != null && configData.getGroups() != null) {
             configData.getGroups().forEach(group -> {
-                // 确保 documentation 列表是可变的
-                group.setDocumentation(new ArrayList<>(group.getDocumentation() != null ? group.getDocumentation() : Collections.emptyList()));
-                helpGroups.put(group.getName(), group);
+                if (group.getDocumentation() != null && !group.getDocumentation().isEmpty()) {
+                    // 确保 documentation 列表是可变的
+                    group.setDocumentation(group.getDocumentation());
+                    helpGroups.put(group.getName(), group);
+                }
+
             });
             log.info("Loaded {} group(s) metadata from help-docs.json.", configData.getGroups().size());
         }
@@ -156,6 +159,8 @@ public class HelpDocLoader {
     public HelpData getSortedHelpData() {
         HelpData data = new HelpData();
         List<HelpGroup> sortedGroups = helpGroups.values().stream()
+                // 过滤掉没有实际功能文档的分组（解决空类生成空分组的问题）
+                .filter(group -> group.getDocumentation() != null && !group.getDocumentation().isEmpty())
                 .peek(group -> {
                     // 在最后环节设置默认图标
                     if (!StringUtils.hasText(group.getIcon())) {

@@ -16,7 +16,7 @@ import org.springframework.util.StringUtils;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-@Order(2)
+@Order(10)
 public class ShiroSessionContextAspect {
 
     private final ShiroSessionStateService sessionStateService;

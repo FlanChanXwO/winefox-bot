@@ -1,7 +1,7 @@
 package com.github.winefoxbot.core.aop.handler;
 
 import cn.hutool.json.JSONArray;
-import com.github.winefoxbot.core.annotation.common.RedissonLock; // 确保这是你定义的注解路径
+import com.github.winefoxbot.core.annotation.common.RedissonLock;
 import com.github.winefoxbot.core.model.entity.ShiroGroup;
 import com.github.winefoxbot.core.model.entity.ShiroMessage;
 import com.github.winefoxbot.core.model.entity.ShiroUser;

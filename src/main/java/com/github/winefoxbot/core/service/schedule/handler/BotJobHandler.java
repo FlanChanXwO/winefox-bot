@@ -1,5 +1,6 @@
 package com.github.winefoxbot.core.service.schedule.handler;
 
+import com.github.winefoxbot.core.model.enums.PushTargetType;
 import com.mikuac.shiro.core.Bot;
 
 /**
@@ -13,5 +14,5 @@ public interface BotJobHandler<T> {
      * @param targetId 目标ID（群号/QQ号）
      * @param parameter 额外参数（可能是 null）
      */
-    void run(Bot bot, Long targetId, T parameter);
+    void run(Bot bot, Long targetId, PushTargetType targetType, T parameter);
 }

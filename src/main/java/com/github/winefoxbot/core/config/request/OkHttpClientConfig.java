@@ -6,10 +6,10 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.ConnectionPool;
 import okhttp3.Dispatcher;
 import okhttp3.OkHttpClient;
+import okhttp3.brotli.BrotliInterceptor;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import okhttp3.brotli.BrotliInterceptor;
 
 import java.util.concurrent.TimeUnit;
 

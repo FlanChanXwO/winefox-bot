@@ -1,7 +1,7 @@
 package com.github.winefoxbot.core.mapper;
 
-import com.github.winefoxbot.core.model.entity.ShiroFriendRequests;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.github.winefoxbot.core.model.entity.ShiroFriendRequests;
 
 /**
 * @author FlanChan

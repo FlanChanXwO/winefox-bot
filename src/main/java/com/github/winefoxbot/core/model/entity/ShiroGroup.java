@@ -45,6 +45,7 @@ public class ShiroGroup {
     /**
      * 是否啟用功能
      */
+    @TableField(insertStrategy = FieldStrategy.NOT_NULL, updateStrategy = FieldStrategy.NOT_NULL)
     private Boolean enabled;
     /**
      * BOT ID
@@ -63,7 +64,7 @@ public class ShiroGroup {
         shiroGroup.setGroupId(groupInfoResp.getGroupId());
         shiroGroup.setGroupName(groupInfoResp.getGroupName());
         shiroGroup.setSelfId(selfId);
-        shiroGroup.setGroupLevel(groupInfoResp.getGroupLevel());
+        shiroGroup.setGroupLevel(groupInfoResp.getGroupLevel() != null ? groupInfoResp.getGroupLevel() : 0);
         shiroGroup.setMemberCount(groupInfoResp.getMemberCount());
         shiroGroup.setMaxMemberCount(groupInfoResp.getMaxMemberCount());
         shiroGroup.setGroupAvatarUrl(ShiroUtils.getGroupAvatar(shiroGroup.getGroupId(), 0));

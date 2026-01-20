@@ -15,6 +15,11 @@ import java.util.List;
 public interface ShiroScheduleTaskService extends IService<ShiroScheduleTask> {
 
     /**
+     * Handler 处理器方式调度 (支持传参)
+     */
+    void scheduleHandler(Long botId, PushTargetType targetType, Long targetId, String cron, String taskKey, String parameter);
+
+    /**
      * Lambda 方式调度 (无参数)
      */
     void scheduleLambda(Long botId, PushTargetType targetType, Long targetId, String taskName, String cron, JobLambda jobLambda);
@@ -24,6 +29,23 @@ public interface ShiroScheduleTaskService extends IService<ShiroScheduleTask> {
      */
     void scheduleHandler(Long botId, PushTargetType targetType, Long targetId, String cron, Class<? extends BotJobHandler<?>> handlerClass, String parameter);
 
+
+    /**
+     * Class 处理器方式调度 (无参)
+     */
+    void scheduleHandler(Long botId, PushTargetType targetType, Long targetId, String cron, Class<? extends BotJobHandler<?>> handlerClass);
+
+
+    /**
+     * 立即触发任务执行
+     */
+    void triggerTaskNow(Long botId, PushTargetType targetType, Long targetId, String taskKey);
+
+    /**
+     * 更新任务状态
+     */
+    void updateTaskStatus(Long botId, PushTargetType targetType, Long targetId, String taskKey, boolean enable);
+
     /**
      * 取消任务 (指定任务名)
      */
@@ -32,7 +54,7 @@ public interface ShiroScheduleTaskService extends IService<ShiroScheduleTask> {
     /**
      * 取消任务 (指定类)
      */
-    void cancelTask(Long botId, PushTargetType targetType, Long targetId, Class<?> handlerClass);
+    void cancelTask(Long botId, PushTargetType targetType, Long targetId, Class<? extends BotJobHandler<?>> handlerClass);
 
     /**
      * 获取任务配置 
@@ -40,7 +62,28 @@ public interface ShiroScheduleTaskService extends IService<ShiroScheduleTask> {
     ShiroScheduleTask getTaskConfig(Long botId, PushTargetType targetType, Long targetId, String taskName);
 
     /**
+     * 获取任务配置 （指定类）
+     */
+    ShiroScheduleTask getTaskConfig(Long botId, PushTargetType targetType, Long targetId, Class<? extends BotJobHandler<?>> handlerClass);
+
+    /**
      * 获取列表 
      */
-    List<ShiroScheduleTask> listTaskConfigs(Long botId, PushTargetType targetType, Long targetId);
+    List<ShiroScheduleTask> listTaskConfigs(Long botId, PushTargetType targetType);
+
+
+    /**
+     * 获取列表
+     */
+    List<ShiroScheduleTask> listTaskConfigs(Long botId, PushTargetType targetType ,Long targetId);
+
+    /**
+     * 生成任务 ID
+     */
+    String generateJobId(Long botId, PushTargetType targetType, Long targetId, String taskKey);
+
+    /**
+     * 解析任务键名
+     */
+    String resolveTaskKey(Class<? extends BotJobHandler<?>> handlerClass);
 }

@@ -1,10 +1,7 @@
 package com.github.winefoxbot.core.aitools;
 
-import com.github.winefoxbot.plugins.chat.ChatPlugin;
-import com.mikuac.shiro.dto.event.message.PrivateMessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Description;

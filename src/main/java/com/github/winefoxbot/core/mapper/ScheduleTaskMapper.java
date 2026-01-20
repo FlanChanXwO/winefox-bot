@@ -1,7 +1,7 @@
 package com.github.winefoxbot.core.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.github.winefoxbot.core.model.entity.ScheduleTask;
+import com.github.winefoxbot.core.model.entity.ShiroScheduleTask;
 
 /**
 * @author FlanChan
@@ -9,7 +9,7 @@ import com.github.winefoxbot.core.model.entity.ScheduleTask;
 * @createDate 2025-12-19 06:10:04
 * @Entity generator.domain.ShiroScheduleTask
 */
-public interface ScheduleTaskMapper extends BaseMapper<ScheduleTask> {
+public interface ScheduleTaskMapper extends BaseMapper<ShiroScheduleTask> {
 
 }
 

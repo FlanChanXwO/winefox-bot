@@ -10,4 +10,6 @@ public interface JobRunrScheduleTaskService {
     void scheduleOrUpdateRecurrentTask(String jobId, String cronExpression, JobLambda task);
 
     void deleteRecurrentTask(String jobId);
+
+    void triggerTask(JobLambda jobLambda);
 }

@@ -2,9 +2,9 @@ package com.github.winefoxbot.core.service.shiro.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.github.winefoxbot.core.mapper.ShiroFriendsMapper;
 import com.github.winefoxbot.core.model.entity.ShiroFriends;
 import com.github.winefoxbot.core.service.shiro.ShiroFriendsService;
-import com.github.winefoxbot.core.mapper.ShiroFriendsMapper;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.BotContainer;
 import com.mikuac.shiro.dto.action.common.ActionData;

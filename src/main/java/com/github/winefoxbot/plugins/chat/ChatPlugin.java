@@ -16,7 +16,6 @@ import com.github.winefoxbot.plugins.chat.service.AiInteractionHelper.AiMessageI
 import com.github.winefoxbot.plugins.chat.service.OpenAiService;
 import com.mikuac.shiro.annotation.*;
 import com.mikuac.shiro.annotation.common.Order;
-import com.mikuac.shiro.annotation.common.Shiro;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
@@ -29,7 +28,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.util.Map;

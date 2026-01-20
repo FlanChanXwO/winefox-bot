@@ -34,7 +34,6 @@ import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.text.DecimalFormat;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

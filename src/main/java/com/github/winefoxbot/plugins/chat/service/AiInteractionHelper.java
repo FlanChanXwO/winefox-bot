@@ -8,7 +8,6 @@ import com.github.winefoxbot.core.model.entity.ShiroUserMessage;
 import com.github.winefoxbot.core.model.enums.MessageDirection;
 import com.github.winefoxbot.core.model.enums.MessageType;
 import com.github.winefoxbot.core.utils.BotUtils;
-import com.google.gson.JsonArray;
 import com.mikuac.shiro.core.Bot;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;

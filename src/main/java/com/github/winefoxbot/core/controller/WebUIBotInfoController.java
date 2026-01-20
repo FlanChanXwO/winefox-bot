@@ -32,7 +32,7 @@ public class WebUIBotInfoController {
             return Result.error("没有找到对应的机器人");
         }
         ShiroBots botInfo = shiroBotsService.getById(id);
-        return Result.success(new BotInfoResponse(botInfo.getBotId(),botInfo.getNickname(),botInfo.getAvatarUrl()));
+        return Result.ok(new BotInfoResponse(botInfo.getBotId(),botInfo.getNickname(),botInfo.getAvatarUrl()));
     }
 
     @GetMapping("/avaliable")

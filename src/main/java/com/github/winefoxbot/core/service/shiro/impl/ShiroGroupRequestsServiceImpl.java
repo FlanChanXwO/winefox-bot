@@ -1,10 +1,9 @@
 package com.github.winefoxbot.core.service.shiro.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.github.winefoxbot.core.mapper.ShiroGroupRequestsMapper;
 import com.github.winefoxbot.core.model.entity.ShiroGroupRequests;
 import com.github.winefoxbot.core.service.shiro.ShiroGroupRequestsService;
-import com.github.winefoxbot.core.mapper.ShiroGroupRequestsMapper;
-import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.request.GroupAddRequestEvent;
 import org.springframework.stereotype.Service;
 

@@ -1,7 +1,6 @@
 package com.github.winefoxbot.core.config.inner;
 
 import lombok.NonNull;
-import org.docx4j.wml.R;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnThreading;
 import org.springframework.boot.thread.Threading;
 import org.springframework.context.annotation.Bean;

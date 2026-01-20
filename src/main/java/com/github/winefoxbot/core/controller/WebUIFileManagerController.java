@@ -2,9 +2,9 @@ package com.github.winefoxbot.core.controller;
 
 
 import com.github.winefoxbot.core.model.vo.common.Result;
-import com.github.winefoxbot.core.model.vo.webui.req.CreateFileRequest;
+import com.github.winefoxbot.core.model.vo.webui.req.filemanager.CreateFileRequest;
+import com.github.winefoxbot.core.model.vo.webui.req.filemanager.SaveFileRequest;
 import com.github.winefoxbot.core.model.vo.webui.resp.FileItemResponse;
-import com.github.winefoxbot.core.model.vo.webui.req.SaveFileRequest;
 import com.github.winefoxbot.core.service.webui.WebUIFileManagerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
@@ -49,7 +49,7 @@ public class WebUIFileManagerController {
     @PostMapping("/create")
     public Result<String> create(@RequestBody CreateFileRequest request) throws IOException {
         webUIFileManagerService.create(request.path(), request.name(), request.isFolder());
-        return Result.success("创建成功");
+        return Result.ok("创建成功");
     }
 
     /**
@@ -58,7 +58,7 @@ public class WebUIFileManagerController {
     @DeleteMapping("/delete")
     public Result<String> delete(@RequestParam String path) throws IOException {
         webUIFileManagerService.delete(path);
-        return Result.success("删除成功");
+        return Result.ok("删除成功");
     }
 
     /**
@@ -76,7 +76,7 @@ public class WebUIFileManagerController {
     @PostMapping("/save")
     public Result<String> saveContent(@RequestBody SaveFileRequest request) throws IOException {
         webUIFileManagerService.saveTextFile(request.path(), request.content());
-        return Result.success("保存成功");
+        return Result.ok("保存成功");
     }
 
 

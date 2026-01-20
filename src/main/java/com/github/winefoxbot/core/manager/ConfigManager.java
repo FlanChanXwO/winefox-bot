@@ -1,8 +1,8 @@
 package com.github.winefoxbot.core.manager;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.github.winefoxbot.core.model.entity.WinefoxBotAppConfig;
-import com.github.winefoxbot.core.service.config.WinefoxBotAppConfigService;
+import com.github.winefoxbot.core.model.entity.WinefoxBotPluginConfig;
+import com.github.winefoxbot.core.service.plugin.WinefoxBotPluginConfigService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,8 +22,9 @@ import java.util.Optional;
 @RequiredArgsConstructor // 使用 Lombok 自动注入 final 字段
 public class ConfigManager {
 
-    private final WinefoxBotAppConfigService configService;
+    private final WinefoxBotPluginConfigService configService;
     private final static String GLOBAL_SCOPE_ID = "default";
+
 
     public enum Scope {
         GLOBAL,
@@ -46,24 +47,32 @@ public class ConfigManager {
     public <T> Optional<T> get(String key, Long userId, Long groupId, Class<T> type) {
         // 优先级 1: 查询群组配置
         if (groupId != null) {
-            Optional<T> groupConfig = getConfigObject("group", groupId, key, type);
+            Optional<T> groupConfig = getConfigObject("group", String.valueOf(groupId), key, type);
             if (groupConfig.isPresent()) {
                 return groupConfig;
             } else { // 群组配置不存在时，继续查询全局配置
-                return getConfigObject("global", -1L, key, type);
+                return getConfigObject("global", GLOBAL_SCOPE_ID, key, type);
             }
         }
 
         // 优先级 2: 查询用户配置
         if (userId != null) {
-            Optional<T> userConfig = getConfigObject("user", userId, key, type);
+            Optional<T> userConfig = getConfigObject("user", String.valueOf(userId), key, type);
             if (userConfig.isPresent()) {
                 return userConfig;
             }
         }
 
         // 优先级 3: 查询全局配置
-        return getConfigObject("global", -1L, key, type);
+        return getConfigObject("global", GLOBAL_SCOPE_ID, key, type);
+    }
+
+
+    /**
+     * 查询全局配置
+     */
+    public <T> Optional<T> get(String key, Class<T> type) {
+        return getConfigObject("global", GLOBAL_SCOPE_ID, key, type);
     }
 
 
@@ -116,13 +125,13 @@ public class ConfigManager {
      * @param type      目标类型
      * @return Optional<T>
      */
-    private <T> Optional<T> getConfigObject(String scope, Long scopeId, String key, Class<T> type) {
-        QueryWrapper<WinefoxBotAppConfig> queryWrapper = new QueryWrapper<>();
+    private <T> Optional<T> getConfigObject(String scope, String scopeId, String key, Class<T> type) {
+        QueryWrapper<WinefoxBotPluginConfig> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("scope", scope)
                 .eq("scope_id", Objects.toString(scopeId))
                 .eq("config_key", key);
 
-        WinefoxBotAppConfig config = configService.getOne(queryWrapper);
+        WinefoxBotPluginConfig config = configService.getOne(queryWrapper);
 
         if (config == null || config.getConfigValue() == null) {
             return Optional.empty();
@@ -187,11 +196,11 @@ public class ConfigManager {
     @Transactional // 建议加上事务，保证操作的原子性
     public void set(Scope scope, String scopeId, String key, Object value, String description, String groupName) {
         String scopeValue = convertScopeEnumToStringValue(scope);
-        Optional<WinefoxBotAppConfig> existingConfigOpt = configService.findByUniqueKey(scopeValue, scopeId, key);
+        Optional<WinefoxBotPluginConfig> existingConfigOpt = configService.findByUniqueKey(scopeValue, scopeId, key);
 
         if (existingConfigOpt.isPresent()) {
             // --- 更新现有配置 ---
-            WinefoxBotAppConfig configToUpdate = existingConfigOpt.get();
+            WinefoxBotPluginConfig configToUpdate = existingConfigOpt.get();
             configToUpdate.setConfigValue(value);
             configToUpdate.setUpdatedAt(LocalDateTime.now());
             // 如果传入了新的描述或分组，也更新它们
@@ -204,7 +213,7 @@ public class ConfigManager {
             configService.updateById(configToUpdate);
         } else {
             // --- 创建新配置 ---
-            WinefoxBotAppConfig newConfig = new WinefoxBotAppConfig();
+            WinefoxBotPluginConfig newConfig = new WinefoxBotPluginConfig();
             newConfig.setScope(scopeValue);
             newConfig.setScopeId(scopeId);
             newConfig.setConfigKey(key);
@@ -270,12 +279,22 @@ public class ConfigManager {
     @Transactional
     public boolean remove(String scope, String scopeId, String key) {
         return configService.remove(
-                new QueryWrapper<WinefoxBotAppConfig>()
+                new QueryWrapper<WinefoxBotPluginConfig>()
                         .eq("scope", scope)
                         .eq("scope_id", scopeId)
                         .eq("config_key", key)
         );
     }
+    /**
+     * 检查是否存在全局配置
+     */
+    public boolean existsGlobal(String key) {
+        return configService.count(new QueryWrapper<WinefoxBotPluginConfig>()
+                .eq("scope", "global")
+                .eq("scope_id", "default")
+                .eq("config_key", key)) > 0;
+    }
+
 
     /**
      * 删除一个群组的特定配置。
@@ -289,6 +308,43 @@ public class ConfigManager {
      */
     public boolean removeUserConfig(String userId, String key) {
         return remove("user", userId, key);
+    }
+
+    /**
+     * 仅更新配置的元数据（描述、分组），不修改配置值。
+     * 通常用于应用启动时同步代码中的注释修改。
+     */
+    @Transactional
+    public void updateMeta(Scope scope, String scopeId, String key, String description, String groupName) {
+        String scopeStr = convertScopeEnumToStringValue(scope);
+
+        // 1. 查出当前配置
+        Optional<WinefoxBotPluginConfig> existingConfigOpt = configService.findByUniqueKey(scopeStr, scopeId, key);
+
+        if (existingConfigOpt.isPresent()) {
+            WinefoxBotPluginConfig config = existingConfigOpt.get();
+            boolean needUpdate = false;
+
+            // 2. 比对描述是否变化 (处理 null 的情况)
+            if (!Objects.equals(config.getDescription(), description)) {
+                config.setDescription(description);
+                needUpdate = true;
+            }
+
+            // 3. 比对分组是否变化
+            if (groupName != null && !Objects.equals(config.getConfigGroup(), groupName)) {
+                config.setConfigGroup(groupName);
+                needUpdate = true;
+            }
+
+            // 4. 只有真的变化了才操作数据库
+            if (needUpdate) {
+                // 通常元数据更新不需要更新 updatedAt，或者你可以根据需求决定是否更新
+                // config.setUpdatedAt(LocalDateTime.now());
+                configService.updateById(config);
+                log.debug("更新配置元数据: key={}, desc={}, group={}", key, description, groupName);
+            }
+        }
     }
 
     private String convertScopeEnumToStringValue(Scope scope) {

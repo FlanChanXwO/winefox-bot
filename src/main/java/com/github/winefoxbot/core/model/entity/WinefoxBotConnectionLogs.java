@@ -1,13 +1,11 @@
 package com.github.winefoxbot.core.model.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.github.winefoxbot.core.model.enums.ConnectionEventType;
+import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
-import java.util.Date;
-
-import com.github.winefoxbot.core.model.enums.LogEventType;
-import lombok.Data;
 
 /**
  * @TableName winefox_bot_connection_logs
@@ -20,7 +18,7 @@ public class WinefoxBotConnectionLogs implements Serializable {
 
     private Long botId;
 
-    private LogEventType eventType;
+    private ConnectionEventType eventType;
 
     @TableField(fill = FieldFill.INSERT, updateStrategy = FieldStrategy.NEVER)
     private LocalDateTime createdAt;

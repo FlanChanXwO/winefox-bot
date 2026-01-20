@@ -3,7 +3,7 @@ package com.github.winefoxbot.core.service.subscription.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.github.winefoxbot.core.mapper.ShiroEventSubscriptionMapper;
-import com.github.winefoxbot.core.model.dto.subscription.SubscriptionTarget;
+import com.github.winefoxbot.core.model.dto.SubscriptionTarget;
 import com.github.winefoxbot.core.model.entity.ShiroEventSubscription;
 import com.github.winefoxbot.core.model.enums.PushTargetType;
 import com.github.winefoxbot.core.service.subscription.ShiroEventSubscriptionService;

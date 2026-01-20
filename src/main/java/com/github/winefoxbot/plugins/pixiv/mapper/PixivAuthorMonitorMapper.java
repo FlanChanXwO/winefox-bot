@@ -1,7 +1,7 @@
 package com.github.winefoxbot.plugins.pixiv.mapper;
 
-import com.github.winefoxbot.plugins.pixiv.model.entity.PixivAuthorMonitor;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.github.winefoxbot.plugins.pixiv.model.entity.PixivAuthorMonitor;
 
 /**
 * @author FlanChan

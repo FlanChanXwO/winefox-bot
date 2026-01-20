@@ -25,21 +25,21 @@
             #{item.memberCount},
             #{item.maxMemberCount},
             #{item.groupLevel},
-            <!-- 这里处理 lastUpdated，如果为空则取当前时间 -->
             <choose>
                 <when test="item.lastUpdated != null">#{item.lastUpdated}</when>
                 <otherwise>NOW()</otherwise>
             </choose>
             )
         </foreach>
-        ON DUPLICATE KEY UPDATE
-        group_name = VALUES(group_name),
-        group_avatar_url = VALUES(group_avatar_url),
-        self_id = VALUES(self_id),
-        last_updated = VALUES(last_updated),
-        member_count = VALUES(member_count),
-        max_member_count = VALUES(max_member_count),
-        group_level = VALUES(group_level)
+        ON CONFLICT (group_id)
+        DO UPDATE SET
+        group_name = EXCLUDED.group_name,
+        group_avatar_url = EXCLUDED.group_avatar_url,
+        self_id = EXCLUDED.self_id,
+        last_updated = EXCLUDED.last_updated,
+        member_count = EXCLUDED.member_count,
+        max_member_count = EXCLUDED.max_member_count,
+        group_level = EXCLUDED.group_level
     </insert>
 
 </mapper>

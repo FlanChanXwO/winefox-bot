@@ -36,7 +36,13 @@ public class BotContextAspect {
      * 2. 方法级别约束:
      * - 仅针对三个核心消息处理注解
      */
-    @Pointcut("(@within(com.mikuac.shiro.annotation.common.Shiro) && @within(org.springframework.stereotype.Component)) && " +
+    @Pointcut("(" +
+            // 场景A: 使用了 @Plugin 自定义注解 (内部含有 @Shiro 和 @Component)
+            "@within(com.github.winefoxbot.core.annotation.plugin.Plugin) || " +
+            // 场景B: 原生 Shiro 写法 (直接标记 @Shiro 和 @Component)
+            "(@within(com.mikuac.shiro.annotation.common.Shiro) && @within(org.springframework.stereotype.Component))" +
+            ") && " +
+            // 方法级别约束
             "(@annotation(com.mikuac.shiro.annotation.AnyMessageHandler) || " +
             "@annotation(com.mikuac.shiro.annotation.GroupMessageHandler) || " +
             "@annotation(com.mikuac.shiro.annotation.PrivateMessageHandler))")

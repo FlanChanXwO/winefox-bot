@@ -6,10 +6,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.core.config.playwright.PlaywrightConfig;
 import com.github.winefoxbot.core.service.file.FileStorageService;
-import com.github.winefoxbot.core.service.push.GroupPushTaskExecutor;
 import com.github.winefoxbot.core.utils.Base64Utils;
 import com.github.winefoxbot.core.utils.ResourceLoader;
-import com.github.winefoxbot.plugins.dailyreport.DailyReportPlugin;
 import com.github.winefoxbot.plugins.dailyreport.config.DailyReportProperties;
 import com.github.winefoxbot.plugins.dailyreport.model.dto.BiliHotwordDTO;
 import com.github.winefoxbot.plugins.dailyreport.model.dto.HitokotoDTO;
@@ -19,8 +17,6 @@ import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.ScreenshotType;
 import com.microsoft.playwright.options.WaitForSelectorState;
-import com.mikuac.shiro.common.utils.MsgUtils;
-import com.mikuac.shiro.core.BotContainer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
@@ -104,7 +100,6 @@ public class DailyReportService {
     private final FileStorageService fileStorageService;
     private final HolidayService holidayService;
     private final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
-    private final GroupPushTaskExecutor groupPushTaskExecutor;
     private final Lock lock = new ReentrantLock();
 
 
@@ -153,20 +148,6 @@ public class DailyReportService {
             log.error("Scheduled task: Failed to pre-generate daily report image.", e);
         }
     }
-
-
-    /**
-     * 执行每日推送任务。
-     * @param groupId 群组ID
-     */
-    public void executeDailyPush(Long groupId) {
-        groupPushTaskExecutor.execute(groupId, DailyReportPlugin.TASK_TYPE_DAILY_REPORT,bot -> {
-            byte[] image = generateReportImage();
-            bot.sendGroupMsg(groupId,"今日的酒狐早报来啦~", false);
-            bot.sendGroupMsg(groupId, MsgUtils.builder().img(image).build(),false);
-        });
-    }
-
 
 
     /**

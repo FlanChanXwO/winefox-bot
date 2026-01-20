@@ -1,14 +1,13 @@
 package com.github.winefoxbot.core.service.shiro.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.github.winefoxbot.core.mapper.ShiroBotsMapper;
 import com.github.winefoxbot.core.model.entity.ShiroBots;
 import com.github.winefoxbot.core.service.shiro.ShiroBotsService;
-import com.github.winefoxbot.core.mapper.ShiroBotsMapper;
 import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.action.common.ActionData;
 import com.mikuac.shiro.dto.action.response.LoginInfoResp;
-import com.mikuac.shiro.dto.action.response.StrangerInfoResp;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 

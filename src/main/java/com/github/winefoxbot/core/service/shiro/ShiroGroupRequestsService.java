@@ -1,8 +1,7 @@
 package com.github.winefoxbot.core.service.shiro;
 
-import com.github.winefoxbot.core.model.entity.ShiroGroupRequests;
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.mikuac.shiro.core.Bot;
+import com.github.winefoxbot.core.model.entity.ShiroGroupRequests;
 import com.mikuac.shiro.dto.event.request.GroupAddRequestEvent;
 
 /**

@@ -1,7 +1,7 @@
 package com.github.winefoxbot.plugins.fortune.mapper;
 
-import com.github.winefoxbot.plugins.fortune.model.entity.FortuneData;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.github.winefoxbot.plugins.fortune.model.entity.FortuneData;
 
 /**
 * @author FlanChan

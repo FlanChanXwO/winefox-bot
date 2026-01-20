@@ -1,8 +1,8 @@
 package com.github.winefoxbot.core.service.connectionlogs;
 
-import com.github.winefoxbot.core.model.entity.WinefoxBotConnectionLogs;
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.github.winefoxbot.core.model.enums.LogEventType;
+import com.github.winefoxbot.core.model.entity.WinefoxBotConnectionLogs;
+import com.github.winefoxbot.core.model.enums.ConnectionEventType;
 
 /**
 * @author FlanChan
@@ -11,5 +11,5 @@ import com.github.winefoxbot.core.model.enums.LogEventType;
 */
 public interface WinefoxBotConnectionLogsService extends IService<WinefoxBotConnectionLogs> {
 
-    boolean saveLog(Long botId, LogEventType eventType);
+    boolean saveLog(Long botId, ConnectionEventType eventType);
 }

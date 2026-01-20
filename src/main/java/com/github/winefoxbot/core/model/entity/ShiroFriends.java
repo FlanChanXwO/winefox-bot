@@ -1,13 +1,11 @@
 package com.github.winefoxbot.core.model.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.mikuac.shiro.dto.action.response.FriendInfoResp;
+import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
-import java.util.Date;
-
-import com.mikuac.shiro.dto.action.response.FriendInfoResp;
-import lombok.Data;
 
 /**
  * @TableName shiro_friends
@@ -22,6 +20,7 @@ public class ShiroFriends implements Serializable {
 
     private String nickname;
 
+    @TableField(insertStrategy = FieldStrategy.NOT_NULL, updateStrategy = FieldStrategy.NOT_NULL)
     private Boolean enabled;
 
     @TableField(fill = FieldFill.INSERT_UPDATE)

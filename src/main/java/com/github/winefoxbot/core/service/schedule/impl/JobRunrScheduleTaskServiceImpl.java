@@ -11,9 +11,8 @@ import org.springframework.stereotype.Service;
 import java.time.ZoneId;
 
 /**
+ * JobRunr 定时任务调度服务实现
  * @author FlanChan
- * @description 针对表【shiro_schedule_task】的数据库操作Service实现
- * @createDate 2025-12-19 06:10:04
  */
 @Service
 @RequiredArgsConstructor
@@ -38,5 +37,10 @@ public class JobRunrScheduleTaskServiceImpl implements JobRunrScheduleTaskServic
     public void deleteRecurrentTask(String jobId) {
         jobRunrJobMapper.deleteScheduledJobsByRecurringId(jobId);
         jobScheduler.deleteRecurringJob(jobId);
+    }
+
+    @Override
+    public void triggerTask(JobLambda jobLambda) {
+        jobScheduler.enqueue(jobLambda);
     }
 }

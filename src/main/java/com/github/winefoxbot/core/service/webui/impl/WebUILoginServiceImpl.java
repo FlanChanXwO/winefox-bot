@@ -5,12 +5,11 @@ import cn.hutool.core.date.DateTime;
 import cn.hutool.jwt.JWT;
 import cn.hutool.jwt.JWTPayload;
 import cn.hutool.jwt.JWTUtil;
-
 import cn.hutool.jwt.signers.JWTSignerUtil;
 import com.github.winefoxbot.core.config.webui.WebUIProperties;
 import com.github.winefoxbot.core.model.entity.WebUIAdmin;
-import com.github.winefoxbot.core.model.vo.webui.req.LoginRequest;
-import com.github.winefoxbot.core.model.vo.webui.req.ResetPasswordRequest;
+import com.github.winefoxbot.core.model.vo.webui.req.login.LoginRequest;
+import com.github.winefoxbot.core.model.vo.webui.req.login.ResetPasswordRequest;
 import com.github.winefoxbot.core.service.webui.WebUIAdminLoginInfoManager;
 import com.github.winefoxbot.core.service.webui.WebUILoginService;
 import com.github.winefoxbot.core.service.webui.WebUITokenService;

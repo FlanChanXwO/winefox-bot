@@ -1,15 +1,17 @@
 package com.github.winefoxbot.core.model.entity;
 
 import cn.hutool.core.date.LocalDateTimeUtil;
-import com.baomidou.mybatisplus.annotation.*;
-
-import java.io.Serializable;
-import java.time.LocalDateTime;
-
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import com.github.winefoxbot.core.model.enums.RequestStatus;
 import com.github.winefoxbot.core.model.type.GenericEnumTypeHandler;
 import com.mikuac.shiro.dto.event.request.FriendAddRequestEvent;
 import lombok.Data;
+
+import java.io.Serializable;
+import java.time.LocalDateTime;
 
 /**
  * @author FlanChan

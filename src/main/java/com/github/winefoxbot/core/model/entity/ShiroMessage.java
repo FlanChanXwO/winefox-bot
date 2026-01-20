@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.annotation.*;
 import com.github.winefoxbot.core.model.enums.MessageDirection;
 import com.github.winefoxbot.core.model.enums.MessageType;
 import com.github.winefoxbot.core.model.type.PGJsonTypeHandler;
-import com.google.gson.JsonArray;
 import lombok.Data;
 
 import java.time.LocalDateTime;

@@ -8,14 +8,21 @@ CREATE TABLE IF NOT EXISTS shiro_users
     avatar_url   TEXT,
     last_updated TIMESTAMP NOT NULL
 );
+
 CREATE TABLE IF NOT EXISTS shiro_groups
 (
     group_id         BIGINT    NOT NULL PRIMARY KEY,
     group_name       VARCHAR(255),
     group_avatar_url TEXT,
     self_id        BIGINT    NOT NULL,
+    member_count     INTEGER NOT NULL DEFAULT 0,
+    max_member_count INTEGER NOT NULL DEFAULT 0,
+    group_level      INTEGER NOT NULL DEFAULT 0,
+    enabled          BOOLEAN NOT NULL DEFAULT TRUE,
     last_updated     TIMESTAMP NOT NULL
 );
+
+
 CREATE TABLE IF NOT EXISTS shiro_group_members
 (
     group_id        BIGINT                      NOT NULL,
@@ -25,7 +32,6 @@ CREATE TABLE IF NOT EXISTS shiro_group_members
     last_updated    TIMESTAMP                   NOT NULL,
     PRIMARY KEY (group_id, user_id)
 );
-comment on column shiro_group_members.role is '角色，owner 或 admin 或 member';
 CREATE TABLE IF NOT EXISTS shiro_messages
 (
     id           SERIAL PRIMARY KEY,   -- Use SERIAL for auto-incrementing integer
@@ -53,59 +59,127 @@ CREATE TABLE IF NOT EXISTS water_group_msg_stat
 );
 
 
--- 统一的群组推送日程表，替代原有的各插件独立表
-CREATE TABLE IF NOT EXISTS group_push_schedule
+CREATE TABLE IF NOT EXISTS shiro_schedule_task
 (
     id              SERIAL PRIMARY KEY,
-    group_id        BIGINT       NOT NULL,
-    task_type       VARCHAR(64)  NOT NULL, -- 任务类型 e.g. 'WATER_GROUP_STAT', 'PIXIV_RANK'
-    task_param      VARCHAR(64),           -- 任务参数 e.g. 'daily', 'weekly' (可选)
-    cron_expression VARCHAR(64)  NOT NULL, -- Cron表达式
-    description     TEXT,                  -- 描述
-    is_enabled      BOOLEAN      NOT NULL DEFAULT TRUE,
-    created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (group_id, task_type, task_param)
+
+    -- 核心：目标定义
+    target_type     VARCHAR(20) NOT NULL, -- 枚举: 'GROUP', 'PRIVATE'
+    target_id       BIGINT      NOT NULL, -- 逻辑关联 shiro_groups.group_id 或 shiro_users.user_id
+
+    -- 任务定义
+    task_type       VARCHAR(64) NOT NULL, -- e.g. 'WATER_GROUP_STAT', 'DAILY_NEWS'
+    task_param      JSONB,                -- 任务参数，推荐用 JSONB
+
+    -- 调度定义
+    cron_expression VARCHAR(64) NOT NULL,
+    is_enabled      BOOLEAN     NOT NULL DEFAULT TRUE,
+    description     TEXT,                 -- WebUI 备注
+    bot_id          BIGINT      NOT NULL,
+    -- 运行状态
+    last_run_at     TIMESTAMP,
+
+    created_at      TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS idx_group_push_schedule_group ON group_push_schedule (group_id);
+
+-- 索引：为了让 "查询某群所有任务" 和 "查询某人所有任务" 变快
+CREATE INDEX IF NOT EXISTS idx_bot_task_target ON shiro_schedule_task (target_type, target_id);
 
 
-
-CREATE TABLE IF NOT EXISTS pixiv_author_subscription
+CREATE TABLE IF NOT EXISTS pixiv_author_monitor
 (
-    author_id       VARCHAR(20) PRIMARY KEY,
-    author_name     VARCHAR(255),
-    is_active       BOOLEAN   NOT NULL DEFAULT TRUE,
-    last_checked_at TIMESTAMP, -- 使用 timestamptz 是 PostgreSQL 的好习惯
-    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    author_id         VARCHAR(20) PRIMARY KEY, -- P站 ID 也是字符串
+    author_name       VARCHAR(255),
+
+    latest_illust_id  VARCHAR(20),             -- 最新作品ID (Checkpoint)
+    latest_checked_at TIMESTAMP,               -- 上次检查时间
+
+    is_monitored      BOOLEAN   NOT NULL DEFAULT TRUE,
+    created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE TABLE IF NOT EXISTS pixiv_user_author_subscription_schedule_ref
+
+CREATE TABLE IF NOT EXISTS shiro_event_subscription
+(
+    id              SERIAL PRIMARY KEY,
+
+    -- 订阅源 (Subject)
+    event_type      VARCHAR(64) NOT NULL,
+    event_key       VARCHAR(64) NOT NULL,
+
+    -- 消息发送目标 (Target)
+    target_type     VARCHAR(20) NOT NULL, -- 'GROUP' 或 'PRIVATE'
+    target_id       BIGINT      NOT NULL, -- 关联 shiro_groups.group_id 或 shiro_users.user_id
+
+    -- 具体的AT对象 (Mention)
+    -- 如果 target_type='GROUP'，这里填需要AT的群员QQ (关联 shiro_users.user_id)
+    -- 如果 target_type='PRIVATE'，这里通常为 NULL (或者填和 target_id 一样的值)
+    mention_user_id BIGINT,
+    bot_id          BIGINT      NOT NULL,
+    created_at      TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE (event_type, event_key, target_type, target_id, mention_user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_event_sub_lookup ON shiro_event_subscription (event_type, event_key);
+
+
+CREATE TABLE IF NOT EXISTS shiro_friend_requests
 (
     id         SERIAL PRIMARY KEY,
-    user_id    BIGINT      NOT NULL, -- 引用 bot_user.user_id
-    author_id  VARCHAR(20) NOT NULL, -- 引用 author.author_id
-    group_id   BIGINT      NOT NULL,
-    is_active  BOOLEAN     NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    -- 确保一个用户在一个群里只能订阅同一个作者一次
-    UNIQUE (user_id, author_id, group_id)
+
+    -- OneBot 11 关键数据
+    flag       VARCHAR(255) NOT NULL,                   -- 处理请求时的凭证
+    user_id    BIGINT       NOT NULL,                   -- 请求者的QQ号
+    comment    TEXT,                                    -- 验证消息
+
+    -- 辅助展示数据 (Bot收到请求时尽量获取并缓存，方便WebUI显示)
+    nickname   VARCHAR(255),                            -- 请求者昵称快照
+    avatar_url TEXT,                                    -- 头像链接快照
+
+    -- 状态管理
+    status     VARCHAR(20)  NOT NULL, -- 'PENDING'(待处理), 'APPROVED'(已同意), 'REJECTED'(已拒绝), 'IGNORED'(已忽略)
+    bot_id    BIGINT       NOT NULL,                   -- 收到请求的Bot账号
+    handled_at TIMESTAMP,                               -- 处理时间
+    received_at TIMESTAMP    NOT NULL , -- 收到请求的时间
+
+    -- 防止重复
+    UNIQUE (flag)
 );
 
--- 创建 pixiv_work 表
-CREATE TABLE IF NOT EXISTS pixiv_artwork
+-- 索引：快速加载WebUI中 "未处理的好友请求"
+CREATE INDEX IF NOT EXISTS idx_shiro_friend_req_status ON shiro_friend_requests (status);
+
+CREATE TABLE IF NOT EXISTS shiro_group_requests
 (
     id         SERIAL PRIMARY KEY,
-    illust_id  VARCHAR(20) NOT NULL,
-    author_id  VARCHAR(20) NOT NULL,
-    created_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP
+
+    flag       VARCHAR(255) NOT NULL,                   -- 处理请求时的凭证
+    sub_type   VARCHAR(20)  NOT NULL,                   -- 'add' (他人申请加群) 或 'invite' (Bot被邀请入群)
+    group_id   BIGINT       NOT NULL,                   -- 目标群号
+    user_id    BIGINT       NOT NULL,                   -- 'add'时为申请人QQ，'invite'时为邀请人QQ
+    comment    TEXT,                                    -- 验证消息
+
+    -- 辅助展示数据
+    group_name VARCHAR(255) NOT NULL ,                            -- 群名称快照
+    group_avatar_url TEXT,                            -- 群头像链接快照
+    nickname   VARCHAR(255) NOT NULL ,                            -- 用户(申请人/邀请人)昵称快照
+    user_avatar_url TEXT,                                    -- 用户(申请人/邀请人)头像链接快照
+
+    -- 状态管理
+    status     VARCHAR(20)  NOT NULL, -- 'PENDING', 'APPROVED', 'REJECTED', 'IGNORED'
+
+    bot_id    BIGINT       NOT NULL,                   -- 收到请求的Bot账号
+    handled_at TIMESTAMP,                               -- 处理时间
+    received_at TIMESTAMP    NOT NULL , -- 收到请求的时间
+
+    UNIQUE (flag)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS uidx_pixiv_work_illust_id ON pixiv_artwork (illust_id);
+-- 索引：快速加载WebUI中 "未处理的群组请求"
+CREATE INDEX IF NOT EXISTS idx_shiro_group_req_status ON shiro_group_requests (status);
 
-
--- 为 author_id 创建普通索引，加快按作者查询和删除的速度
-CREATE INDEX IF NOT EXISTS idx_pixiv_work_author_id ON pixiv_artwork (author_id);
 
 -- winefoxbot 内置表
 CREATE TABLE IF NOT EXISTS winefox_bot_app_config
@@ -142,8 +216,7 @@ CREATE TABLE IF NOT EXISTS shiro_bots
     avatar_url     TEXT,                          -- Bot的头像URL
     last_updated    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP -- 最后同步信息的时间
 );
-COMMENT ON TABLE shiro_bots IS '存储机器人账号自身的信息';
-COMMENT ON COLUMN shiro_bots.bot_id IS 'Bot自身的QQ号或唯一标识符';
+
 
 
 -- 2. Bot与好友关系表
@@ -153,28 +226,11 @@ CREATE TABLE IF NOT EXISTS shiro_friends
     bot_id       BIGINT    NOT NULL, -- 关联到shiro_bots表
     friend_id    BIGINT    NOT NULL, -- 好友的用户ID，关联到shiro_users表
     nickname     VARCHAR(255),       -- Bot对好友的备注名
+    enabled BOOLEAN NOT NULL DEFAULT TRUE, -- 是否启用该好友关系
     last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-COMMENT ON TABLE shiro_friends IS '存储每个Bot的好友关系';
-COMMENT ON COLUMN shiro_friends.bot_id IS 'Bot自身的ID';
-COMMENT ON COLUMN shiro_friends.friend_id IS '好友的用户ID';
 
-CREATE TABLE IF NOT EXISTS pixiv_author_subscription
-(
-    author_id       VARCHAR(20) PRIMARY KEY,
-    author_name     VARCHAR(255),
-    is_active       BOOLEAN   NOT NULL DEFAULT TRUE,
-    last_checked_at TIMESTAMP, -- 使用 timestamptz 是 PostgreSQL 的好习惯
-    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
 
--- Final DDL for PostgreSQL (Using Integer for Enums, fully compatible with MybatisPlus and Flyway)
-
--- =================================================================
--- Section 1:   Table Creation for pixiv_bookmark
--- 使用 IF NOT EXISTS 保证表创建的幂等性 (Flyway friendly)
--- =================================================================
 CREATE TABLE IF NOT EXISTS pixiv_bookmark (
                                               id VARCHAR(20) PRIMARY KEY,
                                               tracked_user_id VARCHAR(20) NOT NULL,
@@ -203,11 +259,6 @@ CREATE INDEX IF NOT EXISTS idx_pixiv_bookmark_tracked_user_id ON pixiv_bookmark 
 CREATE INDEX IF NOT EXISTS idx_pixiv_bookmark_author_id ON pixiv_bookmark (author_id);
 CREATE INDEX IF NOT EXISTS idx_pixiv_bookmark_tags_gin ON pixiv_bookmark USING GIN (tags);
 
--- Comments
-COMMENT ON TABLE pixiv_bookmark IS '存储特定用户 P站收藏作品的信息';
-COMMENT ON COLUMN pixiv_bookmark.x_restrict IS '作品分级 (0: ALL_AGES, 1: R18, 2: R18G)';
-COMMENT ON COLUMN pixiv_bookmark.create_time IS '记录在本地数据库的创建时间';
-COMMENT ON COLUMN pixiv_bookmark.update_time IS '记录在本地数据库的更新时间';
 
 -- 创建运势表
 CREATE TABLE IF NOT EXISTS public.fortune_data (
@@ -215,12 +266,6 @@ CREATE TABLE IF NOT EXISTS public.fortune_data (
                                                       star_num INT NOT NULL DEFAULT 0,     -- 运势星级 (0-7)
                                                       fortune_date DATE NOT NULL          -- 运势日期 (yyyy-MM-dd)
 );
-
--- 添加注释
-COMMENT ON TABLE public.fortune_data IS '今日运势数据表';
-COMMENT ON COLUMN public.fortune_data.user_id IS '用户ID';
-COMMENT ON COLUMN public.fortune_data.star_num IS '运势星级';
-COMMENT ON COLUMN public.fortune_data.fortune_date IS '运势归属日期';
 
 
 
@@ -234,5 +279,26 @@ CREATE TABLE IF NOT EXISTS winefox_bot_connection_logs (
                                      CONSTRAINT idx_bot_log_search UNIQUE (created_at, bot_id) -- 联合索引优化按时间和账号查询
 );
 
--- 如果数据量极大，建议按月分区（可选）
--- CREATE TABLE bot_connection_logs_2025_05 PARTITION OF bot_connection_logs ...
+
+-- 1. 插件元数据表
+CREATE TABLE IF NOT EXISTS  winefox_bot_plugin_meta (
+                               class_name VARCHAR(255) PRIMARY KEY, -- 核心标识：全类名
+                               display_name VARCHAR(100),           -- 显示名称（@Plugin.name）
+                               description TEXT,                    -- 描述
+                               icon_path VARCHAR(255),              -- 图标路径
+                               is_active BOOLEAN DEFAULT TRUE,      -- 【关键】是否有效/存在
+                               last_active_time TIMESTAMP,          -- 最后一次活跃时间（用于判断是否很久没用了）
+                               created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. 插件每日统计表 (利用 Upsert 特性)
+CREATE TABLE IF NOT EXISTS winefox_bot_plugin_invoke_stats (
+                                      stat_date DATE NOT NULL,             -- 统计日期
+                                      plugin_class_name VARCHAR(255) NOT NULL,
+                                      call_count BIGINT DEFAULT 1,         -- 调用次数
+                                      last_update_time TIMESTAMP NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+                                      PRIMARY KEY (stat_date, plugin_class_name)
+);
+
+-- 创建索引以加速查询
+CREATE INDEX IF NOT EXISTS  idx_plugin_stats_date ON winefox_bot_plugin_invoke_stats(stat_date);

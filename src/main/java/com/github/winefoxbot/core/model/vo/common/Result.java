@@ -17,12 +17,24 @@ public record Result<T>(
     /**
      * 快速构建成功响应
      */
-    public static <T> Result<T> success(T data) {
+    public static <T> Result<T> ok(T data) {
         return new Result<>(
-            true, 
+            true,
             "ok",
-            data, 
+            data,
             Instant.now().toEpochMilli()
+        );
+    }
+
+    /**
+     * 快速构建成功响应
+     */
+    public static  Result<Void> ok() {
+        return new Result<>(
+                true,
+                "ok",
+                null,
+                Instant.now().toEpochMilli()
         );
     }
 

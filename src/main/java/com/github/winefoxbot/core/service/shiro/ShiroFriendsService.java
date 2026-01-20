@@ -1,7 +1,7 @@
 package com.github.winefoxbot.core.service.shiro;
 
-import com.github.winefoxbot.core.model.entity.ShiroFriends;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.github.winefoxbot.core.model.entity.ShiroFriends;
 import com.mikuac.shiro.dto.event.notice.FriendAddNoticeEvent;
 
 import java.util.List;

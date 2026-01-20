@@ -1,17 +1,17 @@
 package com.github.winefoxbot.plugins.dailyreport;
 
-import com.github.winefoxbot.core.annotation.Plugin;
-import com.github.winefoxbot.core.annotation.PluginFunction;
-import com.github.winefoxbot.core.model.entity.GroupPushSchedule;
-
+import com.github.winefoxbot.core.annotation.plugin.Plugin;
+import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
+import com.github.winefoxbot.core.model.entity.ShiroScheduleTask;
 import com.github.winefoxbot.core.model.enums.Permission;
-import com.github.winefoxbot.core.service.schedule.GroupPushScheduleService;
+import com.github.winefoxbot.core.model.enums.PushTargetType;
+import com.github.winefoxbot.core.service.schedule.ShiroScheduleTaskService;
 import com.github.winefoxbot.core.utils.CronFormatter;
+import com.github.winefoxbot.plugins.dailyreport.job.DailyReportJob;
 import com.github.winefoxbot.plugins.dailyreport.service.DailyReportService;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.GroupMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
-import com.mikuac.shiro.annotation.common.Shiro;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
@@ -19,7 +19,6 @@ import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import com.mikuac.shiro.enums.MsgTypeEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.regex.Matcher;
@@ -27,16 +26,12 @@ import java.util.regex.Matcher;
 /**
  * @author FlanChan
  */
-@Shiro
-@Slf4j
 @Plugin(name = "酒狐日报", order = 10)
-@Component
+@Slf4j
 @RequiredArgsConstructor
 public class DailyReportPlugin {
-    private final GroupPushScheduleService scheduleService;
+    private final ShiroScheduleTaskService scheduleService;
     private final DailyReportService dailyReportService;
-
-    public static final String TASK_TYPE_DAILY_REPORT = "DAILY_REPORT";
 
     /**
      * 开启或更新本群的酒狐日报自动推送
@@ -46,47 +41,38 @@ public class DailyReportPlugin {
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/订阅酒狐日报(?:\\s+([0-2][0-9]):([0-5][0-9]))?$")
     public void enableDailyReport(Bot bot, GroupMessageEvent event, Matcher matcher) {
         long groupId = event.getGroupId();
-
-        // 这里的 matcher.group(1) 是小时, group(2) 是分钟
         String hourStr = matcher.group(1);
         String minuteStr = matcher.group(2);
 
-        if (hourStr == null || minuteStr == null) {
-            var help = """
-                    指令格式错误或未指定时间！
-                    用法: /订阅酒狐日报 HH:mm
-                    示例:
-                    /订阅酒狐日报 09:30
-                    """;
-            bot.sendGroupMsg(groupId, help, true);
+        String cronExpression;
+        String descTime;
+
+        if (hourStr != null && minuteStr != null) {
+            int hour = Integer.parseInt(hourStr);
+            int minute = Integer.parseInt(minuteStr);
+            cronExpression = "0 %d %d * * *".formatted(minute, hour);
+            descTime = "%02d:%02d".formatted(hour, minute);
+        } else {
+            bot.sendGroupMsg(groupId, "❌ 请提供有效的时间参数，格式为 /订阅酒狐日报 [HH:mm]，例如 /订阅酒狐日报 08:30 。", false);
             return;
         }
 
-        int hour = Integer.parseInt(hourStr);
-        int minute = Integer.parseInt(minuteStr);
-
-        // 生成 Cron 表达式: 秒 分 时 日 月 周
-        // 这里设置为每天指定时间执行
-        String cronExpression = "0 %d %d * * *".formatted(minute, hour);
-
-        // 移除旧的检查逻辑，直接覆盖/更新任务
-        scheduleService.scheduleTask(
+        scheduleService.scheduleHandler(
+                bot.getSelfId(),
+                PushTargetType.GROUP,
                 groupId,
-                TASK_TYPE_DAILY_REPORT,
-                null,
                 cronExpression,
-                "酒狐日报每日推送",
-                () -> dailyReportService.executeDailyPush(groupId)
+                DailyReportJob.class
         );
 
-        bot.sendGroupMsg(groupId, "配置更新成功！本群的酒狐日报将会在每天 %02d:%02d 发送。".formatted(hour, minute), false);
+        bot.sendGroupMsg(groupId, "✅ 配置更新成功！本群的酒狐日报将在 " + descTime + " 发送。", false);
     }
 
 
 
 
     /**
-     * 查看订阅状态 (新增)
+     * 查看订阅状态
      */
     @PluginFunction(name = "查看酒狐日报订阅", description = "查看当前群的日报订阅状态", permission = Permission.USER, commands = "/查看酒狐日报订阅")
     @GroupMessageHandler
@@ -94,23 +80,37 @@ public class DailyReportPlugin {
     public void checkDailyReportStatus(Bot bot, GroupMessageEvent event) {
         long groupId = event.getGroupId();
 
-        GroupPushSchedule schedule = scheduleService.getTaskConfig(groupId, TASK_TYPE_DAILY_REPORT, null);
+        ShiroScheduleTask schedule = scheduleService.getTaskConfig(bot.getSelfId(),PushTargetType.GROUP, groupId, DailyReportJob.class);
 
         if (schedule != null && schedule.getIsEnabled()) {
-            // 使用工具类解析 Cron
             String readableTime = CronFormatter.parseCronToDescription(schedule.getCronExpression());
-
             String msg = """
                     ✅ 当前群已订阅酒狐日报
                     ⏰ 推送时间: %s
-                    """.formatted(readableTime);
+                    🤖 执行Bot: %s
+                    """.formatted(readableTime, schedule.getBotId());
             bot.sendGroupMsg(groupId, msg, false);
         } else {
-            bot.sendGroupMsg(groupId, "❌ 当前群尚未订阅酒狐日报，或订阅已关闭。", false);
+            bot.sendGroupMsg(groupId, "❌ 当前群尚未订阅酒狐日报。", false);
         }
     }
 
-    @PluginFunction(permission = Permission.ADMIN, name = "强制刷新酒狐日报", description = "立即强制刷新并推送本群的酒狐日报", commands = "/刷新酒狐日报")
+
+    /**
+     * 关闭本群的酒狐日报自动推送
+     */
+    @PluginFunction(name = "关闭酒狐日报", description = "关闭酒狐日报", permission = Permission.ADMIN, commands = "/关闭酒狐日报")
+    @GroupMessageHandler
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/关闭酒狐日报$")
+    public void disableDailyReport(Bot bot, GroupMessageEvent event) {
+        long groupId = event.getGroupId();
+        // 新版 API 删除任务
+        scheduleService.cancelTask(bot.getSelfId(),PushTargetType.GROUP, groupId, DailyReportJob.class);
+        bot.sendGroupMsg(groupId, "本群的酒狐日报推送已关闭。", false);
+    }
+
+
+    @PluginFunction(permission = Permission.ADMIN, name = "强制刷新酒狐日报", description = "强制刷新酒狐日报", commands = "/刷新酒狐日报")
     @GroupMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/刷新酒狐日报$")
     public void forceRefreshDailyReport(Bot bot, GroupMessageEvent event) {
@@ -126,25 +126,6 @@ public class DailyReportPlugin {
     }
 
 
-    /**
-     * 关闭本群的酒狐日报自动推送
-     */
-    @PluginFunction(name = "关闭酒狐日报", description = "关闭酒狐日报", permission = Permission.ADMIN, commands = "/关闭酒狐日报")
-    @GroupMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/关闭酒狐日报$")
-    public void disableDailyReport(Bot bot, GroupMessageEvent event) {
-        long groupId = event.getGroupId();
-
-        GroupPushSchedule schedule = scheduleService.getTaskConfig(groupId, TASK_TYPE_DAILY_REPORT, null);
-        if (schedule == null || !schedule.getIsEnabled()) {
-            bot.sendGroupMsg(groupId, "本群尚未开启酒狐日报推送哦~", false);
-            return;
-        }
-
-        // 调用服务禁用任务
-        scheduleService.unscheduleTask(groupId, TASK_TYPE_DAILY_REPORT, null);
-        bot.sendGroupMsg(groupId, "本群的酒狐日报推送已关闭。", false);
-    }
 
     /**
      * 手动获取当天的日报

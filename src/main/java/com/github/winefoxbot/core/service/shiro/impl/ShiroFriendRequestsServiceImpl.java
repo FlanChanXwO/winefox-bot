@@ -1,9 +1,9 @@
 package com.github.winefoxbot.core.service.shiro.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.github.winefoxbot.core.mapper.ShiroFriendRequestsMapper;
 import com.github.winefoxbot.core.model.entity.ShiroFriendRequests;
 import com.github.winefoxbot.core.service.shiro.ShiroFriendRequestsService;
-import com.github.winefoxbot.core.mapper.ShiroFriendRequestsMapper;
 import com.mikuac.shiro.dto.event.request.FriendAddRequestEvent;
 import org.springframework.stereotype.Service;
 

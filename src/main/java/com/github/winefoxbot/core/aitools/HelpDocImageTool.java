@@ -1,6 +1,5 @@
 package com.github.winefoxbot.core.aitools;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.winefoxbot.core.model.enums.MessageType;
 import com.github.winefoxbot.core.service.helpdoc.HelpImageService;
 import com.github.winefoxbot.core.utils.SendMsgUtil;

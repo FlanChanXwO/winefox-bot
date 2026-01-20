@@ -1,8 +1,8 @@
 package com.github.winefoxbot.core.service.subscription;
 
-import com.github.winefoxbot.core.model.dto.subscription.SubscriptionTarget;
-import com.github.winefoxbot.core.model.entity.ShiroEventSubscription;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.github.winefoxbot.core.model.dto.SubscriptionTarget;
+import com.github.winefoxbot.core.model.entity.ShiroEventSubscription;
 
 import java.util.List;
 

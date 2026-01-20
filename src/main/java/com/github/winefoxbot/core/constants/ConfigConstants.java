@@ -37,4 +37,6 @@ public final class ConfigConstants {
     }
 
 
+    public static final String PLUGIN_STATUS_PREFIX = "system.plugin.status.";
+
 }

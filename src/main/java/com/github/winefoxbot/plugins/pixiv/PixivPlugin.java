@@ -2,20 +2,21 @@ package com.github.winefoxbot.plugins.pixiv;
 
 import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
+import com.github.winefoxbot.core.model.entity.ShiroScheduleTask;
 import com.github.winefoxbot.core.model.enums.Permission;
+import com.github.winefoxbot.core.model.enums.PushTargetType;
+import com.github.winefoxbot.core.service.schedule.ShiroScheduleTaskService;
 import com.github.winefoxbot.core.utils.CronFormatter;
 import com.github.winefoxbot.core.utils.FileUtil;
+import com.github.winefoxbot.plugins.pixiv.job.PixivRankJob;
 import com.github.winefoxbot.plugins.pixiv.model.dto.common.PixivArtworkInfo;
-import com.github.winefoxbot.plugins.pixiv.model.entity.PixivRankPushSchedule;
 import com.github.winefoxbot.plugins.pixiv.model.enums.PixivRankPushMode;
 import com.github.winefoxbot.plugins.pixiv.service.PixivArtworkService;
-import com.github.winefoxbot.plugins.pixiv.service.PixivRankPushScheduleService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivRankService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivService;
 import com.github.winefoxbot.plugins.pixiv.utils.PixivUtils;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
-import com.mikuac.shiro.annotation.common.Shiro;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
@@ -24,9 +25,9 @@ import com.mikuac.shiro.enums.MsgTypeEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tomcat.util.buf.StringUtils;
+import org.eclipse.sisu.PostConstruct;
 import org.jobrunr.scheduling.cron.Cron;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Component;
 
 import javax.net.ssl.SSLHandshakeException;
 import java.io.File;
@@ -39,6 +40,9 @@ import java.util.regex.Matcher;
 import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
 
 
+/**
+ * @author FlanChan
+ */
 @Plugin(name = "Pixiv",
         permission = Permission.USER,
         iconPath = "icon/pixiv.png",
@@ -50,8 +54,16 @@ public class PixivPlugin {
 
     private final PixivService pixivService;
     private final PixivRankService pixivRankService;
-    private final PixivRankPushScheduleService pixivRankPushScheduleService;
     private final PixivArtworkService artworkService;
+    // 注入通用调度服务
+    private final ShiroScheduleTaskService scheduleService;
+    // 调度任务 Job Key
+    private String jobKey = null;
+
+    @PostConstruct
+    public void init() {
+        jobKey = scheduleService.resolveTaskKey(PixivRankJob.class);
+    }
 
     @PluginFunction(name = "查看P站排行订阅状态", description = "查看当前群聊的P站排行订阅状态。", commands = {COMMAND_PREFIX + "查看P站排行订阅" + COMMAND_SUFFIX, COMMAND_PREFIX + "p站订阅状态" + COMMAND_SUFFIX})
     @AnyMessageHandler
@@ -62,17 +74,33 @@ public class PixivPlugin {
             return;
         }
         Long groupId = event.getGroupId();
-        List<PixivRankPushSchedule> schedules = pixivRankPushScheduleService.getSchedulesByGroupId(groupId);
 
-        if (schedules.isEmpty()) {
+        // 获取该群所有的调度任务
+        List<ShiroScheduleTask> allTasks = scheduleService.listTaskConfigs(bot.getSelfId(), PushTargetType.GROUP, groupId);
+
+        // 筛选出 Pixiv 相关的任务
+        List<ShiroScheduleTask> pixivTasks = allTasks.stream()
+                .filter(t -> jobKey.equals(t.getTaskType()))
+                .toList();
+
+        if (pixivTasks.isEmpty()) {
             bot.sendMsg(event, "本群尚未订阅任何P站排行推送。\n发送 `/订阅P站排行` 查看帮助。", true);
             return;
         }
 
         StringBuilder reply = new StringBuilder("本群P站排行订阅状态如下：\n");
-        for (PixivRankPushSchedule schedule : schedules) {
-            String readableTime = CronFormatter.parseCronToDescription(schedule.getCronSchedule());
-            reply.append(String.format("【%s】推送时间：%s\n", schedule.getDescription(), readableTime));
+        for (ShiroScheduleTask schedule : pixivTasks) {
+            String readableTime = CronFormatter.parseCronToDescription(schedule.getCronExpression());
+            // taskParam 存储的是 mode (daily/weekly/monthly)
+            String modeStr = String.valueOf(schedule.getTaskParam());
+            String desc = switch (modeStr) {
+                case "daily" -> "P站每日排行榜";
+                case "weekly" -> "P站每周排行榜";
+                case "monthly" -> "P站每月排行榜";
+                default -> "P站未知排行(" + modeStr + ")";
+            };
+
+            reply.append(String.format("【%s】推送时间：%s\n", desc, readableTime));
         }
         bot.sendMsg(event, reply.toString().trim(), true);
     }
@@ -96,7 +124,7 @@ public class PixivPlugin {
             String help = """
                     指令格式错误！
                     用法: /订阅P站排行 [类型] [时间 HH:mm]
-                    支持的类型: 每日, 每周), 每月
+                    支持的类型: 每日, 每周, 每月
                     示例:
                     /订阅P站排行 每日 09:30
                     /订阅P站排行 每周 10:00 (默认为周五)
@@ -112,23 +140,32 @@ public class PixivPlugin {
         PixivRankPushMode mode = null;
         switch (rankType) {
             case "每日":
-                cronExpression = Cron.daily(hour, minute); // "0 mm HH * * ?"
+                cronExpression = Cron.daily(hour, minute);
                 description = "P站每日排行榜";
                 mode = PixivRankPushMode.DALLY;
                 break;
             case "每周":
-                cronExpression = Cron.weekly(DayOfWeek.of(5), hour, minute); // 2=Monday, "0 mm HH ? * 2"
+                cronExpression = Cron.weekly(DayOfWeek.of(5), hour, minute);
                 description = "P站每周排行榜";
                 mode = PixivRankPushMode.WEEKLY;
                 break;
             case "每月":
-                cronExpression = Cron.lastDayOfTheMonth(hour, minute); // 1st day of month, "0 mm HH 1 * ?"
+                cronExpression = Cron.lastDayOfTheMonth(hour, minute);
                 description = "P站每月排行榜";
                 mode = PixivRankPushMode.MONTHLY;
                 break;
         }
 
-        pixivRankPushScheduleService.schedulePush(groupId, mode, cronExpression, description);
+        // 使用新版调度接口，传入 mode.getValue() 作为参数
+        scheduleService.scheduleHandler(
+                bot.getSelfId(),
+                PushTargetType.GROUP,
+                groupId,
+                cronExpression,
+                PixivRankJob.class,
+                mode.getValue() // 参数：daily, weekly, monthly
+        );
+
         String readableTime = CronFormatter.parseCronToDescription(cronExpression);
         bot.sendMsg(event, String.format("成功订阅/更新【%s】！\n推送时间设置为：%s", description, readableTime), true);
     }
@@ -157,8 +194,20 @@ public class PixivPlugin {
             bot.sendMsg(event, "无效的排行榜类型！请使用 每日、每周 或 每月。", true);
             return;
         }
-        boolean success = pixivRankPushScheduleService.unschedulePush(groupId, mode);
-        if (success) {
+
+        // 查找并删除特定参数的任务
+        List<ShiroScheduleTask> tasks = scheduleService.listTaskConfigs(bot.getSelfId(), PushTargetType.GROUP, groupId);
+
+        ShiroScheduleTask targetTask = tasks.stream()
+                .filter(t -> jobKey.equals(t.getTaskType())) // 匹配 Key
+                .filter(t -> mode.getValue().equals(t.getTaskParam())) // 匹配参数 (daily/weekly/monthly)
+                .findFirst()
+                .orElse(null);
+
+        if (targetTask != null) {
+            // 通过 ID 删除 (ShiroScheduleTaskService 继承了 IService，所以有 removeById)
+            scheduleService.removeById(targetTask.getId());
+
             String description = switch (mode) {
                 case DALLY -> "P站每日排行榜";
                 case WEEKLY -> "P站每周排行榜";
@@ -229,7 +278,6 @@ public class PixivPlugin {
         String params = matcher.group(6);
         PixivRankPushMode mode;
 
-        // rankType 仍然可能为 null，但 switch 可以安全处理
         if (rankType == null) {
             bot.sendMsg(event, "无法识别的命令格式！", true);
             return;
@@ -240,7 +288,6 @@ public class PixivPlugin {
             case "周" -> mode = PixivRankPushMode.WEEKLY;
             case "月" -> mode = PixivRankPushMode.MONTHLY;
             default -> {
-                // 这个 default 理论上不会被触发了，但作为保障保留
                 bot.sendMsg(event, "无效的排行榜类型！请使用 日、周 或 月。", true);
                 return;
             }

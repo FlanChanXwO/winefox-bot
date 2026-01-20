@@ -1,10 +1,10 @@
 package com.github.winefoxbot.core.model.enums;
 
 import com.baomidou.mybatisplus.annotation.EnumValue;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.github.winefoxbot.core.model.type.BaseEnum;
 import lombok.Getter;
-import lombok.ToString;
 
 /**
  * @author FlanChan (badapple495@outlook.com)
@@ -23,9 +23,10 @@ public enum MessageType implements BaseEnum<String> {
         this.value = value;
     }
 
+    @JsonCreator
     public static MessageType fromValue(String value) {
         for (MessageType role : MessageType.values()) {
-            if (role.getValue().equals(value)) {
+            if (role.getValue().equalsIgnoreCase(value)) {
                 return role;
             }
         }

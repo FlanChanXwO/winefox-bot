@@ -16,16 +16,17 @@
             (
             #{item.botId},
             #{item.friendId},
-            <!-- 这里处理 lastUpdated，如果为空则取当前时间 -->
+            #{item.nickname},
             <choose>
                 <when test="item.lastUpdated != null">#{item.lastUpdated}</when>
                 <otherwise>NOW()</otherwise>
             </choose>
             )
         </foreach>
-        ON DUPLICATE KEY UPDATE
-        nickname = VALUES(nickname),
-        last_updated = VALUES(last_updated)
+        ON CONFLICT (bot_id, friend_id)
+        DO UPDATE SET
+        nickname = EXCLUDED.nickname,
+        last_updated = EXCLUDED.last_updated
     </insert>
 
 </mapper>
