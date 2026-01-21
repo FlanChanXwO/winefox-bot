@@ -2,8 +2,12 @@ package com.github.winefoxbot.plugins.fortune.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.github.winefoxbot.core.annotation.common.RedissonLock;
+import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
+import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.model.enums.MessageType;
-import com.github.winefoxbot.plugins.fortune.config.FortuneConfig;
+import com.github.winefoxbot.plugins.fortune.config.FortuneApiConfig;
+import com.github.winefoxbot.plugins.fortune.config.FortunePropertiesConfig;
 import com.github.winefoxbot.plugins.fortune.mapper.FortuneDataMapper;
 import com.github.winefoxbot.plugins.fortune.model.entity.FortuneData;
 import com.github.winefoxbot.plugins.fortune.model.vo.FortuneRenderVO;
@@ -38,7 +42,7 @@ import java.util.Random;
 public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, FortuneData>
         implements FortuneDataService {
 
-    private final FortuneConfig config;
+    private final FortuneApiConfig apiConfig;
     private final OkHttpClient httpClient;
     // 注入新的渲染服务
     private final FortuneRenderService renderService;
@@ -51,7 +55,7 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
         final long userId = event.getUserId();
 
         // 获取用户显示名称 (群名片 > 昵称)
-        String displayName = "指挥官";
+        String displayName = "OP";
         if (event.getSender() != null) {
              displayName = event.getSender().getCard() != null && !event.getSender().getCard().isEmpty()
                     ? event.getSender().getCard()
@@ -67,6 +71,7 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
 
     @Transactional(rollbackFor = Exception.class)
     @Override
+    @RedissonLock(prefix = "fortune:lock" ,key = "#userId")
     public FortuneRenderVO getFortuneRenderVO(long userId, String displayName) {
         final var today = LocalDate.now();
 
@@ -84,7 +89,7 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
             if (isToday) {
                 starNum = data.getStarNum();
             } else {
-                if (config.isAutoRefreshJrys()) {
+                if (apiConfig.isAutoRefreshJrys()) {
                     needNewFortune = true;
                     starNum = 0;
                 } else {
@@ -105,12 +110,12 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
 
         // 2. 数据组装：准备渲染所需的 VO 对象
         String imageUrl = null;
-        if (!config.isISureNotToUseImage() && !"none".equals(config.getApi())) {
-            imageUrl = getImageUrl(config.getApi());
+        if (!apiConfig.isISureNotToUseImage() && !"none".equals(apiConfig.getApi())) {
+            imageUrl = getImageUrl(apiConfig.getApi());
         }
 
-        String title = config.getJrysTitles().get(Math.min(starNum, config.getJrysTitles().size() - 1));
-        String desc = config.getJrysMessages().get(Math.min(starNum, config.getJrysMessages().size() - 1));
+        String title = apiConfig.getJrysTitles().get(Math.min(starNum, apiConfig.getJrysTitles().size() - 1));
+        String desc = apiConfig.getJrysMessages().get(Math.min(starNum, apiConfig.getJrysMessages().size() - 1));
 
         // 使用 switch 表达式计算主题色
         String themeClass = switch (starNum) {
@@ -125,7 +130,7 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
                 today.toString(),
                 title,
                 desc,
-                config.getJrysExtraMessage(),
+                apiConfig.getJrysExtraMessage(),
                 starNum,
                 imageUrl,
                 themeClass
@@ -155,7 +160,7 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
         } catch (Exception e) {
             log.error("图片渲染失败，降级为文本发送", e);
             // 降级策略
-            fallbackTextFortune(bot, userId, groupId, type, vo.starCount(), vo.title(), vo.description(), config.getJrysExtraMessage());
+            fallbackTextFortune(bot, userId, groupId, type, vo.starCount(), vo.title(), vo.description(), apiConfig.getJrysExtraMessage());
         }
     }
 
@@ -209,9 +214,10 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
     }
 
     private String getImageUrl(String apiType) {
-        if ("none".equals(apiType) || config.isISureNotToUseImage()) {
+        if ("none".equals(apiType) || apiConfig.isISureNotToUseImage()) {
             return null;
         }
+        FortunePropertiesConfig config = (FortunePropertiesConfig) BotContext.CURRENT_PLUGIN_CONFIG.get();
         try {
             return switch (apiType) {
                 case "wr" -> fetchUrlFromJson("https://api.obfs.dev/api/bafortune", "$.url");
@@ -219,16 +225,16 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
                     String loliconBase = "https://api.lolicon.app/setu/v1";
                     HttpUrl loliconUrl = HttpUrl.parse(loliconBase).newBuilder()
                             .addQueryParameter("r18", "0")
-                            .addQueryParameter("tag", "BlueArchive")
+                            .addQueryParameter("tag", config.getTag())
                             .addQueryParameter("excludeAI", "true")
                             .build();
                     yield fetchUrlFromJson(loliconUrl.toString(), "$.data[0].url");
                 }
                 case "custom" -> {
-                    FortuneConfig.CustomApiConfig custom = config.getCustomApi();
+                    FortuneApiConfig.CustomApiConfig custom = apiConfig.getCustomApi();
                     if (custom == null || custom.getUrl() == null) yield null;
                     String targetUrl = buildUrlWithParams(custom.getUrl(), custom.getParams());
-                    if (custom.getResponseType() == FortuneConfig.ResponseType.IMAGE) yield targetUrl;
+                    if (custom.getResponseType() == FortuneApiConfig.ResponseType.IMAGE) yield targetUrl;
                     yield fetchUrlFromJson(targetUrl, custom.getJsonPath());
                 }
                 case "local" -> null;
@@ -258,14 +264,16 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
         return null;
     }
 
-    private String buildUrlWithParams(String baseUrl, FortuneConfig.Params params) {
+    private String buildUrlWithParams(String baseUrl, FortuneApiConfig.Params params) {
+        FortunePropertiesConfig config = (FortunePropertiesConfig) BotContext.CURRENT_PLUGIN_CONFIG.get();
         HttpUrl httpUrl = HttpUrl.parse(baseUrl);
         if (httpUrl == null) return baseUrl;
         HttpUrl.Builder builder = httpUrl.newBuilder();
         if (params != null && params.getStaticParams() != null) {
-            for (FortuneConfig.ParamItem item : params.getStaticParams()) {
+            for (FortuneApiConfig.ParamItem item : params.getStaticParams()) {
                 builder.addQueryParameter(item.getKey(), item.getValue());
             }
+            builder.addQueryParameter("tag",config.getTag());
         }
         return builder.build().toString();
     }

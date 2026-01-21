@@ -11,7 +11,7 @@ import java.util.List;
 @Component
 @ConfigurationProperties(prefix = "winefoxbot.plugins.fortune")
 @Validated
-public class FortuneConfig {
+public class FortuneApiConfig {
 
     /**
      * 图片API类型，可选: wr, lolicon, local, custom, none
@@ -29,6 +29,12 @@ public class FortuneConfig {
      */
     private List<String> jrysTitles = List.of("凶", "末吉", "末小吉", "小吉", "中吉", "吉", "大吉", "超大吉");
 
+    private String jrysExtraMessage = "";
+
+    private boolean autoRefreshJrys = true;
+
+    private boolean iSureNotToUseImage = false;
+
     /**
      * 运势文案列表 (对应8个等级)
      */
@@ -43,11 +49,7 @@ public class FortuneConfig {
             "七星同耀，奇迹频现，今日万事皆成。"
     );
 
-    private boolean allowRefreshJrys = false;
-    private String jrysExtraMessage = "";
-    private boolean autoRefreshJrys = true;
-    private String proxy = "";
-    private boolean iSureNotToUseImage = false;
+
 
     // --- 内部配置类 ---
 

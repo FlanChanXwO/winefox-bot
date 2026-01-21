@@ -1,5 +1,6 @@
 package com.github.winefoxbot.core.plugins.event;
 
+import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.model.dto.TextReply;
 import com.github.winefoxbot.core.model.dto.TextReplyParams;
 import com.github.winefoxbot.core.model.enums.BotReplyTemplateType;
@@ -25,9 +26,11 @@ import org.springframework.stereotype.Component;
  * @author FlanChan (badapple495@outlook.com)
  * @since 2026-01-07-18:14
  */
+@Plugin(
+        name = "群事件监听插件",
+        description = "监听和处理各种群事件，如成员增加、成员减少、管理员变更等。然后进行欢迎",
+        order = 99)
 @Slf4j
-@Shiro
-@Component
 @RequiredArgsConstructor
 public class GroupEventListenerPlugin {
     private final ShiroMessagesService shiroMessagesService;

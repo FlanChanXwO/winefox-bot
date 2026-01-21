@@ -267,7 +267,7 @@ public class PixivPlugin {
             PixivArtworkInfo pixivArtworkInfo = pixivService.getPixivArtworkInfo(pid);
             List<File> files = pixivService.fetchImages(pid).join();
             // 调用统一的发送服务
-            artworkService.sendArtwork(bot, event, pixivArtworkInfo, files, null);
+            artworkService.sendArtwork(pixivArtworkInfo, files, null);
         } catch (SSLHandshakeException e) {
             log.error("Pixiv SSL 握手失败", e);
             bot.sendMsg(event, MsgUtils.builder().reply(messageId).text("网络问题导致图片获取失败，请重试").build(), false);
@@ -588,7 +588,7 @@ public class PixivPlugin {
 
             // 3. 调用统一的发送服务
             String additionalText = "\n可以继续发送【序号】获取其他作品，或发送【退出】结束本次搜索。";
-            artworkService.sendArtwork(bot, event, pixivArtworkInfo, files, additionalText);
+            artworkService.sendArtwork(pixivArtworkInfo, files, additionalText);
 
         } catch (IOException e) {
             log.error("获取 Pixiv 作品信息时发生IO异常 pid={}", pid, e);
@@ -729,7 +729,7 @@ public class PixivPlugin {
             // 3. 异步下载图片文件
             List<File> files = pixivService.fetchImages(pid).join();
             // 4. 调用统一的发送服务
-            pixivArtworkService.sendArtwork(bot, event, pixivArtworkInfo, files, null);
+            pixivArtworkService.sendArtwork(pixivArtworkInfo, files, null);
             log.info("用户 [{}] 的随机收藏发送完成，作品ID: {}。", event.getUserId(), pid);
         } catch (Exception e) {
             log.error("网络异常，获取随机收藏失败: {}", e.getMessage(), e);

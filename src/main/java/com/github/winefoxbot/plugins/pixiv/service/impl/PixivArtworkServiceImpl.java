@@ -5,12 +5,9 @@ import com.github.winefoxbot.core.service.shiro.ShiroSafeSendMessageService;
 import com.github.winefoxbot.core.utils.FileUtil;
 import com.github.winefoxbot.plugins.pixiv.model.dto.common.PixivArtworkInfo;
 import com.github.winefoxbot.plugins.pixiv.service.PixivArtworkService;
-import com.mikuac.shiro.core.Bot;
-import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tomcat.util.buf.StringUtils;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.File;

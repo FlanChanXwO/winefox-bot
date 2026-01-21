@@ -12,9 +12,7 @@ import java.util.List;
  * @since 2026-01-04-20:47
  */
 public interface PixivArtworkService {
-    void sendArtwork(Bot bot, AnyMessageEvent event, PixivArtworkInfo pixivArtworkInfo, List<File> files, String additionalText);
-
-    // In: PixivArtworkService.java
+    void sendArtwork(PixivArtworkInfo pixivArtworkInfo, List<File> files, String additionalText);
 
     /**
      * 主动向指定用户发送Pixiv作品（不依赖事件）。

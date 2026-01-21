@@ -223,11 +223,7 @@ winefoxbot:
             json-path: "$.data[*].r18"
     fortune:
       api: "custom" # 使用自定义模式
-      # api: "lolicon" # 或者使用预设的 lolicon (代码中已剔除R18参数)
-
-      allow-refresh-jrys: false
       auto-refresh-jrys: true
-
       # 自定义 API 配置示例 (以 lolicon 为例，但通过 custom 配置)
       custom-api:
         url: "https://api.lolicon.app/setu/v2"
@@ -239,8 +235,6 @@ winefoxbot:
               value: "1"
             - key: "r18"
               value: "0" # 强制非 R18
-            - key: "tag"
-              value: "碧蓝档案"
             - key: "excludeAI"
               value: "true"
             - key: "size"
