@@ -1,11 +1,16 @@
 package com.github.winefoxbot.core.service.schedule;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
+import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.model.entity.ShiroScheduleTask;
 import com.github.winefoxbot.core.model.enums.PushTargetType;
 import com.github.winefoxbot.core.service.schedule.handler.BotJobHandler;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.BotContainer;
+import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
+import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
+import com.mikuac.shiro.dto.event.message.PrivateMessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jobrunr.jobs.annotations.Job;
@@ -36,7 +41,7 @@ public class ShiroJobRunner {
      */
     @Job(name = "HandlerJob: %0", retries = 5)
     public void runHandlerJob(Long botId, PushTargetType targetType, Long targetId,
-                              Class<? extends BotJobHandler<?>> handlerClass,
+                              Class<? extends BotJobHandler<?,? extends BasePluginConfig>> handlerClass,
                               Object parameter) {
         ShiroScheduleTask taskConfig = taskService.getTaskConfig(botId, targetType, targetId, handlerClass);
         if (taskConfig == null) {
@@ -53,11 +58,27 @@ public class ShiroJobRunner {
         try {
             executeInternal(botId, targetType, targetId, handlerClass.getSimpleName(), bot -> {
                 // 1. 获取 Handler 实例
-                BotJobHandler<?> handler = getHandlerInstance(handlerClass);
+                BotJobHandler<?,? extends BasePluginConfig> handler = getHandlerInstance(handlerClass);
                 // 2. 参数转换
                 Object typedParam = convertParameter(handler, parameter);
-                // 3. 执行
-                ((BotJobHandler<Object>) handler).run(bot, targetId, targetType, typedParam);
+                // 3. 准备上下文数据
+                // 构造虚拟 Event
+                var virtualEvent = switch (targetType) {
+                    case GROUP -> GroupMessageEvent.builder().selfId(botId).groupId(targetId).build();
+                    case PRIVATE -> PrivateMessageEvent.builder().selfId(botId).userId(targetId).build();
+                };
+
+
+                // 获取 Handler 提供的 Config (利用默认方法，可能是 None)
+                BasePluginConfig config = handler.getPluginConfig();
+
+                // 4. 【核心】自动绑定 ScopedValue 并执行
+                // 利用 BotContext 里我们之前写的辅助方法，或者直接在这里 where
+                BotContext.runWithContext(bot, virtualEvent, config, () -> {
+                    // 真正的业务逻辑在这里执行
+                    // 此时 Scope 内已经有了 Bot, Event, Config
+                    ((BotJobHandler<Object, ?>) handler).run(bot, targetId, targetType, typedParam);
+                });
             });
         } catch (Exception e) {
             log.error("JobRunr任务执行失败: {}", handlerClass.getSimpleName(), e);
@@ -87,7 +108,7 @@ public class ShiroJobRunner {
     /**
      * 参数类型转换器
      */
-    private Object convertParameter(BotJobHandler<?> handler, Object rawParam) {
+    private Object convertParameter(BotJobHandler<?,? extends BasePluginConfig> handler, Object rawParam) {
         if (rawParam == null) {
             return null;
         }
@@ -122,7 +143,7 @@ public class ShiroJobRunner {
     /**
      * 获取 Handler 实例 (优先 Spring 容器，其次反射)
      */
-    private BotJobHandler<?> getHandlerInstance(Class<? extends BotJobHandler<?>> handlerClass) {
+    private BotJobHandler<?,? extends BasePluginConfig> getHandlerInstance(Class<? extends BotJobHandler<?, ? extends BasePluginConfig>> handlerClass) {
         try {
             return applicationContext.getBean(handlerClass);
         } catch (Exception e) {

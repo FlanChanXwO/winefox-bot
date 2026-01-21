@@ -35,7 +35,7 @@ public @interface BotTask {
     /**
      * 推送目标类型（决定了任务配置选择）
      */
-    PushTargetType targetType() default PushTargetType.GLOBAL;
+    PushTargetType targetType();
 
     /**
      * 参数示例 JSON (方便前端回填)

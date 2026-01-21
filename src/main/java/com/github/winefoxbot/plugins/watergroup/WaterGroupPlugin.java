@@ -8,7 +8,7 @@ import com.github.winefoxbot.core.model.enums.PushTargetType;
 import com.github.winefoxbot.core.service.schedule.ShiroScheduleTaskService;
 import com.github.winefoxbot.core.utils.CronFormatter;
 import com.github.winefoxbot.core.utils.FileUtil;
-import com.github.winefoxbot.plugins.watergroup.config.WaterGroupConfig;
+import com.github.winefoxbot.plugins.watergroup.config.WaterGroupPluginConfig;
 import com.github.winefoxbot.plugins.watergroup.job.WaterGroupStatsJob;
 import com.github.winefoxbot.plugins.watergroup.model.entity.WaterGroupMessageStat;
 import com.github.winefoxbot.plugins.watergroup.service.WaterGroupPosterDrawService;
@@ -40,7 +40,7 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
         name = "发言统计",
         permission = Permission.USER,
         order = 12,
-        config = WaterGroupConfig.class,
+        config = WaterGroupPluginConfig.class,
         description = "统计群成员每日发言情况，并支持定时推送发言排行榜。"
 )
 @Slf4j

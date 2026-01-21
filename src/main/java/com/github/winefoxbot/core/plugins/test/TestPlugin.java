@@ -5,6 +5,8 @@ import com.github.winefoxbot.core.model.enums.Permission;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Shiro;
+import com.mikuac.shiro.common.utils.MsgUtils;
+import com.mikuac.shiro.common.utils.OneBotMedia;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import com.mikuac.shiro.enums.MsgTypeEnum;
@@ -31,5 +33,12 @@ public class TestPlugin {
             bot.sendMsg(event, matcher.group(1), false);
     }
 
+    @AnyMessageHandler
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/emoji$")
+    public void emoji(Bot bot, AnyMessageEvent event) {
+        bot.sendMsg(event, MsgUtils.builder()
+                        .img(new OneBotMedia())
+                .build(), false);
+    }
 
 }

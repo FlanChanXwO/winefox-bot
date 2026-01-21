@@ -1,9 +1,6 @@
 package com.github.winefoxbot.plugins.pixiv.model.entity;
 
-import com.baomidou.mybatisplus.annotation.FieldFill;
-import com.baomidou.mybatisplus.annotation.FieldStrategy;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -15,6 +12,7 @@ import java.time.LocalDateTime;
 @TableName(value ="pixiv_author_monitor")
 @Data
 public class PixivAuthorMonitor implements Serializable {
+    @TableId(type = IdType.INPUT)
     private String authorId;
 
     private String authorName;

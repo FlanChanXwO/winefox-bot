@@ -16,10 +16,9 @@ import lombok.RequiredArgsConstructor;
 public enum PushTargetType implements BaseEnum<String> {
 
     GROUP("group", "群组"),
-    PRIVATE("private", "私聊"),
-    GLOBAL("global", "全局/系统");
+    PRIVATE("private", "私聊");
 
-    @EnumValue // 存入数据库的值 (group, private, global)
+    @EnumValue // 存入数据库的值 (group, private)
     @JsonValue // 前端序列化展示的值
     private final String value;
 

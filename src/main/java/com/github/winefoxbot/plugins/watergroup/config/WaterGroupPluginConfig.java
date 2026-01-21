@@ -13,7 +13,7 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = true)
 @Data
 @PluginConfig(name = "水群统计配置", prefix = "water_group" ,scopes = ConfigManager.Scope.GLOBAL)
-public class WaterGroupConfig extends BasePluginConfig {
+public class WaterGroupPluginConfig extends BasePluginConfig {
 
     @ConfigItem(key = "limit", defaultValue = "10", description = "排名数量")
     private Integer limit;

@@ -1,6 +1,7 @@
 package com.github.winefoxbot.core.init;
 
 import com.github.winefoxbot.core.annotation.schedule.BotTask;
+import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
 import com.github.winefoxbot.core.model.vo.webui.resp.TaskTypeResponse;
 import com.github.winefoxbot.core.service.schedule.handler.BotJobHandler;
 import jakarta.annotation.PostConstruct;
@@ -24,10 +25,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class BotTaskRegistry {
 
     // 自动注入所有实现了 BotJobHandler 的 Bean
-    private final List<BotJobHandler<?>> handlerBeans;
+    private final List<BotJobHandler<?,? extends BasePluginConfig>> handlerBeans;
 
     // Key -> Handler Class 的映射
-    private final Map<String, Class<? extends BotJobHandler<?>>> keyToClassMap = new ConcurrentHashMap<>();
+    private final Map<String, Class<? extends BotJobHandler<?,? extends BasePluginConfig>>> keyToClassMap = new ConcurrentHashMap<>();
 
     // Class -> Metadata 的映射
     private final Map<Class<?>, BotTask> classToMetaMap = new ConcurrentHashMap<>();
@@ -38,7 +39,7 @@ public class BotTaskRegistry {
 
     @PostConstruct
     public void init() {
-        for (BotJobHandler<?> handler : handlerBeans) {
+        for (BotJobHandler<?,? extends BasePluginConfig> handler : handlerBeans) {
             Class<?> clazz = handler.getClass();
             // 获取注解
             BotTask annotation = clazz.getAnnotation(BotTask.class);
@@ -55,7 +56,7 @@ public class BotTaskRegistry {
 
             // 注册映射 (这里进行了强制类型转换，因为我们知道 handlerBeans 里的都是 BotJobHandler)
             @SuppressWarnings("unchecked")
-            Class<? extends BotJobHandler<?>> handlerClass = (Class<? extends BotJobHandler<?>>) clazz;
+            Class<? extends BotJobHandler<?,? extends BasePluginConfig>> handlerClass = (Class<? extends BotJobHandler<?,? extends BasePluginConfig>>) clazz;
 
             keyToClassMap.put(annotation.key(), handlerClass);
             classToMetaMap.put(clazz, annotation);
@@ -75,7 +76,7 @@ public class BotTaskRegistry {
     /**
      * 根据 Key 获取 Handler 类
      */
-    public Class<? extends BotJobHandler<?>> getClassByKey(String key) {
+    public Class<? extends BotJobHandler<?,? extends BasePluginConfig>> getClassByKey(String key) {
         return keyToClassMap.get(key);
     }
 

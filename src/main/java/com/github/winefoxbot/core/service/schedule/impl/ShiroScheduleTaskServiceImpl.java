@@ -3,6 +3,7 @@ package com.github.winefoxbot.core.service.schedule.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.github.winefoxbot.core.annotation.schedule.BotTask;
+import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
 import com.github.winefoxbot.core.init.BotTaskRegistry;
 import com.github.winefoxbot.core.mapper.ShiroScheduleTaskMapper;
 import com.github.winefoxbot.core.model.entity.ShiroScheduleTask;
@@ -49,7 +50,7 @@ public class ShiroScheduleTaskServiceImpl extends ServiceImpl<ShiroScheduleTaskM
     @Transactional(rollbackFor = Exception.class)
     public void scheduleHandler(Long botId, PushTargetType targetType, Long targetId, String cron, String taskKey, String parameter) {
         // 1. 校验 Key 是否合法
-        Class<? extends BotJobHandler<?>> handlerClass = taskRegistry.getClassByKey(taskKey);
+        Class<? extends BotJobHandler<?,? extends BasePluginConfig>> handlerClass = taskRegistry.getClassByKey(taskKey);
         if (handlerClass == null) {
             throw new IllegalArgumentException("无效的任务类型 Key: " + taskKey);
         }
@@ -74,13 +75,13 @@ public class ShiroScheduleTaskServiceImpl extends ServiceImpl<ShiroScheduleTaskM
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void scheduleHandler(Long botId, PushTargetType targetType, Long targetId, String cron, Class<? extends BotJobHandler<?>> handlerClass, String parameter) {
+    public void scheduleHandler(Long botId, PushTargetType targetType, Long targetId, String cron, Class<? extends BotJobHandler<?,? extends BasePluginConfig>> handlerClass, String parameter) {
         this.scheduleHandler(botId, targetType, targetId, cron, resolveTaskKey(handlerClass), parameter);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void scheduleHandler(Long botId, PushTargetType targetType, Long targetId, String cron, Class<? extends BotJobHandler<?>> handlerClass) {
+    public void scheduleHandler(Long botId, PushTargetType targetType, Long targetId, String cron, Class<? extends BotJobHandler<?,? extends BasePluginConfig>> handlerClass) {
         this.scheduleHandler(botId, targetType, targetId, cron, resolveTaskKey(handlerClass), null);
     }
 
@@ -113,7 +114,7 @@ public class ShiroScheduleTaskServiceImpl extends ServiceImpl<ShiroScheduleTaskM
             throw new IllegalArgumentException("任务不存在，无法触发");
         }
 
-        Class<? extends BotJobHandler<?>> handlerClass = taskRegistry.getClassByKey(taskKey);
+        Class<? extends BotJobHandler<?,? extends BasePluginConfig>> handlerClass = taskRegistry.getClassByKey(taskKey);
         if (handlerClass == null) {
             throw new IllegalStateException("任务对应的代码处理器已失效: " + taskKey);
         }
@@ -149,7 +150,7 @@ public class ShiroScheduleTaskServiceImpl extends ServiceImpl<ShiroScheduleTaskM
                 return; // 幂等处理
             }
 
-            Class<? extends BotJobHandler<?>> handlerClass = taskRegistry.getClassByKey(taskKey);
+            Class<? extends BotJobHandler<?,? extends BasePluginConfig>> handlerClass = taskRegistry.getClassByKey(taskKey);
 
             // 恢复 JobRunr 调度 (重新提交 Recurrent Task)
             jobRunrService.scheduleOrUpdateRecurrentTask(jobId, task.getCronExpression(),
@@ -195,7 +196,7 @@ public class ShiroScheduleTaskServiceImpl extends ServiceImpl<ShiroScheduleTaskM
 
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public void cancelTask(Long botId, PushTargetType targetType, Long targetId, Class<? extends BotJobHandler<?>> handlerClass) {
+    public void cancelTask(Long botId, PushTargetType targetType, Long targetId, Class<? extends BotJobHandler<?,? extends BasePluginConfig>> handlerClass) {
         cancelTask(botId, targetType, targetId, resolveTaskKey(handlerClass));
     }
 
@@ -208,7 +209,7 @@ public class ShiroScheduleTaskServiceImpl extends ServiceImpl<ShiroScheduleTaskM
 
 
     @Override
-    public ShiroScheduleTask getTaskConfig(Long botId, PushTargetType targetType, Long targetId, Class<? extends BotJobHandler<?>> handlerClass) {
+    public ShiroScheduleTask getTaskConfig(Long botId, PushTargetType targetType, Long targetId, Class<? extends BotJobHandler<?,? extends BasePluginConfig>> handlerClass) {
         return this.getOne(buildWrapper(botId, targetType, targetId, resolveTaskKey(handlerClass)));
     }
 
@@ -270,7 +271,7 @@ public class ShiroScheduleTaskServiceImpl extends ServiceImpl<ShiroScheduleTaskM
 
 
     @Override
-    public String resolveTaskKey(Class<? extends BotJobHandler<?>> handlerClass) {
+    public String resolveTaskKey(Class<? extends BotJobHandler<?,? extends BasePluginConfig>> handlerClass) {
         BotTask meta = taskRegistry.getMetaByClass(handlerClass);
         return (meta != null) ? meta.key() : handlerClass.getSimpleName();
     }

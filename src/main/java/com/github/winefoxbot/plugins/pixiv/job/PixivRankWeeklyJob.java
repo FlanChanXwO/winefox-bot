@@ -1,6 +1,7 @@
 package com.github.winefoxbot.plugins.pixiv.job;
 
 import com.github.winefoxbot.core.annotation.schedule.BotTask;
+import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
 import com.github.winefoxbot.core.model.enums.PushTargetType;
 import com.github.winefoxbot.core.service.schedule.handler.BotJobHandler;
 import com.github.winefoxbot.plugins.pixiv.model.enums.PixivRankPushMode;
@@ -22,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
         description = "定时给群聊推送P站插画每周排行榜",
         targetType = PushTargetType.GROUP
 )
-public class PixivRankWeeklyJob implements BotJobHandler<String> {
+public class PixivRankWeeklyJob implements BotJobHandler<String, BasePluginConfig> {
 
     private final PixivRankService pixivRankService;
 

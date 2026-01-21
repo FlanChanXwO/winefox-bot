@@ -1,6 +1,7 @@
 package com.github.winefoxbot.core.service.schedule;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
 import com.github.winefoxbot.core.model.entity.ShiroScheduleTask;
 import com.github.winefoxbot.core.model.enums.PushTargetType;
 import com.github.winefoxbot.core.service.schedule.handler.BotJobHandler;
@@ -27,13 +28,13 @@ public interface ShiroScheduleTaskService extends IService<ShiroScheduleTask> {
     /**
      * Class 处理器方式调度 (支持传参)
      */
-    void scheduleHandler(Long botId, PushTargetType targetType, Long targetId, String cron, Class<? extends BotJobHandler<?>> handlerClass, String parameter);
+    void scheduleHandler(Long botId, PushTargetType targetType, Long targetId, String cron, Class<? extends BotJobHandler<?,? extends BasePluginConfig>> handlerClass, String parameter);
 
 
     /**
      * Class 处理器方式调度 (无参)
      */
-    void scheduleHandler(Long botId, PushTargetType targetType, Long targetId, String cron, Class<? extends BotJobHandler<?>> handlerClass);
+    void scheduleHandler(Long botId, PushTargetType targetType, Long targetId, String cron, Class<? extends BotJobHandler<?,? extends BasePluginConfig>> handlerClass);
 
 
     /**
@@ -54,7 +55,7 @@ public interface ShiroScheduleTaskService extends IService<ShiroScheduleTask> {
     /**
      * 取消任务 (指定类)
      */
-    void cancelTask(Long botId, PushTargetType targetType, Long targetId, Class<? extends BotJobHandler<?>> handlerClass);
+    void cancelTask(Long botId, PushTargetType targetType, Long targetId, Class<? extends BotJobHandler<?,? extends BasePluginConfig>> handlerClass);
 
     /**
      * 获取任务配置 
@@ -64,7 +65,7 @@ public interface ShiroScheduleTaskService extends IService<ShiroScheduleTask> {
     /**
      * 获取任务配置 （指定类）
      */
-    ShiroScheduleTask getTaskConfig(Long botId, PushTargetType targetType, Long targetId, Class<? extends BotJobHandler<?>> handlerClass);
+    ShiroScheduleTask getTaskConfig(Long botId, PushTargetType targetType, Long targetId, Class<? extends BotJobHandler<?,? extends BasePluginConfig>> handlerClass);
 
     /**
      * 获取列表 
@@ -85,5 +86,5 @@ public interface ShiroScheduleTaskService extends IService<ShiroScheduleTask> {
     /**
      * 解析任务键名
      */
-    String resolveTaskKey(Class<? extends BotJobHandler<?>> handlerClass);
+    String resolveTaskKey(Class<? extends BotJobHandler<?,? extends BasePluginConfig>> handlerClass);
 }

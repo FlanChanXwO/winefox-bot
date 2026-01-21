@@ -3,6 +3,7 @@ package com.github.winefoxbot.plugins.pixiv;
 import com.github.winefoxbot.core.annotation.common.Limit;
 import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
+import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
 import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.exception.bot.BotException;
 import com.github.winefoxbot.core.model.entity.ShiroScheduleTask;
@@ -172,7 +173,7 @@ public class PixivPlugin {
                 break;
         }
 
-        Class<? extends BotJobHandler<String>> scheduledJobClass = switch (mode) {
+        Class<? extends BotJobHandler<String, BasePluginConfig>> scheduledJobClass = switch (mode) {
             case DALLY -> PixivRankDailyJob.class;
             case WEEKLY -> PixivRankWeeklyJob.class;
             case MONTHLY -> PixivRankMonthlyJob.class;

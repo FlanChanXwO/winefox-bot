@@ -38,6 +38,17 @@ public final class BotContext {
 
 
     /**
+     * 在上下文中运行代码
+     */
+    public static void runWithContext(Bot bot, MessageEvent event, BasePluginConfig config,  Runnable runnable) {
+        ScopedValue.where(CURRENT_BOT, bot)
+                .where(CURRENT_MESSAGE_EVENT, event)
+                .where(CURRENT_PLUGIN_CONFIG,config)
+                .run(runnable);
+    }
+
+
+    /**
      * 获取当前插件配置的便捷方法 (带类型转换)
      */
     public static <T extends BasePluginConfig> Optional<T> getPluginConfig(Class<T> clazz) {
