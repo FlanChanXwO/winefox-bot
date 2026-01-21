@@ -70,14 +70,6 @@ public class PluginConfigAspect {
             // 3. 实例化并绑定配置
             configInstance = configClass.getDeclaredConstructor().newInstance();
             configBinder.bind(configInstance, groupId, userId);
-
-            // 4. (可选) 二次检查 configInstance 内部的 enabled 字段
-            // 如果你的 BasePluginConfig 里的 enabled 字段不再使用，可以删除这段
-            // 或者保留它作为“群组级/用户级”的动态开关
-            if (!configInstance.isEnabled()) {
-                log.debug("插件 [{}] 配置校验未通过(Config内部开关)，跳过执行", pluginAnno.name());
-                return null;
-            }
         }
 
         // 3. 执行业务

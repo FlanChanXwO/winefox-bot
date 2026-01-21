@@ -3,16 +3,20 @@ package com.github.winefoxbot.plugins.pixiv;
 import com.github.winefoxbot.core.annotation.common.Limit;
 import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
+import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.exception.bot.BotException;
 import com.github.winefoxbot.core.model.entity.ShiroScheduleTask;
 import com.github.winefoxbot.core.model.enums.MessageType;
 import com.github.winefoxbot.core.model.enums.Permission;
 import com.github.winefoxbot.core.model.enums.PushTargetType;
 import com.github.winefoxbot.core.service.schedule.ShiroScheduleTaskService;
+import com.github.winefoxbot.core.service.schedule.handler.BotJobHandler;
 import com.github.winefoxbot.core.service.shiro.ShiroSessionStateService;
 import com.github.winefoxbot.core.utils.CronFormatter;
 import com.github.winefoxbot.core.utils.FileUtil;
-import com.github.winefoxbot.plugins.pixiv.job.PixivRankJob;
+import com.github.winefoxbot.plugins.pixiv.job.PixivRankDailyJob;
+import com.github.winefoxbot.plugins.pixiv.job.PixivRankMonthlyJob;
+import com.github.winefoxbot.plugins.pixiv.job.PixivRankWeeklyJob;
 import com.github.winefoxbot.plugins.pixiv.model.dto.common.PixivArtworkInfo;
 import com.github.winefoxbot.plugins.pixiv.model.dto.search.PixivSearchParams;
 import com.github.winefoxbot.plugins.pixiv.model.dto.search.PixivSearchResult;
@@ -69,13 +73,6 @@ public class PixivPlugin {
     private final PixivArtworkService artworkService;
     // 注入通用调度服务
     private final ShiroScheduleTaskService scheduleService;
-    // 调度任务 Job Key
-    private String jobKey = null;
-
-    @PostConstruct
-    public void init() {
-        jobKey = scheduleService.resolveTaskKey(PixivRankJob.class);
-    }
 
     //region Pixiv基础功能
 
@@ -91,10 +88,15 @@ public class PixivPlugin {
 
         // 获取该群所有的调度任务
         List<ShiroScheduleTask> allTasks = scheduleService.listTaskConfigs(bot.getSelfId(), PushTargetType.GROUP, groupId);
+        String dkey = scheduleService.resolveTaskKey(PixivRankDailyJob.class);
+        String wkey = scheduleService.resolveTaskKey(PixivRankWeeklyJob.class);
+        String mkey = scheduleService.resolveTaskKey(PixivRankMonthlyJob.class);
 
         // 筛选出 Pixiv 相关的任务
         List<ShiroScheduleTask> pixivTasks = allTasks.stream()
-                .filter(t -> jobKey.equals(t.getTaskType()))
+                .filter(t -> t.getTaskType().equals(dkey)
+                        || t.getTaskType().equals(wkey)
+                        || t.getTaskType().equals(mkey))
                 .toList();
 
         if (pixivTasks.isEmpty()) {
@@ -170,13 +172,19 @@ public class PixivPlugin {
                 break;
         }
 
+        Class<? extends BotJobHandler<String>> scheduledJobClass = switch (mode) {
+            case DALLY -> PixivRankDailyJob.class;
+            case WEEKLY -> PixivRankWeeklyJob.class;
+            case MONTHLY -> PixivRankMonthlyJob.class;
+        };
+
         // 使用新版调度接口，传入 mode.getValue() 作为参数
         scheduleService.scheduleHandler(
                 bot.getSelfId(),
                 PushTargetType.GROUP,
                 groupId,
                 cronExpression,
-                PixivRankJob.class,
+                scheduledJobClass,
                 mode.getValue() // 参数：daily, weekly, monthly
         );
 
@@ -212,9 +220,14 @@ public class PixivPlugin {
         // 查找并删除特定参数的任务
         List<ShiroScheduleTask> tasks = scheduleService.listTaskConfigs(bot.getSelfId(), PushTargetType.GROUP, groupId);
 
+        String jobkey = switch (mode) {
+            case DALLY -> scheduleService.resolveTaskKey(PixivRankDailyJob.class);
+            case WEEKLY -> scheduleService.resolveTaskKey(PixivRankWeeklyJob.class);
+            case MONTHLY -> scheduleService.resolveTaskKey(PixivRankMonthlyJob.class);
+        };
+
         ShiroScheduleTask targetTask = tasks.stream()
-                .filter(t -> jobKey.equals(t.getTaskType())) // 匹配 Key
-                .filter(t -> mode.getValue().equals(t.getTaskParam())) // 匹配参数 (daily/weekly/monthly)
+                .filter(t -> jobkey.equals(t.getTaskType())) // 匹配 Key
                 .findFirst()
                 .orElse(null);
 
@@ -274,7 +287,7 @@ public class PixivPlugin {
                     COMMAND_PREFIX + "prm" + COMMAND_SUFFIX})
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "((p|P)站(本|今)(日|周|月)排行榜|pr(d|w|m))(?:\\s+(\\S+))?" + COMMAND_SUFFIX_REGEX)
-    public void getPixivRankByType(Bot bot, AnyMessageEvent event, Matcher matcher) {
+    public void getPixivRankByType(Bot bot, AnyMessageEvent event, Matcher matcher) throws Exception {
         bot.sendMsg(event, "正在获取 Pixiv 排行榜，请稍候...", false);
 
         String rankType = matcher.group(4); // 日, 周, 月
@@ -312,54 +325,59 @@ public class PixivPlugin {
     }
 
 
-    private void getPixivRank(Bot bot, AnyMessageEvent event, Matcher matcher, PixivRankPushMode mode, PixivRankService.Content content) {
+    private void getPixivRank(Bot bot, AnyMessageEvent event, Matcher matcher, PixivRankPushMode mode, PixivRankService.Content content) throws Exception {
         String params = matcher.group(2);
-        try {
-            List<String> msgList = new ArrayList<>();
-            List<String> rankIds = pixivRankService.getRank(mode, content, false);
-            List<List<File>> filesList = new ArrayList<>();
-            for (String rankId : rankIds) {
-                List<File> files = pixivService.fetchImages(rankId).join();
-                if (files.isEmpty()) {
-                    continue;
-                }
-                PixivArtworkInfo pixivArtworkInfo = pixivService.getPixivArtworkInfo(rankId);
-                MsgUtils builder = MsgUtils.builder();
-                builder.text(String.format("""
+        BotContext.callWithContext(BotContext.CURRENT_BOT.get(),BotContext.CURRENT_MESSAGE_EVENT.get(),() -> {
+            try {
+                List<String> msgList = new ArrayList<>();
+                List<String> rankIds = pixivRankService.getRank(mode, content, false);
+                List<List<File>> filesList = new ArrayList<>();
+                for (String rankId : rankIds) {
+                    List<File> files = pixivService.fetchImages(rankId).join();
+                    if (files.isEmpty()) {
+                        continue;
+                    }
+                    PixivArtworkInfo pixivArtworkInfo = pixivService.getPixivArtworkInfo(rankId);
+                    MsgUtils builder = MsgUtils.builder();
+                    builder.text(String.format("""
                                 作品标题：%s (%s)
                                 作者：%s (%s)
                                 描述信息：%s
                                 作品链接：https://www.pixiv.net/artworks/%s
                                 标签：%s
                                 """, pixivArtworkInfo.getTitle(), pixivArtworkInfo.getPid(),
-                        pixivArtworkInfo.getUserName(), pixivArtworkInfo.getUid(),
-                        pixivArtworkInfo.getDescription(),
-                        pixivArtworkInfo.getPid(),
-                        StringUtils.join(pixivArtworkInfo.getTags(), ',')));
-                for (File file : files) {
-                    String filePath = FileUtil.getFileUrlPrefix() + file.getAbsolutePath();
-                    builder.img(filePath);
+                            pixivArtworkInfo.getUserName(), pixivArtworkInfo.getUid(),
+                            pixivArtworkInfo.getDescription(),
+                            pixivArtworkInfo.getPid(),
+                            StringUtils.join(pixivArtworkInfo.getTags(), ',')));
+                    for (File file : files) {
+                        String filePath = FileUtil.getFileUrlPrefix() + file.getAbsolutePath();
+                        builder.img(filePath);
+                    }
+                    filesList.add(files);
+                    String msg = builder.build();
+                    msgList.add(msg);
                 }
-                filesList.add(files);
-                String msg = builder.build();
-                msgList.add(msg);
+                if (msgList.isEmpty()) {
+                    bot.sendMsg(event, "未能获取到排行榜数据", false);
+                    return null;
+                }
+                List<Map<String, Object>> forwardMsg = ShiroUtils.generateForwardMsg(bot, msgList);
+                bot.sendForwardMsg(event, forwardMsg);
+                return null;
+            } catch (SSLHandshakeException e) {
+                log.error("Pixiv SSL 握手失败，可能是 Pixiv 证书发生变更导致，请检查！", e);
+                bot.sendMsg(event, "因为网络问题，图片获取失败，请重试", false);
+            } catch (IllegalArgumentException e) {
+                log.error("无效的排行榜参数: {}", params, e);
+                bot.sendMsg(event, "无效的排行榜参数: " + params, false);
+            } catch (Exception e) {
+                log.error("处理 Pixiv 图片失败", e);
+                bot.sendMsg(event, "处理 Pixiv 图片失败：" + e.getMessage(), false);
             }
-            if (msgList.isEmpty()) {
-                bot.sendMsg(event, "未能获取到排行榜数据", false);
-                return;
-            }
-            List<Map<String, Object>> forwardMsg = ShiroUtils.generateForwardMsg(bot, msgList);
-            bot.sendForwardMsg(event, forwardMsg);
-        } catch (SSLHandshakeException e) {
-            log.error("Pixiv SSL 握手失败，可能是 Pixiv 证书发生变更导致，请检查！", e);
-            bot.sendMsg(event, "因为网络问题，图片获取失败，请重试", false);
-        } catch (IllegalArgumentException e) {
-            log.error("无效的排行榜参数: {}", params, e);
-            bot.sendMsg(event, "无效的排行榜参数: " + params, false);
-        } catch (Exception e) {
-            log.error("处理 Pixiv 图片失败", e);
-            bot.sendMsg(event, "处理 Pixiv 图片失败：" + e.getMessage(), false);
-        }
+            return null;
+        });
+
     }
 
     //endregion
@@ -660,7 +678,6 @@ public class PixivPlugin {
 
     private final PixivArtworkService pixivArtworkService;
     private final PixivBookmarkService pixivBookmarkService;
-    private final ShiroSessionStateService shiroSessionStateService;
 
     @Async
     @PluginFunction(name = "同步 Pixiv 收藏夹",
@@ -689,14 +706,12 @@ public class PixivPlugin {
             description = "从鼠鼠的收藏夹中随机抽取一张作品，发送 \"鼠鼠的收藏\" 命令即可获得~",
             permission = Permission.USER,
             autoGenerateHelp = false,
-            commands = {"鼠鼠的收藏"}
+            commands = {"/鼠鼠的收藏", "/鼠鼠的收藏"}
     )
     @Order(10)
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^鼠鼠的收藏$")
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/?鼠鼠的收藏$")
     public void getRandomBookmark(Bot bot, AnyMessageEvent event) {
-        String sessionKey = shiroSessionStateService.getSessionKey(event);
-        shiroSessionStateService.enterCommandMode(sessionKey);
         Long userId = event.getUserId();
         Long groupId = event.getGroupId();
         try {
@@ -719,8 +734,6 @@ public class PixivPlugin {
         } catch (Exception e) {
             log.error("网络异常，获取随机收藏失败: {}", e.getMessage(), e);
             throw new BotException("获取随机收藏失败");
-        } finally {
-            shiroSessionStateService.exitCommandMode(sessionKey);
         }
     }
 

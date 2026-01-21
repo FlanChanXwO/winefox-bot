@@ -32,18 +32,17 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
      * 现在的实现非常轻量级，核心逻辑已下沉至 ShiroSafeSendMessageService
      */
     @Override
-    @Async("taskExecutor")
-    public void sendArtwork(Bot bot, AnyMessageEvent event, PixivArtworkInfo pixivArtworkInfo, List<File> files, String additionalText) {
+    public void sendArtwork(PixivArtworkInfo pixivArtworkInfo, List<File> files, String additionalText) {
         processArtworkSending(pixivArtworkInfo, files, additionalText);
     }
 
     @Override
-    public void sendArtworkToUser(Bot bot, Long userId, PixivArtworkInfo pixivArtworkInfo, List<File> files, String additionalText) {
+    public void sendArtworkToUser(PixivArtworkInfo pixivArtworkInfo, List<File> files, String additionalText) {
         processArtworkSending(pixivArtworkInfo, files, additionalText);
     }
 
     @Override
-    public void sendArtworkToGroup(Bot bot, Long groupId, PixivArtworkInfo pixivArtworkInfo, List<File> files, String additionalText) {
+    public void sendArtworkToGroup( PixivArtworkInfo pixivArtworkInfo, List<File> files, String additionalText) {
         processArtworkSending(pixivArtworkInfo, files, additionalText);
     }
 

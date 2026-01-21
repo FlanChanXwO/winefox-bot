@@ -29,6 +29,7 @@ public class PluginService {
 
     private final ApplicationContext applicationContext;
     private final ConfigManager configManager;
+    // 插件状态配置（是否禁用）
     private final static String PLUGIN_STATUS_PREFIX = "plugin.status.";
 
     /**

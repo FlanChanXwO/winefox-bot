@@ -19,23 +19,19 @@ public interface PixivArtworkService {
     /**
      * 主动向指定用户发送Pixiv作品（不依赖事件）。
      *
-     * @param bot              Bot实例
-     * @param userId           接收者QQ号
      * @param pixivArtworkInfo 作品详情
      * @param files            作品图片文件列表
      * @param additionalText   可选的附加文本
      */
-    void sendArtworkToUser(Bot bot, Long userId, PixivArtworkInfo pixivArtworkInfo, List<File> files, String additionalText);
+    void sendArtworkToUser(PixivArtworkInfo pixivArtworkInfo, List<File> files, String additionalText);
 
     /**
      * 主动向指定群聊发送Pixiv作品（不依赖事件）。
      *
-     * @param bot              Bot实例
-     * @param groupId          接收群的群号
      * @param pixivArtworkInfo 作品详情
      * @param files            作品图片文件列表
      * @param additionalText   可选的附加文本
      */
-    void sendArtworkToGroup(Bot bot, Long groupId, PixivArtworkInfo pixivArtworkInfo, List<File> files, String additionalText);
+    void sendArtworkToGroup(PixivArtworkInfo pixivArtworkInfo, List<File> files, String additionalText);
 
 }

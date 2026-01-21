@@ -1,6 +1,5 @@
 package com.github.winefoxbot.core.config.plugin;
 
-import com.github.winefoxbot.core.annotation.plugin.ConfigItem;
 import lombok.Data;
 
 /**
@@ -11,26 +10,6 @@ import lombok.Data;
  */
 @Data
 public abstract class BasePluginConfig {
-
-    /**
-     * 插件总开关
-     * key 固定为 "enabled"
-     * 默认值为 "true" (开启)，因为通常安装了插件就是想用
-     */
-    @ConfigItem(
-            key = "enabled", 
-            description = "插件总开关", 
-            defaultValue = "true"
-    )
-    private Boolean enabled;
-
-    /**
-     * 判断插件是否开启的便捷方法
-     * 防止空指针异常，默认视为空配置为关闭，或者你可以根据业务改为默认开启
-     */
-    public boolean isEnabled() {
-        return Boolean.TRUE.equals(enabled);
-    }
 
     public static final class None extends BasePluginConfig {}
 }

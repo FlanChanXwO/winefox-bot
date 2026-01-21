@@ -50,7 +50,6 @@ public final class BotContext {
         return Optional.empty();
     }
 
-
     /**
      * 【阶段一】基础上下文初始化 (供 BotContextAspect 使用)
      */
@@ -61,7 +60,6 @@ public final class BotContext {
                 .where(CURRENT_PLUGIN_CONFIG, new BasePluginConfig.None())
                 .call(callable::call);
     }
-
     /**
      * 【阶段二】特定插件配置注入 (供 PluginConfigAspect 使用)
      */
@@ -69,4 +67,6 @@ public final class BotContext {
         return ScopedValue.where(CURRENT_PLUGIN_CONFIG, config)
                 .call(callable::call);
     }
+
+
 }
