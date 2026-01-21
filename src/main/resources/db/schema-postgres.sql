@@ -308,3 +308,5 @@ CREATE TABLE IF NOT EXISTS winefox_bot_ai_favourite_score (
             user_id BIGINT NOT NULL PRIMARY KEY, -- 用户QQ号/ID
             score INT NOT NULL DEFAULT 0  CHECK (score >= 0)       -- 运势日期 (yyyy-MM-dd)
 );
+
+CREATE EXTENSION IF NOT EXISTS vector;

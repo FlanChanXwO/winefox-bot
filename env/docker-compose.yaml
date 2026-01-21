@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:17.7-alpine  # 使用 Alpine 版本更轻量，也可用 postgres:latest
+    image: pgvector/pgvector:pg17
     container_name: postgresql
     restart: unless-stopped
     environment:

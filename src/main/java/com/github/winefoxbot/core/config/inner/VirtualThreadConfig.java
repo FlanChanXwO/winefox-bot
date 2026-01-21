@@ -41,7 +41,7 @@ public class VirtualThreadConfig {
      * shiro框架使用的任务执行器
      * @return {@link ThreadPoolTaskExecutor}
      */
-    @Bean(value = "shiroTaskExecutor",destroyMethod = "shutdown")
+    @Bean(value = "shiroTaskExecutor", destroyMethod = "shutdown")
     @ConditionalOnThreading(Threading.VIRTUAL)
     public ThreadPoolTaskExecutor shiroTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
@@ -54,7 +54,12 @@ public class VirtualThreadConfig {
                 return virtualFactory.newThread(r);
             }
         }); // 线程工厂
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy()); // 拒绝策略
+        // 1. 开启优雅关闭：收到关闭信号后，不再接受新任务，但会等待已提交的任务完成
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        // 2. 设置最大等待时间
+        executor.setAwaitTerminationSeconds(10);
+        // 3. 拒绝策略： DiscardPolicy (静默丢弃) 或 CallerRunsPolicy (主线程执行)
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         return executor;
     }
 
@@ -70,7 +75,7 @@ public class VirtualThreadConfig {
         scheduler.setThreadFactory(Thread.ofVirtual().name(COMMON_VIRTUAL_THREAD_NAME_PREFIX, 0).factory());
         // 设置线程名前缀（这会影响调度器内部管理线程的名称，而不是任务执行线程）
         scheduler.setThreadNamePrefix(TASK_SCHEDULE_THREAD_NAME_PREFIX);
-        scheduler.setPoolSize(10);
+        scheduler.setPoolSize(50);
         // scheduler.initialize(); // Spring Bean 生命周期会自动调用，所以这里可以不写
         return scheduler;
     }
