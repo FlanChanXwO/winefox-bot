@@ -33,8 +33,6 @@ public class FortuneApiConfig {
 
     private boolean autoRefreshJrys = true;
 
-    private boolean iSureNotToUseImage = false;
-
     /**
      * 运势文案列表 (对应8个等级)
      */

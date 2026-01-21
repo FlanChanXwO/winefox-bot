@@ -110,9 +110,11 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
 
         // 2. 数据组装：准备渲染所需的 VO 对象
         String imageUrl = null;
-        if (!apiConfig.isISureNotToUseImage() && !"none".equals(apiConfig.getApi())) {
+        if ( !"none".equals(apiConfig.getApi())) {
             imageUrl = getImageUrl(apiConfig.getApi());
         }
+
+        log.info("请求的图片URL: {}", imageUrl);
 
         String title = apiConfig.getJrysTitles().get(Math.min(starNum, apiConfig.getJrysTitles().size() - 1));
         String desc = apiConfig.getJrysMessages().get(Math.min(starNum, apiConfig.getJrysMessages().size() - 1));
@@ -214,7 +216,7 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
     }
 
     private String getImageUrl(String apiType) {
-        if ("none".equals(apiType) || apiConfig.isISureNotToUseImage()) {
+        if ("none".equals(apiType)) {
             return null;
         }
         FortunePropertiesConfig config = (FortunePropertiesConfig) BotContext.CURRENT_PLUGIN_CONFIG.get();
