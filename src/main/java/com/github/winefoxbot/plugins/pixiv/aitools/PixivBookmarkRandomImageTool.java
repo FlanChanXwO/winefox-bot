@@ -55,11 +55,10 @@ public class PixivBookmarkRandomImageTool {
 
     @Bean("randomPixivBookmarkTool")
     @Description("""
-    Get a random illustration from Pixiv bookmarks.
-    
-    TRIGGER RULES:
-    1. Use this tool ONLY when the user explicitly requests images, such as 'setu', 'anime picture', 'random image', or 'illustration'.
-    2. Do NOT use this tool for general conversation.
+    获取用户随机收藏的P站作品图片。
+    当用户想要随机查看主人收藏的P站作品时，调用此工具。
+    该工具会从用户的P站收藏夹中随机选择一件作品，并获取其详细信息和图片文件，然后发送给用户。
+    当你调用此工具时，请确保传递正确的用户ID、会话ID和消息类型参数。
     """)
     public Function<PixivBookmarkImageRequest,PixivBookmarkImageResponse> randomPixivBookmarkTool() {
         return pixivBookmarkImageRequest -> {

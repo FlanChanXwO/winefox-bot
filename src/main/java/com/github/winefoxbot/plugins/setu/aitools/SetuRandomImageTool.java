@@ -46,11 +46,10 @@ public class SetuRandomImageTool {
 
     @Bean("randomSetuTool")
     @Description("""
-    Get a random illustration from Pixiv bookmarks.
-    
-    TRIGGER RULES:
-    1. Use this tool ONLY when the user explicitly requests images, such as 'setu', 'anime picture', 'random image', or 'illustration'.
-    2. Do NOT use this tool for general conversation.
+    获取一个随机的色图，可以指定标签和数量。
+    当用户需要获取色图时，调用此工具以触发图片发送功能。
+    例如，用户可能会说“给我来几张白丝的图片”或“我想看一些碧蓝档案的色图”等。
+     该工具接受用户ID、会话ID、消息类型、标签和数量作为参数，并返回调用结果。
     """)
     public Function<SetuRequest, SetuResponse> randomSetuTool() {
         return request -> {

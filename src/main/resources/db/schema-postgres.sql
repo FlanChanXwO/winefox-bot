@@ -261,7 +261,7 @@ CREATE INDEX IF NOT EXISTS idx_pixiv_bookmark_tags_gin ON pixiv_bookmark USING G
 
 
 -- 创建运势表
-CREATE TABLE IF NOT EXISTS public.fortune_data (
+CREATE TABLE IF NOT EXISTS fortune_data (
                                                       user_id BIGINT NOT NULL PRIMARY KEY, -- 用户QQ号/ID
                                                       star_num INT NOT NULL DEFAULT 0,     -- 运势星级 (0-7)
                                                       fortune_date DATE NOT NULL          -- 运势日期 (yyyy-MM-dd)
@@ -302,3 +302,9 @@ CREATE TABLE IF NOT EXISTS winefox_bot_plugin_invoke_stats (
 
 -- 创建索引以加速查询
 CREATE INDEX IF NOT EXISTS  idx_plugin_stats_date ON winefox_bot_plugin_invoke_stats(stat_date);
+
+-- ai 好感度
+CREATE TABLE IF NOT EXISTS winefox_bot_ai_favourite_score (
+            user_id BIGINT NOT NULL PRIMARY KEY, -- 用户QQ号/ID
+            score INT NOT NULL DEFAULT 0  CHECK (score >= 0)       -- 运势日期 (yyyy-MM-dd)
+);

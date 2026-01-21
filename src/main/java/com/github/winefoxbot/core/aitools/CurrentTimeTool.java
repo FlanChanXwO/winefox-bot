@@ -31,11 +31,10 @@ public class CurrentTimeTool {
      */
     @Bean("dateTimeTool")
     @Description("""
-    Get the current detailed date and time (Year, Month, Day, Weekday, Time).
-    
-    TRIGGER RULES:
-    1. Call this tool ONLY when the user explicitly asks about time, date, or 'what day is it today'.
-    2. Do NOT call this automatically for every message.
+    获取当前详细时间信息，包括年份、月日、星期以及具体时间。
+    仅当用户询问当前时间时调用此工具。
+    例如，用户可能会问“现在几点了？”、“今天是星期几？”等问题。
+    该工具返回一个格式化的字符串，包含当前的年份、日期（YYYY-MM-DD）、星期（中文）和时间（HH:mm:ss）。
     """)
     public Function<Void,String> getCurrentDateTime() {
         return _ -> {

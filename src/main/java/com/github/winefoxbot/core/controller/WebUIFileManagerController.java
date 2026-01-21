@@ -7,6 +7,7 @@ import com.github.winefoxbot.core.model.vo.webui.req.filemanager.SaveFileRequest
 import com.github.winefoxbot.core.model.vo.webui.resp.FileItemResponse;
 import com.github.winefoxbot.core.service.webui.WebUIFileManagerService;
 import lombok.RequiredArgsConstructor;
+import org.apache.tika.Tika;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
@@ -32,6 +33,8 @@ import java.util.Map;
 public class WebUIFileManagerController {
 
     private final WebUIFileManagerService webUIFileManagerService;
+
+    private static final Tika TIKA_INSTANCE = new Tika();
 
     /**
      * 获取文件列表
@@ -86,11 +89,12 @@ public class WebUIFileManagerController {
      * 建议在 GlobalResponseHandler 中排除 ResponseEntity 类型
      */
     @GetMapping("/download")
-    public ResponseEntity<Resource> download(@RequestParam String path) throws MalformedURLException {
+    public ResponseEntity<Resource> download(@RequestParam String path) throws IOException {
         Path filePath = webUIFileManagerService.getFilePath(path);
         Resource resource = new UrlResource(filePath.toUri());
 
         return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(TIKA_INSTANCE.detect(filePath)))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" +
                         URLEncoder.encode(filePath.getFileName().toString(), StandardCharsets.UTF_8) + "\"")
                 .body(resource);
@@ -104,13 +108,8 @@ public class WebUIFileManagerController {
         Path filePath = webUIFileManagerService.getFilePath(path);
         Resource resource = new UrlResource(filePath.toUri());
 
-        String mimeType = Files.probeContentType(filePath);
-        if (mimeType == null) {
-            mimeType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
-        }
-
         return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(mimeType))
+                .contentType(MediaType.parseMediaType(TIKA_INSTANCE.detect(filePath)))
                 .body(resource);
     }
 }

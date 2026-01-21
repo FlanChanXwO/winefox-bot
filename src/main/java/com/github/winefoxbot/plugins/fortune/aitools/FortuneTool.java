@@ -65,14 +65,9 @@ public class FortuneTool {
 
     @Bean("fortuneGetTool")
     @Description("""
-            Get the daily fortune (今日运势).
-            
-            TRIGGER RULES:
-            1. ONLY invoke this tool when the user EXPLICITLY asks for 'fortune', 'luck', 'fortune telling', or '今日运势'.
-            2. DO NOT invoke this tool for ambiguous inputs like '?', 'hello', 'what', or simple greetings.
-            3. If the user input is just punctuation or unclear, reply with text only.
-            
-            Function: Returns the fortune content text and triggers an asynchronous image send.
+            获取今日运势信息的工具。
+            当用户想要查询今日运势时，应该调用此工具。
+            该工具返回用户的今日运势信息，包括标题、描述、额外信息，运势具体等级以'运势标题'为准
             """)
     public Function<FortuneRequest, FortuneResponse> fortuneGetTool() {
         return req -> {
