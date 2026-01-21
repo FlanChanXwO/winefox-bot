@@ -1,7 +1,9 @@
 package com.github.winefoxbot.core.aop.handler;
 
+import cn.hutool.core.util.RandomUtil;
 import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.exception.bot.BotException;
+import com.github.winefoxbot.core.exception.common.BusinessException;
 import com.github.winefoxbot.core.utils.SendMsgUtil;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.MessageEvent;
@@ -12,6 +14,8 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 /**
  * 机器人命令异常处理器 (简化版).
@@ -28,27 +32,39 @@ import org.springframework.stereotype.Component;
 public class GlobalBotExceptionHandler {
 
     // 复用之前的切入点定义，或者你可以提取到一个公共的 Pointcut类 中
-    @Pointcut("(@within(com.mikuac.shiro.annotation.common.Shiro) && @within(org.springframework.stereotype.Component)) && " +
+    @Pointcut("(" +
+            // 场景A: 使用了 @Plugin 自定义注解 (内部含有 @Shiro 和 @Component)
+            "@within(com.github.winefoxbot.core.annotation.plugin.Plugin) || " +
+            // 场景B: 原生 Shiro 写法 (直接标记 @Shiro 和 @Component)
+            "(@within(com.mikuac.shiro.annotation.common.Shiro) && @within(org.springframework.stereotype.Component))" +
+            ") && " +
             "(@annotation(com.mikuac.shiro.annotation.AnyMessageHandler) || " +
             "@annotation(com.mikuac.shiro.annotation.GroupMessageHandler) || " +
             "@annotation(com.mikuac.shiro.annotation.PrivateMessageHandler) || " +
             "@annotation(com.mikuac.shiro.annotation.GroupPokeNoticeHandler) || " +
             "@annotation(com.mikuac.shiro.annotation.PrivatePokeNoticeHandler))")
-    public void pluginExecutionPointcut() {
-    }
+    public void pluginExecutionPointcut() {}
+
+    private final static List<String> ERROR_MSGS = List.of(
+            "坏掉了呢，请稍后再试。",
+            "系统出错了，需要主人的支持...",
+            "哎呀，出错了！请稍后再试。",
+            "系统遇到问题了，请稍后再试。",
+            "发生错误了，请稍后再试试吧。"
+    );
 
     @Around("pluginExecutionPointcut()")
     public Object handlePluginExceptions(ProceedingJoinPoint joinPoint) throws Throwable {
         try {
             // 直接执行业务逻辑
             return joinPoint.proceed();
-        } catch (BotException e) {
+        } catch (BotException | BusinessException e) {
             // 1. 捕获既然已知的业务异常
             handleException(e.getMessage(), e, joinPoint);
             return null;
         } catch (Exception e) {
             // 2. 捕获未知异常
-            handleException("系统内部错误，请联系管理员。", e, joinPoint);
+            handleException(RandomUtil.randomEle(ERROR_MSGS), e, joinPoint);
             return null;
         }
     }

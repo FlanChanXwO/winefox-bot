@@ -28,8 +28,6 @@ public class WebUILogController {
 
     private final WebSocketLogService logService;
 
-    private static final String LOG_ROOT = "logs";
-
     /**
      * 前端订阅 "/app/logs/history" 时触发。
      * 

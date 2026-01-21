@@ -49,9 +49,10 @@ import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
  * /bt IPX 47
  */
 @Plugin(
-        name = "实用功能",
+        name = "磁力链搜索",
         permission = Permission.USER,
         iconPath = "icon/实用工具.png",
+        description = "通过关键词搜索 BitTorrent 磁力链资源，支持分页浏览搜索结果。",
         order = 5)
 @Slf4j
 @RequiredArgsConstructor

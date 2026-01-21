@@ -70,7 +70,7 @@ public final class FileUploadUtil {
      * @throws IllegalStateException 如果事件类型不被支持
      */
     public static SendMsgResult uploadFile(Bot bot, MessageEvent event, Path filePath, String fileName) {
-        if (event instanceof GroupMessageEvent e) {
+        if (event instanceof GroupMessageEvent e && e.getGroupId() != null) {
             // 群消息事件
             return uploadGroupFile(bot, e.getGroupId(), filePath, fileName);
         } else if (event instanceof PrivateMessageEvent e) {

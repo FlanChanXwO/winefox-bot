@@ -11,7 +11,6 @@ import org.springframework.validation.annotation.Validated;
 @Data
 @Configuration
 @ConfigurationProperties(prefix = "winefoxbot.plugins.setu.api")
-// @EnableConfigurationProperties(...)  <-- 移除这一行
 @Slf4j
 @Validated
 public class SetuApiConfig {
@@ -78,7 +77,6 @@ public class SetuApiConfig {
      * 专门为 R18 配置的类。
      */
     @Data
-    // @ConfigurationProperties(prefix = "setu.api.params.mode") <-- 移除这一行
     public static class ContentMode extends ParamConfig {
         private String safeModeValue;
         private String r18ModeValue;

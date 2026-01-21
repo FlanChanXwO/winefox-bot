@@ -1,5 +1,6 @@
 package com.github.winefoxbot.core.manager;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.github.winefoxbot.core.model.entity.WinefoxBotPluginConfig;
 import com.github.winefoxbot.core.service.plugin.WinefoxBotPluginConfigService;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -73,6 +75,36 @@ public class ConfigManager {
      */
     public <T> Optional<T> get(String key, Class<T> type) {
         return getConfigObject("global", GLOBAL_SCOPE_ID, key, type);
+    }
+
+
+    /**
+     * 获取指定范围下的所有配置项列表
+     * @param scope   范围
+     * @param scopeId 范围ID
+     * @return 配置列表
+     */
+    public List<WinefoxBotPluginConfig> list(Scope scope, String scopeId) {
+        QueryWrapper<WinefoxBotPluginConfig> wrapper = new QueryWrapper<>();
+
+        // 1. 强制匹配 scope (global/group/user)
+        // 注意：数据库里存的小写 group，还是大写 GROUP？通常是小写。
+        // 确保 convertScopeEnumToStringValue 返回的是数据库实际存储的大小写格式
+        wrapper.eq("scope", convertScopeEnumToStringValue(scope));
+
+        // 2. 动态匹配 scope_id
+        // 逻辑：
+        // - GLOBAL 模式：通常 scopeId 必须是 "default"
+        // - GROUP/USER 模式：
+        //      - 如果 scopeId 为 null/空 -> 查所有 (不加 eq 条件)
+        //      - 如果 scopeId 为 "all"   -> 查所有 (不加 eq 条件)
+        //      - 否则 -> 查指定 ID
+
+        if (scopeId != null && !scopeId.isBlank() && !"all".equalsIgnoreCase(scopeId)) {
+            wrapper.eq("scope_id", scopeId);
+        }
+
+        return configService.list(wrapper);
     }
 
 

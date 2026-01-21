@@ -12,5 +12,6 @@ public record PluginListItemResponse (
     String iconPath,     // 图标
     boolean enabled,     // 是否已开启
     boolean builtIn,     // 是否内置 (决定删除按钮是否禁用)
-    boolean hasConfig  // 是否有配置项 (决定配置按钮是否显示)
+    boolean hasConfig,  // 是否有配置项 (决定配置按钮是否显示)
+    boolean canDisable // 是否可禁用
 ) {}

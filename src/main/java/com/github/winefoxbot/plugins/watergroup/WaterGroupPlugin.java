@@ -40,7 +40,8 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
         name = "发言统计",
         permission = Permission.USER,
         order = 12,
-        config = WaterGroupConfig.class
+        config = WaterGroupConfig.class,
+        description = "统计群成员每日发言情况，并支持定时推送发言排行榜。"
 )
 @Slf4j
 @RequiredArgsConstructor
@@ -186,9 +187,9 @@ public class WaterGroupPlugin {
             name = "查看发言统计",
             description = "使用 /今日发言 命令查看本群的发言统计排名。",
             permission = Permission.USER,
-            commands = {COMMAND_PREFIX + "今日发言" + COMMAND_SUFFIX})
+            commands = {"今日发言", "/今日发言"})
     @GroupMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "今日发言" + COMMAND_SUFFIX_REGEX)
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/?今日发言$")
     public void showWaterGroupStats(Bot bot, GroupMessageEvent event) {
         Long groupId = event.getGroupId();
         List<WaterGroupMessageStat> ranks = waterGroupService.getDailyRanking(groupId);

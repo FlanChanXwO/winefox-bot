@@ -18,8 +18,8 @@ import lombok.EqualsAndHashCode;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@PluginConfig(prefix = "setu", name = "成人内容配置") 
-public class AdultContentConfig extends BasePluginConfig {
+@PluginConfig(prefix = "setu", name = "成人内容配置")
+public class AdultContentConfig extends BasePluginConfig implements SafeSendingConfigurable {
 
     @ConfigItem(
             key = "content.mode",

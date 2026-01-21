@@ -21,6 +21,19 @@ public final class CacheConstants {
      */
     public static final String CACHE_KEY_PREFIX = "winefoxbot:";
 
+    // --- WebUI 模块 ---
+    /**
+     * WebUI 首页仪表盘统计数据缓存
+     * 建议 TTL: 10分钟 ~ 30分钟 (避免频繁全表扫描消息记录)
+     */
+    public static final String WEBUI_CONSOLE_STATS_CACHE = "webui:console:stats";
+    /**
+     * WebUI 活跃群组排行缓存
+     * 单独缓存，因为计算成本较高 (需要聚合全表)
+     * TTL: 10分钟 ~ 30分钟
+     */
+    public static final String WEBUI_ACTIVE_GROUPS_CACHE = "webui:console:active_groups";
+
     // --- Pixiv 插件模块 ---
     /**
      * Pixiv 作品信息缓存

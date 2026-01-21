@@ -7,10 +7,9 @@ import com.github.winefoxbot.core.model.vo.webui.resp.FriendAndGroupStatsRespons
 import com.github.winefoxbot.core.service.shiro.ShiroFriendsService;
 import com.github.winefoxbot.core.service.shiro.ShiroGroupsService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * @author FlanChan (badapple495@outlook.com)
@@ -22,6 +21,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class WebUIFriendAndGroupController {
     private final ShiroFriendsService friendsService;
     private final ShiroGroupsService groupsService;
+
+
+    @GetMapping("/groupids")
+    public List<Long> getGroupIdList(@RequestParam(required = false) Long botId) {
+        return groupsService.list(new LambdaQueryWrapper<>(ShiroGroup.class).eq(botId != null,ShiroGroup::getSelfId,botId)).stream().map(ShiroGroup::getGroupId).toList();
+    }
+
+    @GetMapping("/friendids")
+    public List<Long> getFriendIdList(@RequestParam(required = false) Long botId) {
+        return friendsService.list(new LambdaQueryWrapper<>(ShiroFriends.class).eq(botId != null,ShiroFriends::getBotId,botId)).stream().map(ShiroFriends::getFriendId).toList();
+    }
+
 
     @GetMapping("/stats/{botId}")
     public FriendAndGroupStatsResponse getFriendAndGroupStats(@PathVariable Long botId) {

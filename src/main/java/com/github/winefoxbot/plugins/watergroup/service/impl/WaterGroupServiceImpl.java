@@ -3,6 +3,9 @@ package com.github.winefoxbot.plugins.watergroup.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.github.winefoxbot.core.annotation.common.RedissonLock;
+import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
+import com.github.winefoxbot.core.context.BotContext;
+import com.github.winefoxbot.plugins.watergroup.config.WaterGroupConfig;
 import com.github.winefoxbot.plugins.watergroup.mapper.WaterGroupMessageStatMapper;
 import com.github.winefoxbot.plugins.watergroup.model.entity.WaterGroupMessageStat;
 import com.github.winefoxbot.plugins.watergroup.service.WaterGroupService;
@@ -59,12 +62,13 @@ public class WaterGroupServiceImpl implements WaterGroupService {
      */
     @Override
     public List<WaterGroupMessageStat> getDailyRanking(long groupId) {
+        WaterGroupConfig config = (WaterGroupConfig) BotContext.CURRENT_PLUGIN_CONFIG.get();
         return dayMapper.selectList(new LambdaQueryWrapper<WaterGroupMessageStat>()
                 .eq(WaterGroupMessageStat::getGroupId, groupId)
                 .eq(WaterGroupMessageStat::getDate, LocalDate.now()) // 只查询今天的数据
                 .gt(WaterGroupMessageStat::getMsgCount, 0) // 只看发言过的
                 .orderByDesc(WaterGroupMessageStat::getMsgCount)
-                .last("LIMIT 20"));
+                .last("LIMIT %s".formatted(config.getLimit())));
     }
 
 

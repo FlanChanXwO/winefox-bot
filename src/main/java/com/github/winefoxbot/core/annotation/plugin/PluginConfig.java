@@ -16,7 +16,7 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@Component // 让 Spring 能扫描到
+@Component
 public @interface PluginConfig {
     String prefix(); // 必须指定前缀，防止冲突
 

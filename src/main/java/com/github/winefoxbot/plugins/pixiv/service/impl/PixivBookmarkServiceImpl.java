@@ -6,9 +6,10 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.core.constants.CacheConstants;
-import com.github.winefoxbot.core.constants.ConfigConstants;
 import com.github.winefoxbot.core.exception.common.BusinessException;
 import com.github.winefoxbot.core.manager.ConfigManager;
+import com.github.winefoxbot.core.plugins.adultmanage.config.AdultContentConfig;
+import com.github.winefoxbot.core.utils.ConfigReflectionUtil;
 import com.github.winefoxbot.plugins.pixiv.config.PixivProperties;
 import com.github.winefoxbot.plugins.pixiv.mapper.PixivBookmarkMapper;
 import com.github.winefoxbot.plugins.pixiv.model.dto.bookmark.PixivApiBody;
@@ -62,6 +63,15 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
     private final Random random = new Random();
     private static final double INITIAL_WEIGHT = 100.0;
     private static final double WEIGHT_RESET_THRESHOLD = 20.0; // 平均权重低于20时重置权重保证随机性
+    // --- 1. 动态获取配置 Key ---
+    // 假设 AdultContentConfig 类中有一个字段叫 contentMode (对应 setu.content.mode 或类似)
+    // 如果字段名是 mode，请改为 "mode"
+    private static final String KEY_CONTENT_MODE = ConfigReflectionUtil.getFullKey(AdultContentConfig.class, "contentMode");
+
+    // --- 2. 定义值常量 (解耦 ConfigConstants) ---
+    private static final String MODE_SFW = "sfw";
+    private static final String MODE_R18 = "r18";
+    private static final String MODE_MIX = "mix";
 
     @Autowired
     @Lazy
@@ -556,22 +566,29 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
      */
     @Override
     public Optional<PixivBookmark> getRandomBookmark(Long userId, Long groupId) {
-        String contentMode = configManager.getOrDefault(ConfigConstants.AdultContent.SETU_CONTENT_MODE, userId, groupId, ConfigConstants.AdultContent.MODE_SFW);
-        String zsetKey = null;
+        // 使用反射获取到的 KEY 进行查询
+        String contentMode = configManager.getString(KEY_CONTENT_MODE, userId, groupId, MODE_SFW);
+
+        String zsetKey = "";
+
+        // 根据模式选择 Redis Key
         switch (contentMode) {
-            case ConfigConstants.AdultContent.MODE_MIX -> {
+            case MODE_MIX -> {
                 zsetKey = CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_MIX;
                 log.debug("Content mode is MIX, using ZSET: {}", zsetKey);
             }
-            case ConfigConstants.AdultContent.MODE_R18 -> {
+            case MODE_R18 -> {
                 zsetKey = CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_R18;
                 log.debug("Content mode is R18, using ZSET: {}", zsetKey);
             }
-            case ConfigConstants.AdultContent.MODE_SFW -> {
+            // 默认为 SFW
+            case MODE_SFW -> {
                 zsetKey = CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_SFW;
                 log.debug("Content mode is SFW (or default), using ZSET: {}", zsetKey);
             }
         }
+
+        // 调用原有逻辑获取 ID
         Optional<String> randomIdOptional = this.getRandomBookmarkIdWithWeight(zsetKey);
 
         if (randomIdOptional.isPresent()) {

@@ -9,9 +9,9 @@ import java.time.LocalDateTime;
 
 /**
  * @author FlanChan
- * @TableName winefox_bot_app_config
+ * @TableName winefox_bot_plugin_config
  */
-@TableName(value ="winefox_bot_app_config", autoResultMap = true)
+@TableName(value ="winefox_bot_plugin_config", autoResultMap = true)
 @Data
 public class WinefoxBotPluginConfig implements Serializable {
     @TableId(type = IdType.AUTO)

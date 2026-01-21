@@ -181,8 +181,8 @@ CREATE TABLE IF NOT EXISTS shiro_group_requests
 CREATE INDEX IF NOT EXISTS idx_shiro_group_req_status ON shiro_group_requests (status);
 
 
--- winefoxbot 内置表
-CREATE TABLE IF NOT EXISTS winefox_bot_app_config
+-- winefoxbot 插件表
+CREATE TABLE IF NOT EXISTS winefox_bot_plugin_config
 (
     id           SERIAL PRIMARY KEY,
     -- 配置分组，便于管理和展示，例如在配置菜单中分类显示

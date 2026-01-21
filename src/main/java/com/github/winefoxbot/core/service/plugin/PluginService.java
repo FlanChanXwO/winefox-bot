@@ -7,6 +7,7 @@ import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.annotation.plugin.PluginConfig;
 import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
 import com.github.winefoxbot.core.manager.ConfigManager;
+import com.github.winefoxbot.core.model.entity.WinefoxBotPluginConfig;
 import com.github.winefoxbot.core.model.type.BaseEnum;
 import com.github.winefoxbot.core.model.vo.webui.resp.PluginConfigSchemaResponse;
 import com.github.winefoxbot.core.model.vo.webui.resp.PluginListItemResponse;
@@ -21,15 +22,14 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
 
-import static com.github.winefoxbot.core.constants.ConfigConstants.PLUGIN_STATUS_PREFIX;
-
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class PluginConfigService {
+public class PluginService {
 
     private final ApplicationContext applicationContext;
     private final ConfigManager configManager;
+    private final static String PLUGIN_STATUS_PREFIX = "plugin.status.";
 
     /**
      * 获取插件列表 (保持不变)
@@ -56,6 +56,7 @@ public class PluginConfigService {
             list.add(PluginListItemResponse.builder()
                     .id(clazz.getSimpleName())
                     .name(pluginAnn.name())
+                    .canDisable(pluginAnn.canDisable())
                     .description(pluginAnn.description())
                     .version(pluginAnn.version())
                     .author(pluginAnn.author())
@@ -261,6 +262,94 @@ public class PluginConfigService {
                 .description(pluginAnn.description())
                 .fields(fields)
                 .build();
+    }
+
+    /**
+     * 5. 获取指定作用域的配置列表
+     * 用于“配置管理”面板，查看当前有哪些覆盖配置
+     */
+    public List<Map<String, Object>> getPluginConfigList(ConfigManager.Scope scope, String scopeId) {
+        List<WinefoxBotPluginConfig> configs = configManager.list(scope, scopeId);
+
+        // 转换为前端友好的格式
+        return configs.stream().map(entity -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("key", entity.getConfigKey());
+            map.put("value", entity.getConfigValue());
+            map.put("description", entity.getDescription());
+            map.put("group", entity.getConfigGroup());
+
+            map.put("scope", entity.getScope());
+            map.put("scopeId", entity.getScopeId());
+
+            map.put("updatedAt", entity.getUpdatedAt());
+            return map;
+        }).toList();
+    }
+
+    /**
+     * 6. 删除指定配置
+     */
+    public void deleteConfig(String key, String scopeStr, String scopeId) {
+        // 解析 Scope
+        ConfigManager.Scope scope;
+        try {
+            scope = ConfigManager.Scope.valueOf(scopeStr.toUpperCase());
+        } catch (Exception e) {
+            scope = ConfigManager.Scope.GLOBAL;
+        }
+
+        // 只有非 Global 或者 Global 确实允许删除时才操作
+        // 通常 Global 是代码定义的默认值，删了也会被初始化回来，或者作为硬删除
+        // 这里直接调用 Manager 删除
+        boolean removed = configManager.remove(
+                scope == ConfigManager.Scope.GLOBAL ? "global" :
+                        scope == ConfigManager.Scope.GROUP ? "group" : "user",
+                scopeId,
+                key
+        );
+
+        if (removed) {
+            log.info("已删除配置: key={}, scope={}, scopeId={}", key, scope, scopeId);
+        } else {
+            log.warn("尝试删除不存在的配置: key={}, scope={}, scopeId={}", key, scope, scopeId);
+        }
+    }
+
+
+    /**
+     * 7. (新增) 删除指定插件在指定作用域下的所有配置 (整组删除)
+     */
+    public void deleteConfigByScope(String pluginId, String scopeStr, String scopeId) {
+        // 1. 获取插件配置前缀
+        Object pluginBean = findPluginBeanBySimpleName(pluginId);
+        if (pluginBean == null) return;
+
+        Class<?> pluginClass = AopUtils.getTargetClass(pluginBean);
+        Plugin pluginAnn = pluginClass.getAnnotation(Plugin.class);
+        if (pluginAnn.config() == BasePluginConfig.None.class) return;
+
+        PluginConfig configAnn = pluginAnn.config().getAnnotation(PluginConfig.class);
+        String prefix = configAnn.prefix(); // 例如 "setu"
+
+        // 2. 解析 Scope
+        ConfigManager.Scope scope;
+        try {
+            scope = ConfigManager.Scope.valueOf(scopeStr.toUpperCase());
+        } catch (Exception e) {
+            return;
+        }
+
+        // 3. 查出该作用域下所有配置，筛选出符合前缀的 keys
+        List<WinefoxBotPluginConfig> allConfigs = configManager.list(scope, scopeId);
+
+        for (WinefoxBotPluginConfig config : allConfigs) {
+            if (config.getConfigKey().startsWith(prefix + ".")) {
+                // 逐个删除 (或者 ConfigManager 可以提供 deleteByWrapper)
+                configManager.remove(scopeStr.toLowerCase(), scopeId, config.getConfigKey());
+            }
+        }
+        log.info("已重置插件 {} 在 {} - {} 下的所有配置", pluginId, scopeStr, scopeId);
     }
 
     // --- 辅助方法 ---

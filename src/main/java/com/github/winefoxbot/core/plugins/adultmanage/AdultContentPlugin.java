@@ -13,6 +13,7 @@ import com.github.winefoxbot.core.plugins.adultmanage.config.AdultContentConfig;
         permission = Permission.ADMIN,
         iconPath = "icon/配置.png",
         order = 99,
-        config = AdultContentConfig.class
+        config = AdultContentConfig.class,
+        canDisable = false
 )
 public class AdultContentPlugin {}

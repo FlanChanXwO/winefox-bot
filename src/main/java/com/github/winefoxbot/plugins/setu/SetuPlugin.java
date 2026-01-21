@@ -19,9 +19,10 @@ import org.springframework.scheduling.annotation.Async;
 import java.util.regex.Matcher;
 
 @Plugin(
-        name = "娱乐功能",
+        name = "瑟瑟功能",
         permission = Permission.USER,
         iconPath = "icon/娱乐功能.png",
+        description = "提供随机福利图片获取功能，支持标签和数量限制。",
         order = 7
 )
 @Slf4j
@@ -29,6 +30,8 @@ import java.util.regex.Matcher;
 public class SetuPlugin {
 
     private final SetuService setuService;
+
+    private final static int MAX_SETU_COUNT = 10;
 
     @Async
     @PluginFunction(
@@ -41,18 +44,15 @@ public class SetuPlugin {
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/?(来\\s*(.*)(份|个|张|点))(\\S*?)(福利|色|瑟|涩|塞|)图$")
     public void getRandomPicture(Bot bot, AnyMessageEvent event, Matcher matcher) {
         String numStr = matcher.group(2);
-        int num = NumberUtil.parseInt(numStr, -1);
-        if (num == -1) { // 尝试根据中文转换
-            try {num = NumberChineseFormatter.chineseToNumber(numStr);} catch (IllegalArgumentException _) {}
-        }
 
-        if (num == -1) {
-            bot.sendMsg(event," 数量解析失败，请使用数字或中文数字表示正确的数量哦~，图片数量必须在1-5之间", false);
-            return;
-        }
+        int num = parseCount(numStr);
 
-        if (0 >= num || num > 5) {
-            bot.sendMsg(event, "一次最多只能获取5张哦~", false);
+        if (num < 1 || num > MAX_SETU_COUNT) {
+            String msg = (num == -1)
+                    ? "数量解析失败，请使用数字或中文数字表示正确的数量哦~，图片数量必须在1-%s之间".formatted(MAX_SETU_COUNT)
+                    : (num > MAX_SETU_COUNT ? "一次最多只能获取%s张哦~".formatted(MAX_SETU_COUNT) : "图片数量必须在1-%s之间哦~".formatted(MAX_SETU_COUNT));
+
+            bot.sendMsg(event, msg, false);
             return;
         }
 
@@ -60,4 +60,30 @@ public class SetuPlugin {
         // 调用Service处理业务逻辑
         setuService.processSetuRequest(bot, event,num, tag);
     }
+
+    /**
+     * 解析数量字符串
+     * @return 返回解析后的数字，如果为空返回1，解析失败返回-1
+     */
+    private int parseCount(String text) {
+        if (text == null || text.isBlank()) {
+            return 1;
+        }
+
+        // 尝试解析阿拉伯数字
+        int n = NumberUtil.parseInt(text, -1);
+
+        // 如果解析失败，尝试解析中文数字
+        if (n == -1) {
+            try {
+                // 使用 Hutool 或类似的库
+                n = NumberChineseFormatter.chineseToNumber(text);
+            } catch (Exception _) {
+                return -1;
+            }
+        }
+
+        return n;
+    }
+
 }

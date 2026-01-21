@@ -21,10 +21,11 @@ import org.springframework.scheduling.annotation.Async;
 import java.util.Objects;
 
 @Plugin(
-        name = "娱乐功能",
+        name = "今日运势",
         permission = Permission.USER,
         iconPath = "icon/娱乐功能.png",
-        order = 7
+        order = 7,
+        description = "提供每日运势抽取功能，支持手动刷新运势(未配置前仅限管理和超管)。"
 )
 @Slf4j
 @RequiredArgsConstructor

@@ -1,4 +1,4 @@
-package com.github.winefoxbot.plugins.scheduletip;
+package com.github.winefoxbot.core.plugins.test;
 
 import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
@@ -27,8 +27,9 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
  * @since 2025-12-12-15:15
  */
 @Plugin(
-        name = "实用功能",
+        name = "定时提醒",
         iconPath = "icon/实用工具.png",
+        hidden = true,
         order = 5)
 @RequiredArgsConstructor
 public class ScheduleTipTaskPlugin {

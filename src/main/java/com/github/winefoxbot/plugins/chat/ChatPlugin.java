@@ -41,8 +41,9 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.COMMAND_SUF
 import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
 
 @Plugin(
-        name = "娱乐功能",
+        name = "聊天功能",
         permission = Permission.USER,
+        description = "提供群聊和私聊的智能聊天功能，支持戳一戳互动。",
         order = 6)
 @ConditionalOnClass(OpenAiService.class)
 @Slf4j
@@ -98,7 +99,7 @@ public class ChatPlugin {
             hidden = true,
             description = "在私聊中与酒狐进行智能聊天。",
             permission = Permission.SUPERADMIN)
-    @MessageHandlerFilter(types = {MsgTypeEnum.text, MsgTypeEnum.image})
+    @MessageHandlerFilter(types = {MsgTypeEnum.text, MsgTypeEnum.image} , cmd = "^(?!/)(?!\\s+$).+")
     public void handlePrivateChatMessage(Bot bot, PrivateMessageEvent event) {
         String sessionKey = shiroSessionStateService.getSessionKey(event);
         if (shiroSessionStateService.isInCommandMode(sessionKey)) {
@@ -128,20 +129,12 @@ public class ChatPlugin {
     @Order(100)
     @Block
     @Limit(userPermits = 1, timeInSeconds = 5, notificationIntervalSeconds = 30, message = "说话太快了，酒狐需要思考一会儿哦~")
-    @MessageHandlerFilter(types = {MsgTypeEnum.text, MsgTypeEnum.image},at = AtEnum.NEED)
+    @MessageHandlerFilter(types = {MsgTypeEnum.text, MsgTypeEnum.image},at = AtEnum.NEED, cmd = "^(?!/)(?!\\s+$).+")
     public void handleGroupChatMessage(Bot bot, GroupMessageEvent event) {
-        String plainMessage = MessageConverter.getPlainTextMessage(event.getMessage());
-        if (plainMessage.startsWith("/")) {
-            return;
-        }
-
         Long groupId = event.getGroupId();
         Long userId = event.getUserId();
-
-        // 关键修改：传递原始的 JSONArray
         AiMessageInput userMsg = aiInteractionHelper.createChatMessageInput(bot, userId, groupId, MessageConverter.parseCQToJSONArray(event.getRawMessage()));
         String resp = openAiService.complete(groupId, MessageType.GROUP, userMsg);
-
         if (resp != null && !resp.isEmpty()) {
             MsgUtils msgBuilder = MsgUtils.builder().at(userId).text(" ").text(resp);
             bot.sendGroupMsg(groupId, msgBuilder.build(), false);

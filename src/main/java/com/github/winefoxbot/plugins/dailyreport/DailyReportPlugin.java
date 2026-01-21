@@ -26,7 +26,7 @@ import java.util.regex.Matcher;
 /**
  * @author FlanChan
  */
-@Plugin(name = "酒狐日报", order = 10)
+@Plugin(name = "酒狐日报", order = 10, permission = Permission.USER, description = "提供酒狐日报的订阅和获取功能。")
 @Slf4j
 @RequiredArgsConstructor
 public class DailyReportPlugin {

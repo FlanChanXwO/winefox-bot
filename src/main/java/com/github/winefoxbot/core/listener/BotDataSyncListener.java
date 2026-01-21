@@ -49,8 +49,7 @@ public class BotDataSyncListener {
 
     private static final String RESTART_INFO_FILE = "restart-info.json";
 
-    // 使用 @Async 让这个监听器在单独的线程池中执行
-    // 确保你的 Spring 配置类上开启了 @EnableAsync
+
     @Async
     @EventListener
     public void handleBotOnlineSync(BotOnlineEvent event) {
@@ -89,19 +88,22 @@ public class BotDataSyncListener {
         Optional<ActionList<GroupInfoResp>> groupListOpt = Optional.ofNullable(bot.getGroupList());
 
         if (groupListOpt.isPresent()) {
-            List<ShiroGroup> list = groupListOpt.get().getData().stream()
+            List<GroupInfoResp> data = groupListOpt.get().getData();
+            if (data == null) {
+                log.warn("Bot {} 获取群列表时返回空数据", selfId);
+                return;
+            }
+
+            List<ShiroGroup> list = data.stream()
                     .map(e -> {
                         ShiroGroup g = ShiroGroup.convertToShiroGroup(e, selfId);
                         // 建议: 在这里统一设置更新时间，不要依赖数据库默认值
                         g.setLastUpdated(LocalDateTime.now());
                         return g;
                     })
-                    .toList(); // JDK 16+ toList()
+                    .toList();
             
             if (list.isEmpty()) return;
-
-            // 建议: 这里如果数量巨大，最好分批处理（Partitioning）
-            // 例如 List<List<ShiroGroup>> partitions = Lists.partition(list, 200);
             int count = shiroGroupsService.saveOrUpdateBatchGroups(list);
             log.info("异步任务完成: 已保存或更新 {} 个群组信息。", count);
         }
@@ -112,7 +114,13 @@ public class BotDataSyncListener {
         Optional<ActionList<FriendInfoResp>> friendListOpt = Optional.ofNullable(bot.getFriendList());
 
         if (friendListOpt.isPresent()) {
-            List<ShiroFriends> list = friendListOpt.get().getData().stream()
+            List<FriendInfoResp> data = friendListOpt.get().getData();
+            if (data == null) {
+                log.warn("Bot {} 获取好友列表时返回空数据", selfId);
+                return;
+            }
+
+            List<ShiroFriends> list = data.stream()
                     .map(e -> ShiroFriends.convertToShiroFriend(e, selfId))
                     .toList();
             
@@ -140,7 +148,6 @@ public class BotDataSyncListener {
 
     /**
      * 保存或更新 Bot 信息到数据库
-     * @param bot
      */
     private void saveOrUpdateBotInfo(Bot bot) {
         log.info("正在保存或更新 Bot {} 的信息...", bot.getSelfId());

@@ -22,8 +22,8 @@ public class CacheConfig {
     public RedisCacheConfiguration cacheConfiguration(ObjectMapper objectMapper) {
         // 全局默认配置
         return RedisCacheConfiguration.defaultCacheConfig()
-                // 设置全局默认过期时间为 7 天
-                .entryTtl(Duration.ofDays(7))
+                // 设置全局默认过期时间为 1 天
+                .entryTtl(Duration.ofDays(1))
                 // 设置 key 的序列化方式 (可选)
                 .prefixCacheNameWith(CACHE_KEY_PREFIX) // 设置缓存前缀
                 // 设置 Key 为 String 序列化 (这是最佳实践，方便在 Redis GUI 中查看)

@@ -36,6 +36,7 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
         name = "核心功能",
         permission = Permission.USER,
         iconPath = "icon/core.png",
+        description = "提供应用重启、版本检查与更新等核心功能，以及帮助文档和状态图片查询。",
         order = 1
 )
 @Slf4j

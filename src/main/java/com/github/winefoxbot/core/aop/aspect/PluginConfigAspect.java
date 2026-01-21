@@ -3,7 +3,7 @@ package com.github.winefoxbot.core.aop.aspect;
 import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
 import com.github.winefoxbot.core.context.BotContext;
-import com.github.winefoxbot.core.service.plugin.PluginConfigService;
+import com.github.winefoxbot.core.service.plugin.PluginService;
 import com.github.winefoxbot.core.utils.PluginConfigBinder;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import com.mikuac.shiro.dto.event.message.MessageEvent;
@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component;
 public class PluginConfigAspect {
 
     private final PluginConfigBinder configBinder;
-    private final PluginConfigService pluginConfigService;
+    private final PluginService pluginService;
 
     @Around("@within(pluginAnno) && " +
             "(@annotation(com.mikuac.shiro.annotation.AnyMessageHandler) || " +
@@ -47,7 +47,7 @@ public class PluginConfigAspect {
 
         // 优先检查全局开关 (对应数据库中的 system.plugin.status.XXX)
         // 如果这里返回 false，直接拦截，不再进行后续的 Config 实例化
-        if (!pluginConfigService.getPluginEnabledStatus(pluginId)) {
+        if (!pluginService.getPluginEnabledStatus(pluginId)) {
             // log.debug 避免日志刷屏，但在调试时很有用
             log.debug("插件 [{}] (ID: {}) 全局开关已关闭，拦截执行", pluginAnno.name(), pluginId);
             return null;

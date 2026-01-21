@@ -28,10 +28,11 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
  * @since 2025-12-09-2:12
  */
 @Plugin(
-        name = "娱乐功能",
+        name = "复读机",
         permission = Permission.USER,
         iconPath = "icon/娱乐功能.png",
-        order = 7
+        order = 7,
+        description = "提供复读跟随功能和群消息复读功能。"
 )
 @Slf4j
 public class RepeaterPlugin {

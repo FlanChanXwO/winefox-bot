@@ -37,9 +37,10 @@ import java.util.regex.Pattern;
  * @since 2026-01-15-17:17
  */
 @Plugin(
-        name = "实用功能",
+        name = "图片搜索",
         permission = Permission.USER,
         iconPath = "icon/实用工具.png",
+        description = "通过上传图片搜索其来源，返回可能的出处图片链接。",
         order = 5)
 @Slf4j
 @RequiredArgsConstructor

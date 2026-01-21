@@ -65,4 +65,9 @@ public @interface Plugin {
      * 默认为 Void.class 表示该插件没有配置
      */
     Class<? extends BasePluginConfig> config() default BasePluginConfig.None.class;
+
+    /**
+     * 是否允许禁用此插件
+     */
+    boolean canDisable() default true;
 }
