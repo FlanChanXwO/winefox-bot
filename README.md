@@ -102,7 +102,7 @@ control.bat start
 - [ ] 修复潜在的BUG，重构一些不好的代码。  
 - [ ] 完善使用文档与注释，补全常见问题与故障排查步骤。  
 - [ ] 整理出一个发布版本与维护变更日志（CHANGELOG）。
-- [ ] 开发可视化的 WEBUI 以管理BOT的插件和一些配置选项，查看日志等信息。
+- [x] 开发可视化的 [WebUI](https://github.com/FlanChanXwO/winefox-bot-webui) 以管理BOT的插件和一些配置选项，查看日志等信息。（从1.11.0开始支持, `Release`下已包含web资源 ）
 
 ## 🤝 参与贡献
 欢迎提交 [Pull Request](https://github.com/FlanChanXwO/winefox-bot/pulls) 或 [Issue](https://github.com/FlanChanXwO/winefox-bot/issues)！
