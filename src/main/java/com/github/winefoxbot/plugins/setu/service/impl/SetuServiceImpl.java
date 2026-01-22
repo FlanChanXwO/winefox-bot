@@ -11,13 +11,16 @@ import com.github.winefoxbot.plugins.setu.model.dto.SetuProviderRequest;
 import com.github.winefoxbot.plugins.setu.model.enums.SetuApiType;
 import com.github.winefoxbot.plugins.setu.service.SetuImageProvider;
 import com.github.winefoxbot.plugins.setu.service.SetuService;
+import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import com.mikuac.shiro.dto.event.message.MessageEvent;
+import com.mikuac.shiro.dto.event.message.PrivateMessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -80,7 +83,7 @@ public class SetuServiceImpl implements SetuService {
         MessageEvent messageEvent = BotContext.CURRENT_MESSAGE_EVENT.get();
         Long userId = messageEvent.getUserId();
         Long groupId = null;
-        if (messageEvent instanceof GroupMessageEvent e ){
+        if (messageEvent instanceof GroupMessageEvent e) {
             groupId = e.getGroupId();
         }
 
@@ -285,7 +288,21 @@ public class SetuServiceImpl implements SetuService {
         List<String> localUrlList = downloadedPaths.stream()
                 .map(path -> path.toUri().toString())
                 .toList();
-        String msg = "找到 " + localUrlList.size() + " 张符合要求的图片~";
+
+        // 构建回复消息
+        MessageEvent messageEvent = BotContext.CURRENT_MESSAGE_EVENT.get();
+        Integer msgId = switch (messageEvent) {
+            case GroupMessageEvent e -> e.getMessageId();
+            case PrivateMessageEvent e -> e.getMessageId();
+            default -> null;
+        };
+        MsgUtils builder = MsgUtils.builder();
+        if (msgId != null) {
+            builder.reply(msgId);
+        }
+        String msg = builder.at(messageEvent.getUserId())
+                .text(StringUtils.SPACE + "找到 " + localUrlList.size() + " 张符合要求的图片~")
+                .build();
 
         safeSendMessageService.sendMessage(
                 msg,
