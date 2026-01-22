@@ -14,7 +14,7 @@ import java.nio.file.Path;
 public class WinefoxBotVoiceReplyProperties {
     private Boolean enabled = true;
 
-    private String voiceRootDir = "resources/reply/voices";
+    private String voiceRootDir = "voices";
 
     public Path getVoiceRootPath() {
         return Path.of(voiceRootDir);

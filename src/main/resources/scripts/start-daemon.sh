@@ -9,6 +9,9 @@ JAR_PATH="winefox-bot.jar"
 # 更新时下载的临时 JAR 文件的相对路径
 TEMP_JAR_PATH="update-temp.jar"
 TEMP_LIB_PATH="update-lib.zip"
+# [新增] 资源文件路径
+TEMP_RES_PATH="update-resources.zip"
+
 # 触发更新的特定退出码
 UPDATE_EXIT_CODE=5
 # ==================================================
@@ -29,7 +32,7 @@ while true; do
     echo "======================================================="
     echo
 
-    # 【修复 1】启动前检查 JAR 文件是否存在
+    # 启动前检查 JAR 文件是否存在
     if [ ! -f "$JAR_PATH" ]; then
         echo "[FATAL ERROR] JAR file '$JAR_PATH' not found!"
         echo "Please ensure the jar file is named correctly and placed in this directory."
@@ -48,7 +51,7 @@ while true; do
     echo "======================================================="
     echo
 
-    # 【修复 2】如果是正常退出 (0)，则停止循环
+    # 如果是正常退出 (0)，则停止循环
     if [ $EXIT_CODE -eq 0 ]; then
         echo "[INFO] Application exited normally (Code 0). Stopping daemon."
         break
@@ -56,11 +59,11 @@ while true; do
 
     # 检查退出码是否为我们约定的“重启更新”码
     if [ $EXIT_CODE -eq $UPDATE_EXIT_CODE ]; then
-        # ---- 更新流程 (保持原样) ----
+        # ---- 更新流程 ----
         echo "[UPDATE] Update exit code detected. Starting update process..."
         sleep 2
 
-        if [ ! -f "$TEMP_JAR_PATH" ] && [ ! -f "$TEMP_LIB_PATH" ]; then
+        if [ ! -f "$TEMP_JAR_PATH" ] && [ ! -f "$TEMP_LIB_PATH" ] && [ ! -f "$TEMP_RES_PATH" ]; then
             echo "[ERROR] Update exit code 5 received but no update files found!"
             echo "[INFO] Restarting with the current version."
         fi
@@ -76,12 +79,29 @@ while true; do
             fi
         fi
 
-        # 处理 Lib 更新 (保持原样)
+        # 处理 Lib 更新
         if [ -f "$TEMP_LIB_PATH" ]; then
+             echo "[UPDATE] Found Lib update. Extracting..."
              if command -v unzip >/dev/null 2>&1; then
+                # 解压成功后删除 zip
                 unzip -o "$TEMP_LIB_PATH" && rm -f "$TEMP_LIB_PATH"
              elif command -v jar >/dev/null 2>&1; then
                 jar -xf "$TEMP_LIB_PATH" && rm -f "$TEMP_LIB_PATH"
+             fi
+        fi
+
+        # [新增] 处理资源文件 Resources 更新
+        if [ -f "$TEMP_RES_PATH" ]; then
+             echo "[UPDATE] Found Resources update. Extracting..."
+             if command -v unzip >/dev/null 2>&1; then
+                # -o 覆盖已存在文件，&& rm 确保成功后删除
+                unzip -o "$TEMP_RES_PATH" && rm -f "$TEMP_RES_PATH"
+                echo "[SUCCESS] Resources updated and zip file deleted."
+             elif command -v jar >/dev/null 2>&1; then
+                jar -xf "$TEMP_RES_PATH" && rm -f "$TEMP_RES_PATH"
+                echo "[SUCCESS] Resources updated and zip file deleted."
+             else
+                echo "[ERROR] No unzip or jar tool found to extract resources."
              fi
         fi
 
