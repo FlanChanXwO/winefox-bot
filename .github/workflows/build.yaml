@@ -57,13 +57,16 @@ jobs:
           
           # 打包 lib (依赖包)
           if [ -d "lib" ]; then
-             zip -r lib.zip lib/
+             echo "Packing lib..."
+             find lib -exec touch -t 200001010000 {} +
+             zip -r -X lib.zip lib/
           fi
           
           # [新增] 打包 resources (静态资源)
           if [ -d "resources" ]; then
              echo "Packing separated resources..."
-             zip -r resources.zip resources/
+             find resources -exec touch -t 200001010000 {} +
+             zip -r -X resources.zip resources/
           fi
           cd ..
 
