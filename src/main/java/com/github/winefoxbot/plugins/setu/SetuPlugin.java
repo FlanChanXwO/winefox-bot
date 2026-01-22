@@ -4,7 +4,9 @@ import cn.hutool.core.convert.NumberChineseFormatter;
 import cn.hutool.core.util.NumberUtil;
 import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
-import com.github.winefoxbot.core.model.enums.Permission;
+import com.github.winefoxbot.core.model.enums.common.Permission;
+import com.github.winefoxbot.core.service.common.SmartTagService;
+import com.github.winefoxbot.plugins.setu.config.SetuPluginConfig;
 import com.github.winefoxbot.plugins.setu.service.SetuService;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
@@ -16,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 
+import java.util.List;
 import java.util.regex.Matcher;
 
 @Plugin(
@@ -23,13 +26,15 @@ import java.util.regex.Matcher;
         permission = Permission.USER,
         iconPath = "icon/娱乐功能.png",
         description = "提供随机福利图片获取功能，支持标签和数量限制。",
-        order = 7
+        order = 7,
+        config = SetuPluginConfig.class
 )
 @Slf4j
 @RequiredArgsConstructor
 public class SetuPlugin {
 
     private final SetuService setuService;
+    private final SmartTagService tagService;
 
     private final static int MAX_SETU_COUNT = 10;
 
@@ -58,7 +63,8 @@ public class SetuPlugin {
 
         String tag = matcher.group(4); // 获取标签
         // 调用Service处理业务逻辑
-        setuService.processSetuRequest(bot, event,num, tag);
+        List<String> searchTags = tagService.getSearchTags(tag);
+        setuService.handleSetuRequest(num, searchTags);
     }
 
     /**

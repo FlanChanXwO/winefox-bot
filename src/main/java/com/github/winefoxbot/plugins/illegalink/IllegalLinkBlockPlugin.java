@@ -2,7 +2,7 @@ package com.github.winefoxbot.plugins.illegalink;
 
 import cn.hutool.core.collection.ConcurrentHashSet;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
-import com.github.winefoxbot.core.model.enums.Permission;
+import com.github.winefoxbot.core.model.enums.common.Permission;
 import com.github.winefoxbot.plugins.illegalink.service.DomainAllowListService;
 import com.mikuac.shiro.annotation.GroupMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;

@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.model.dto;
+package com.github.winefoxbot.core.model.dto.update;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;

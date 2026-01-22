@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.model.enums;
+package com.github.winefoxbot.core.model.enums.common;
 
 import com.baomidou.mybatisplus.annotation.EnumValue;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -11,20 +11,21 @@ import lombok.Getter;
  * @since 2025-12-26-16:06
  */
 @Getter
-public enum MessageDirection implements BaseEnum<String> {
-    MESSAGE_SENT("message_sent"),
-    MESSAGE_RECEIVE("message");
+public enum MessageType implements BaseEnum<String> {
+    GROUP("group"),
+    PRIVATE("private");
 
     @EnumValue
     @JsonValue
     private final String value;
 
-    MessageDirection(String value) {
+    MessageType(String value) {
         this.value = value;
     }
+
     @JsonCreator
-    public static MessageDirection fromValue(String value) {
-        for (MessageDirection role : MessageDirection.values()) {
+    public static MessageType fromValue(String value) {
+        for (MessageType role : MessageType.values()) {
             if (role.getValue().equalsIgnoreCase(value)) {
                 return role;
             }

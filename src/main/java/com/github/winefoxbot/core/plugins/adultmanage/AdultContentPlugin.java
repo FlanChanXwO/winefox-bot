@@ -1,7 +1,7 @@
 package com.github.winefoxbot.core.plugins.adultmanage;
 
 import com.github.winefoxbot.core.annotation.plugin.Plugin;
-import com.github.winefoxbot.core.model.enums.Permission;
+import com.github.winefoxbot.core.model.enums.common.Permission;
 import com.github.winefoxbot.core.plugins.adultmanage.config.AdultContentConfig;
 
 /**

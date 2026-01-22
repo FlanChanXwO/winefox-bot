@@ -25,6 +25,9 @@ import org.thymeleaf.context.Context;
 
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -35,6 +38,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static com.github.winefoxbot.core.constants.AppConstants.OUTTERNAL_ROOT;
 
 @Service
 @Slf4j
@@ -331,21 +337,59 @@ public class PixivSearchServiceImpl implements PixivSearchService {
 
     private Map<String, String> loadResourcesAsDataUri(String basePath) {
         Map<String, String> resourceMap = new HashMap<>();
-        String locationPattern = ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX + basePath + "/**/*.*";
-        try {
-            Resource[] resources = resourceResolver.getResources(locationPattern);
-            for (Resource resource : resources) {
-                if (resource.isReadable()) {
-                    String filename = resource.getFilename();
-                    if (filename != null) {
-                        String relativePath = new URI(basePath).relativize(new URI(resource.getURI().toString().split(basePath)[1])).getPath();
-                        resourceMap.put(relativePath.substring(1), loadResourceAsDataUri(resource));
+
+        // 1. 定义外部资源的绝对路径 (对应 application-prod.yml 中的逻辑)
+        Path externalPath = Paths.get(OUTTERNAL_ROOT, basePath);
+
+        if (Files.exists(externalPath) && Files.isDirectory(externalPath)) {
+            // === 模式 A：生产环境 (扫描外部文件系统) ===
+            log.info("Loading Pixiv resources from External File System: {}", externalPath.toAbsolutePath());
+            try (Stream<Path> stream = Files.walk(externalPath)) {
+                stream.filter(Files::isRegularFile).forEach(path -> {
+                    try {
+                        String key = externalPath.relativize(path).toString().replace("\\", "/");
+
+                        // 读取并转换 Base64
+                        byte[] bytes = Files.readAllBytes(path);
+                        String base64 = Base64Utils.toBase64String(bytes, path.getFileName().toString()); // 假设你有这个重载，或者看下面的补丁
+                        resourceMap.put(key, base64);
+                    } catch (Exception e) {
+                        log.error("Failed to load external resource: {}", path, e);
+                    }
+                });
+            } catch (IOException e) {
+                log.error("Error walking external resource directory: {}", externalPath, e);
+            }
+        } else {
+            // === 模式 B：开发环境 (扫描 Classpath) ===
+            log.info("External resources not found. Fallback to Classpath scanning: {}", basePath);
+            String locationPattern = ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX + basePath + "/**/*.*";
+            try {
+                Resource[] resources = resourceResolver.getResources(locationPattern);
+                for (Resource resource : resources) {
+                    if (resource.isReadable()) {
+                        String filename = resource.getFilename();
+                        if (filename != null) {
+                            // 计算相对路径 Key
+                            // 这是一个痛点，Spring Resource 很难直接拿到相对路径。
+                            // 这里我们使用 URL 字符串截取的方式
+                            String fullPath = resource.getURL().toString();
+                            int index = fullPath.indexOf(basePath);
+                            if (index != -1) {
+                                // 截取 basePath 之后的部分，去掉开头的 "/"
+                                String key = fullPath.substring(index + basePath.length());
+                                if (key.startsWith("/")) key = key.substring(1);
+
+                                resourceMap.put(key, loadResourceAsDataUri(resource));
+                            }
+                        }
                     }
                 }
+            } catch (Exception e) {
+                log.error("Could not find or access resources for pattern: {}.", locationPattern, e);
             }
-        } catch (Exception e) {
-            log.error("Could not find or access resources for pattern: {}.", locationPattern, e);
         }
+
         return resourceMap;
     }
 

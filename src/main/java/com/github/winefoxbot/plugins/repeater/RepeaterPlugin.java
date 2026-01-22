@@ -2,7 +2,7 @@ package com.github.winefoxbot.plugins.repeater;
 
 import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
-import com.github.winefoxbot.core.model.enums.Permission;
+import com.github.winefoxbot.core.model.enums.common.Permission;
 import com.mikuac.shiro.annotation.GroupMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Order;

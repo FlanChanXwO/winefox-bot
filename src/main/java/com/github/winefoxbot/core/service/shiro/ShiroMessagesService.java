@@ -3,7 +3,7 @@ package com.github.winefoxbot.core.service.shiro;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.github.winefoxbot.core.model.entity.ShiroMessage;
 import com.github.winefoxbot.core.model.entity.ShiroUserMessage;
-import com.github.winefoxbot.core.model.enums.MessageType;
+import com.github.winefoxbot.core.model.enums.common.MessageType;
 
 import java.util.List;
 

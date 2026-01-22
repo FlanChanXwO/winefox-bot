@@ -1,6 +1,6 @@
 package com.github.winefoxbot.plugins.chat.service;
 
-import com.github.winefoxbot.core.model.enums.MessageType;
+import com.github.winefoxbot.core.model.enums.common.MessageType;
 
 /**
  * @author FlanChan (badapple495@outlook.com)

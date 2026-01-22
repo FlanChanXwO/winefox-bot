@@ -4,7 +4,7 @@ import cn.hutool.core.date.DateUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.github.winefoxbot.core.model.entity.WinefoxBotConnectionLogs;
-import com.github.winefoxbot.core.model.enums.ConnectionEventType;
+import com.github.winefoxbot.core.model.enums.common.ConnectionEventType;
 import com.github.winefoxbot.core.model.vo.webui.resp.ConnectionSummaryResponse;
 import com.github.winefoxbot.core.service.connectionlogs.WinefoxBotConnectionLogsService;
 import lombok.RequiredArgsConstructor;

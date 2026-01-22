@@ -1,8 +1,7 @@
 package com.github.winefoxbot.plugins.watergroup.job;
 
 import com.github.winefoxbot.core.annotation.schedule.BotTask;
-import com.github.winefoxbot.core.context.BotContext;
-import com.github.winefoxbot.core.model.enums.PushTargetType;
+import com.github.winefoxbot.core.model.enums.common.PushTargetType;
 import com.github.winefoxbot.core.service.schedule.handler.BotJobHandler;
 import com.github.winefoxbot.core.utils.FileUtil;
 import com.github.winefoxbot.plugins.watergroup.config.WaterGroupPluginConfig;
@@ -11,7 +10,6 @@ import com.github.winefoxbot.plugins.watergroup.service.WaterGroupPosterDrawServ
 import com.github.winefoxbot.plugins.watergroup.service.WaterGroupService;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.core.Bot;
-import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

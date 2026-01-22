@@ -11,7 +11,7 @@
 
     <groupId>com.github</groupId>
     <artifactId>winefox-bot</artifactId>
-    <version>1.11.11</version>
+    <version>1.11.13</version>
 
     <name>winefox-bot</name>
     <description>WineFox Bot 基于 Spring Boot 和 Shiro 的 QQ 机器人</description>
@@ -43,6 +43,7 @@
         <commons-compress.version>1.28.0</commons-compress.version>
         <oshi.version>6.9.2</oshi.version>
         <ognl.version>3.1.15</ognl.version>
+        <hanlp.version>portable-1.8.4</hanlp.version>
         <google-search-result-sdk.version>v2.0.0</google-search-result-sdk.version>
     </properties>
 
@@ -199,7 +200,7 @@
             <artifactId>mybatis-plus-jsqlparser</artifactId>
             <version>${mybatis-plus.version}</version>
         </dependency>
-        <!-- redis -->
+        <!-- Spring Boot Data Redis Starter: 包含Spring Data Redis、Lettuce等 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
@@ -287,6 +288,12 @@
             <artifactId>ognl</artifactId>
             <version>${ognl.version}</version> <!-- 这个版本与 Thymeleaf 3 兼容良好 -->
         </dependency>
+        <!-- 分词 -->
+        <dependency>
+            <groupId>com.hankcs</groupId>
+            <artifactId>hanlp</artifactId>
+            <version>${hanlp.version}</version>
+        </dependency>
         <!-- test -->
         <dependency>
             <groupId>org.junit.platform</groupId>
@@ -348,6 +355,29 @@
                         <nonFilteredFileExtension>ico</nonFilteredFileExtension>
                     </nonFilteredFileExtensions>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>copy-static-resources</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <!-- 输出到 target/resources -->
+                            <outputDirectory>${project.build.directory}/resources</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>src/main/resources</directory>
+                                    <!-- 包含这些大文件夹 -->
+                                    <includes>
+                                        <include>templates/**</include>
+                                        <include>static/**</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -358,6 +388,10 @@
                             <Loader-Path>lib/</Loader-Path>
                         </manifestEntries>
                     </archive>
+                    <excludes>
+                        <exclude>templates/**</exclude>
+                        <exclude>static/**</exclude>
+                    </excludes>
                 </configuration>
             </plugin>
             <plugin>

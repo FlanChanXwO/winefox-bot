@@ -16,7 +16,7 @@ public class WineFoxBotChatProperties {
     /**
      * 角色形象储存位置
      */
-    private String avatarDir = "classpath:avatars";
+    private String avatarDir = "avatars";
     /**
      * 使用的角色形象
      */

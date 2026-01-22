@@ -1,6 +1,5 @@
 package com.github.winefoxbot.plugins.setu.service.impl;
 
-import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.URLUtil;
 import com.github.winefoxbot.core.config.file.FileStorageProperties;
 import com.github.winefoxbot.core.context.BotContext;
@@ -8,16 +7,14 @@ import com.github.winefoxbot.core.exception.common.BusinessException;
 import com.github.winefoxbot.core.manager.ConfigManager;
 import com.github.winefoxbot.core.service.file.FileStorageService;
 import com.github.winefoxbot.core.service.shiro.ShiroSafeSendMessageService;
-import com.github.winefoxbot.plugins.setu.config.SetuApiConfig;
-import com.github.winefoxbot.plugins.setu.model.dto.SetuApiResponse;
+import com.github.winefoxbot.plugins.setu.model.dto.SetuProviderRequest;
+import com.github.winefoxbot.plugins.setu.model.enums.SetuApiType;
+import com.github.winefoxbot.plugins.setu.service.SetuImageProvider;
 import com.github.winefoxbot.plugins.setu.service.SetuService;
-import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.PathNotFoundException;
-import com.mikuac.shiro.core.Bot;
-import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
+import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
+import com.mikuac.shiro.dto.event.message.MessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -31,10 +28,10 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Stream;
 
 /**
- * Setu 服务实现 (重构版)
- * 集成了 SafeSendMessageService 和 404 重试机制
+ * Setu 服务实现 (支持策略模式选择 API)
  *
  * @author FlanChan
  */
@@ -44,135 +41,201 @@ import java.util.concurrent.Executors;
 public class SetuServiceImpl implements SetuService {
 
     private final OkHttpClient httpClient;
-    private final SetuApiConfig setuApiConfig;
+
+    // 注入所有实现了 SetuImageProvider 的 Bean，Key 为 BeanName
+    // Spring 会自动将所有实现类注入到这个 Map 中
+    private final Map<String, SetuImageProvider> providerMap;
+
     private final FileStorageService fileStorageService;
     private final FileStorageProperties fileStorageProperties;
     private final ConfigManager configManager;
     private final ShiroSafeSendMessageService safeSendMessageService;
 
-    // 缓存时间
     private static final Duration IMAGE_CACHE_DURATION = Duration.ofHours(1);
 
-    // --- 配置 Key 定义 (替代 ConfigConstants) ---
-    private static final String KEY_SETU_MODE = "setu.content.mode"; // sfw, r18, mix
+    private static final String KEY_SETU_MODE = "setu.content.mode";
+    private static final String KEY_SETU_DEFAULT_API = "setu.api.default";
+
     private static final String MODE_SFW = "sfw";
     private static final String MODE_R18 = "r18";
     private static final String MODE_MIX = "mix";
 
+    // 最大补货轮次
+    private static final int MAX_REPLENISH_ROUNDS = 3;
+
     @Override
-    public void processSetuRequest(Bot bot, AnyMessageEvent event, int num, String tag) {
-        // 虽然参数传入了 bot 和 event，但主要逻辑依赖 Context (由 Aspect 或 Handler 绑定)
-        // 这里的参数仅用于获取 ID
-        processInternal(event.getUserId(), event.getGroupId(), num, tag);
+    public void handleSetuRequest(int num, List<String> tags) {
+        processInternal(num, tags, null, null);
     }
 
     @Override
-    public void processSetuRequest(Bot bot, Long userId, Long groupId, int num, String tag) {
-        processInternal(userId, groupId, num, tag);
+    public void handleSetuRequest(int num, List<String> tags, Map<String, Object> extraParams, SetuApiType apiType) {
+        processInternal(num, tags, extraParams, apiType);
     }
 
     /**
      * 内部核心处理逻辑
      */
-    private void processInternal(Long userId, Long groupId, int num, String tag) {
-        // 1. 获取内容模式配置
-        String contentMode = configManager.getString(KEY_SETU_MODE, userId, groupId, MODE_SFW);
-        log.info("开始获取图片任务: tag='{}', num={}, mode={}", tag, num, contentMode);
-
-        // 2. 构建 API URL 并获取图片列表
-        String apiUrl = buildApiUrl(tag, contentMode, num);
-        SetuApiResponse apiResponse;
-        try {
-            apiResponse = fetchImageUrlFromApi(apiUrl);
-        } catch (IOException e) {
-            throw new RuntimeException("API 请求失败", e);
+    private void processInternal(int targetNum, List<String> tags, Map<String, Object> extraParams, SetuApiType apiType) {
+        MessageEvent messageEvent = BotContext.CURRENT_MESSAGE_EVENT.get();
+        Long userId = messageEvent.getUserId();
+        Long groupId = null;
+        if (messageEvent instanceof GroupMessageEvent e ){
+            groupId = e.getGroupId();
         }
 
-        if (apiResponse == null || apiResponse.imgUrls().isEmpty()) {
+        // 1. 获取内容模式配置
+        String contentMode = configManager.getString(KEY_SETU_MODE, userId, groupId, MODE_SFW);
+        // 解析是否需要 R18
+        boolean isR18 = determineR18Flag(contentMode);
+
+        // 2. 确定使用哪个 Provider
+        SetuImageProvider provider = selectProvider(apiType);
+        log.info("开始获取图片任务: Provider={}, tags={}, targetNum={}, mode={} (R18={})",
+                provider.getClass().getSimpleName(), tags, targetNum, contentMode, isR18);
+
+        // 3. 构建请求对象
+        SetuProviderRequest request = new SetuProviderRequest(tags, targetNum, isR18, extraParams);
+
+        // ================= 阶段一：通过 Provider 获取 URL =================
+        List<String> imgUrls = provider.fetchImages(request);
+
+        log.info("从 Provider 获取到 {} 个图片 URL", imgUrls == null ? 0 : imgUrls.size());
+        log.info("{}", imgUrls);
+
+        if (imgUrls == null || imgUrls.isEmpty()) {
             throw new BusinessException("未能从 API 获取到图片数据");
         }
 
-        List<String> rawUrls = apiResponse.imgUrls();
-        boolean isR18 = apiResponse.enabledR18();
+        // 并发下载第一批 URL
+        List<Path> validPaths = new ArrayList<>(downloadImagesParallel(imgUrls));
 
-        log.info("API 返回图片数: {}, 是否 R18: {}", rawUrls.size(), isR18);
+        log.info("初步下载完成，目标: {}, 成功: {}, 失败: {}", targetNum, validPaths.size(), targetNum - validPaths.size());
 
-        // 3. 并发下载图片 (包含 404 重试逻辑)
-        // 我们必须先下载，一是为了处理 404 重试，二是为了给 SafeService 提供本地文件路径(PDF需要)
-        List<Path> downloadedPaths = downloadImagesParallel(rawUrls);
+        // ================= 阶段二：智能补货 (应对 404) =================
+        int round = 0;
+        while (validPaths.size() < targetNum && round < MAX_REPLENISH_ROUNDS) {
+            int missingCount = targetNum - validPaths.size();
+            log.info("触发补货逻辑 (轮次 {}/{})，缺少 {} 张图片，正在重新请求...", round + 1, MAX_REPLENISH_ROUNDS, missingCount);
 
-        if (downloadedPaths.isEmpty()) {
-            throw new BusinessException("所有图片下载均失败 (包括重试后)");
+            // 并发调用“单张获取”方法来填补空缺，注意要传递 provider 和参数
+            List<Path> replenishedPaths = fetchReplacementsParallel(missingCount, provider, tags, isR18, extraParams);
+
+            validPaths.addAll(replenishedPaths);
+            round++;
         }
 
-        // 4. 根据模式调用安全发送服务
+        if (validPaths.isEmpty()) {
+            throw new BusinessException("运气不好，一个图片都没拿到...");
+        }
+
+        // ================= 阶段三：发送逻辑 =================
+        // 注意：这里简单假设只要开启了R18模式或者请求的是R18，就走撤回逻辑
         if (isR18) {
-            // R18 模式：打包发送 (PDF/ZIP) + 自动撤回
-            // 这里的 outputDir 使用临时目录
-            String outputDir = fileStorageProperties.getLocal().getBasePath() + File.separator + "setu_tmp";
-            String baseName = "Setu_" + System.currentTimeMillis();
-
-            safeSendMessageService.sendSafeFiles(
-                    downloadedPaths,
-                    outputDir,
-                    baseName,
-                    result -> log.info("R18 文件发送成功: {}", result.getStatus()),
-                    (ex, path) -> log.error("R18 文件发送失败", ex)
-            );
-
+            sendR18Files(validPaths);
         } else {
-            // SFW 模式：直接发送图片消息
-            // 将本地 Path 转为 URL 字符串供 MsgUtils 使用 (file://...)
-            // 这样能确保发送的是我们刚刚辛苦下载并校验过的文件，而不是让 Shiro 再去下载一次 (可能又 404)
-            List<String> localUrlList = downloadedPaths.stream()
-                    .map(path -> path.toUri().toString())
-                    .toList();
-
-            // 构造提示词
-            String msg = "找到 " + localUrlList.size() + " 张符合要求的图片~";
-
-            safeSendMessageService.sendMessage(
-                    msg,
-                    localUrlList,
-                    result -> log.info("SFW 图片发送成功: {}", result.getStatus()),
-                    ex -> log.error("SFW 图片发送失败", ex)
-            );
+            sendSfwImages(validPaths);
         }
     }
 
     /**
-     * 并发下载所有图片，并返回成功的本地路径列表
+     * 策略选择器
+     */
+    private SetuImageProvider selectProvider(SetuApiType apiType) {
+        String beanName;
+        if (apiType != null) {
+            // 1. 如果代码明确指定了 API 类型，优先使用
+            beanName = apiType.getValue();
+        } else {
+            // 2. 否则使用配置的默认 API 类型
+            beanName = SetuApiType.LOLICON.getValue();
+        }
+
+        SetuImageProvider provider = providerMap.get(beanName);
+        if (provider == null) {
+            log.warn("未找到名为 '{}' 的 SetuImageProvider Bean，回退到默认 providerMap 第一个", beanName);
+            return providerMap.values().stream().findFirst()
+                    .orElseThrow(() -> new BusinessException("系统未配置任何 SetuImageProvider 实现"));
+        }
+        return provider;
+    }
+
+    /**
+     * 根据模式字符串决定是否请求 R18
+     */
+    private boolean determineR18Flag(String contentMode) {
+        return switch (contentMode) {
+            case MODE_R18 -> true;
+            case MODE_MIX -> Math.random() > 0.5;
+            default -> false;
+        };
+    }
+
+    /**
+     * 并发补货逻辑
+     */
+    private List<Path> fetchReplacementsParallel(int count, SetuImageProvider provider, List<String> tag, boolean isR18, Map<String, Object> extraParams) {
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<CompletableFuture<Path>> futures = Stream.generate(() ->
+                    CompletableFuture.supplyAsync(() -> fetchAndDownloadSingleImage(provider, tag, isR18, extraParams), executor)
+            ).limit(count).toList();
+
+            return futures.stream()
+                    .map(CompletableFuture::join)
+                    .filter(Objects::nonNull)
+                    .toList();
+        }
+    }
+
+    /**
+     * 独立的获取单张图片并下载的方法
+     */
+    private Path fetchAndDownloadSingleImage(SetuImageProvider provider, List<String> tag, boolean isR18, Map<String, Object> extraParams) {
+        try {
+            // 1. 请求单张图片的 API 链接 (补货时 num=1)
+            SetuProviderRequest request = new SetuProviderRequest(tag, 1, isR18, extraParams);
+            List<String> urls = provider.fetchImages(request);
+
+            if (urls == null || urls.isEmpty()) {
+                return null;
+            }
+
+            String imgUrl = urls.getFirst();
+            // 2. 尝试下载
+            return downloadImage(imgUrl);
+
+        } catch (Exception e) {
+            log.warn("单张补货失败: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 并发下载 URL 列表，返回成功的 Path
      */
     private List<Path> downloadImagesParallel(List<String> urls) {
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             List<CompletableFuture<Path>> futures = urls.stream()
-                    .map(url -> CompletableFuture.supplyAsync(() -> downloadImageWithRetry(url, false), executor))
+                    .map(url -> CompletableFuture.supplyAsync(() -> downloadImage(url), executor))
                     .toList();
 
             return futures.stream()
-                    .map(CompletableFuture::join) // 等待所有下载完成
-                    .filter(Objects::nonNull)     // 过滤失败的
+                    .map(CompletableFuture::join)
+                    .filter(Objects::nonNull)
                     .toList();
         }
     }
 
     /**
-     * 下载单个图片，支持 404 重试
-     *
-     * @param url     图片 URL
-     * @param isRetry 是否是重试请求
-     * @return 本地文件 Path，失败返回 null
+     * 下载单个图片
      */
-    private Path downloadImageWithRetry(String url, boolean isRetry) {
+    private Path downloadImage(String url) {
         String cacheKey = generateCacheKeyFromUrl(url);
 
-        // 1. 查缓存 (仅在非重试时查，如果是重试说明之前肯定没下下来或者想强制刷新)
-        if (!isRetry) {
-            Path cachedPath = fileStorageService.getFilePathByCacheKey(cacheKey);
-            if (cachedPath != null && cachedPath.toFile().exists()) {
-                log.debug("图片缓存命中: {}", url);
-                return cachedPath;
-            }
+        // 1. 查缓存
+        Path cachedPath = fileStorageService.getFilePathByCacheKey(cacheKey);
+        if (cachedPath != null && cachedPath.toFile().exists()) {
+            return cachedPath;
         }
 
         // 2. 执行下载
@@ -180,18 +243,10 @@ public class SetuServiceImpl implements SetuService {
         try (Response response = httpClient.newCall(request).execute()) {
             int code = response.code();
 
-            // --- 404 重试逻辑 ---
-            if (code == 404 && !isRetry) {
-                log.warn("图片下载返回 404，尝试重试一次: {}", url);
-                try {
-                    // 稍微等待一下，可能是 CDN 同步延迟
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-                return downloadImageWithRetry(url, true); // 递归调用，标记为 retry
+            if (code == 404) {
+                log.warn("图片链接失效 (404): {}", url);
+                return null;
             }
-            // ------------------
 
             if (response.isSuccessful() && response.body() != null) {
                 byte[] bytes = response.body().bytes();
@@ -200,119 +255,55 @@ public class SetuServiceImpl implements SetuService {
                     return fileStorageService.getFilePathByCacheKey(cacheKey);
                 }
             } else {
-                log.warn("图片下载失败: Code={}, URL={}, Retry={}", code, url, isRetry);
+                log.warn("图片下载失败: Code={}, URL={}", code, url);
             }
         } catch (IOException e) {
-            log.error("图片下载异常: URL={}, Retry={}", url, isRetry, e);
-            // 如果是网络异常（非404响应），也可以考虑重试，这里暂只针对404重试
-            if (!isRetry) {
-                return downloadImageWithRetry(url, true);
-            }
+            log.error("图片下载IO异常: URL={}", url, e);
         }
         return null;
     }
 
-    /**
-     * 生成 API 请求 URL
-     */
-    private String buildApiUrl(String tag, String contentMode, int num) {
-        HttpUrl.Builder urlBuilder = Objects.requireNonNull(HttpUrl.parse(setuApiConfig.getUrl())).newBuilder();
-        SetuApiConfig.Params params = setuApiConfig.getParams();
 
-        // 数量
-        if (params.getNum() != null) urlBuilder.addQueryParameter(params.getNum().getKey(), String.valueOf(num));
-        // 排除 AI
-        if (params.getExcludeAI() != null) urlBuilder.addQueryParameter(params.getExcludeAI().getKey(), params.getExcludeAI().getValue());
+    private void sendR18Files(List<Path> downloadedPaths) {
+        String outputDir = fileStorageProperties.getLocal().getBasePath() + File.separator + "setu_tmp";
+        String baseName = "Setu_" + System.currentTimeMillis();
 
-        // 模式
-        SetuApiConfig.ContentMode modeConfig = params.getMode();
-        if (modeConfig != null && modeConfig.getKey() != null) {
-            String modeValue = switch (contentMode) {
-                case MODE_R18 -> modeConfig.getR18ModeValue();
-                case MODE_MIX -> modeConfig.getMixModeValue();
-                default -> modeConfig.getSafeModeValue();
-            };
-            if (modeValue != null) {
-                urlBuilder.addQueryParameter(modeConfig.getKey(), modeValue);
-            }
-        }
-
-        // 标签
-        if (tag != null && !tag.isBlank() && params.getTag() != null) {
-            urlBuilder.addQueryParameter(params.getTag().getKey(), tag);
-        }
-
-        return urlBuilder.build().toString();
+        safeSendMessageService.sendSafeFiles(
+                downloadedPaths,
+                outputDir,
+                baseName,
+                result -> log.info("R18 文件发送成功: {}", result.getStatus()),
+                (ex, path) -> {
+                    log.error("R18 文件发送失败", ex);
+                    if (ex instanceof RuntimeException re) throw re;
+                    throw new BusinessException("真正的瑟图被吞了...");
+                }
+        );
     }
 
-    /**
-     * 解析 API 响应
-     */
-    private SetuApiResponse fetchImageUrlFromApi(String url) throws IOException {
-        Request request = new Request.Builder().url(url).build();
 
-        // 如果配置直接返回 Image 类型
-        if (SetuApiConfig.ResponseType.IMAGE.equals(setuApiConfig.getResponseType())) {
-            return new SetuApiResponse(Collections.singletonList(url), true); // 默认为 true 实际上需根据业务判断
-        }
+    private void sendSfwImages(List<Path> downloadedPaths) {
+        List<String> localUrlList = downloadedPaths.stream()
+                .map(path -> path.toUri().toString())
+                .toList();
+        String msg = "找到 " + localUrlList.size() + " 张符合要求的图片~";
 
-        // JSON 解析
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful() || response.body() == null) {
-                log.error("API 请求失败 Code: {}, URL: {}", response.code(), url);
-                return null;
-            }
-            String jsonBody = response.body().string();
-
-            // 1. 提取图片 URLs
-            List<String> imageUrls = new ArrayList<>();
-            try {
-                Object result = JsonPath.read(jsonBody, setuApiConfig.getJsonPath());
-                if (result instanceof List<?> list) {
-                    list.stream().filter(Objects::nonNull).forEach(o -> imageUrls.add(o.toString()));
-                } else if (result != null) {
-                    imageUrls.add(result.toString());
+        safeSendMessageService.sendMessage(
+                msg,
+                localUrlList,
+                result -> log.info("SFW 图片发送成功: {}", result.getStatus()),
+                ex -> {
+                    log.error("SFW 图片发送失败", ex);
+                    if (ex instanceof RuntimeException re) throw re;
+                    throw new BusinessException("瑟图发送失败了...");
                 }
-            } catch (PathNotFoundException e) {
-                log.warn("JsonPath 未找到图片数据: {}", setuApiConfig.getJsonPath());
-                return null;
-            }
-
-            if (imageUrls.isEmpty()) return null;
-
-            // 2. 检查是否包含 R18 标记 (用于决定是否发 PDF)
-            boolean enabledR18 = false;
-            try {
-                String r18Path = setuApiConfig.getResponse().getR18().getJsonPath();
-                String r18Value = setuApiConfig.getResponse().getR18().getValue();
-                Object result = JsonPath.read(jsonBody, r18Path);
-
-                // 简化判断逻辑：只要结果中包含目标值即认为 R18
-                String resultStr = result.toString();
-                if (result instanceof List<?> list) {
-                    resultStr = list.toString();
-                    if (list.stream().anyMatch(o -> String.valueOf(o).equals(r18Value))) {
-                        enabledR18 = true;
-                    }
-                } else {
-                    if (String.valueOf(result).equals(r18Value)) {
-                        enabledR18 = true;
-                    }
-                }
-            } catch (Exception e) {
-                // 忽略 R18 判断错误，默认为 false
-            }
-
-            return new SetuApiResponse(imageUrls, enabledR18);
-        }
+        );
     }
 
     private String generateCacheKeyFromUrl(String imageUrl) {
         try {
             String path = URLUtil.url(imageUrl).getPath();
-            // 简单清洗文件名
             String cleanName = path.replaceAll("[^a-zA-Z0-9.-]", "_");
-            // 避免文件名过长
             if (cleanName.length() > 50) cleanName = cleanName.substring(cleanName.length() - 50);
             return "setu/" + cleanName;
         } catch (Exception e) {

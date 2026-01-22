@@ -7,7 +7,7 @@ import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
 import com.github.winefoxbot.core.init.BotTaskRegistry;
 import com.github.winefoxbot.core.mapper.ShiroScheduleTaskMapper;
 import com.github.winefoxbot.core.model.entity.ShiroScheduleTask;
-import com.github.winefoxbot.core.model.enums.PushTargetType;
+import com.github.winefoxbot.core.model.enums.common.PushTargetType;
 import com.github.winefoxbot.core.service.schedule.JobRunrScheduleTaskService;
 import com.github.winefoxbot.core.service.schedule.ShiroJobRunner;
 import com.github.winefoxbot.core.service.schedule.ShiroScheduleTaskService;

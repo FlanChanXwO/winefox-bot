@@ -1,7 +1,7 @@
 package com.github.winefoxbot.core.plugins.test;
 
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
-import com.github.winefoxbot.core.model.enums.Permission;
+import com.github.winefoxbot.core.model.enums.common.Permission;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Shiro;
@@ -26,18 +26,19 @@ import java.util.regex.Matcher;
 @RequiredArgsConstructor
 public class TestPlugin {
 
-    @PluginFunction( name = "echo模块", description = "回复收到的消息内容", hidden = true, permission = Permission.SUPERADMIN)
+    @PluginFunction(name = "echo模块", description = "回复收到的消息内容", hidden = true, permission = Permission.SUPERADMIN)
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/echo(?:\\s+(\\S+))?$")
     public void echo(Bot bot, AnyMessageEvent event, Matcher matcher) {
-            bot.sendMsg(event, matcher.group(1), false);
+        String args = matcher.group(1);
+        bot.sendMsg(event, args, false);
     }
 
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/emoji$")
     public void emoji(Bot bot, AnyMessageEvent event) {
         bot.sendMsg(event, MsgUtils.builder()
-                        .img(new OneBotMedia())
+                .img(new OneBotMedia())
                 .build(), false);
     }
 

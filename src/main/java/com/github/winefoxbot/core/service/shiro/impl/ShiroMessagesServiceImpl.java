@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.github.winefoxbot.core.mapper.ShiroMessagesMapper;
 import com.github.winefoxbot.core.model.entity.ShiroMessage;
 import com.github.winefoxbot.core.model.entity.ShiroUserMessage;
-import com.github.winefoxbot.core.model.enums.MessageType;
+import com.github.winefoxbot.core.model.enums.common.MessageType;
 import com.github.winefoxbot.core.service.shiro.ShiroMessagesService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

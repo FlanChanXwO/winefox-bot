@@ -1,6 +1,7 @@
 package com.github.winefoxbot.plugins.pixiv.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import com.github.winefoxbot.core.exception.common.BusinessException;
 import com.github.winefoxbot.core.service.shiro.ShiroSafeSendMessageService;
 import com.github.winefoxbot.core.utils.FileUtil;
 import com.github.winefoxbot.plugins.pixiv.model.dto.common.PixivArtworkInfo;
@@ -86,7 +87,15 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
                 text,
                 imageUrls,
                 result -> log.info("Pixiv 常规作品发送成功: PID={}", info.getPid()),
-                ex -> log.error("Pixiv 常规作品发送失败: PID={}", info.getPid(), ex)
+                ex -> {
+                    // 1. 打印日志
+                    log.error("Pixiv作品发送失败", ex);
+                    // 2. 【关键】抛出异常
+                    if (ex instanceof RuntimeException re) {
+                        throw re;
+                    }
+                    throw new BusinessException("作品被吞了...");
+                }
         );
     }
 
@@ -112,7 +121,15 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
                 FILE_OUTPUT_DIR,
                 baseName,
                 result -> log.info("Pixiv R18文件发送成功: PID={}", info.getPid()),
-                (ex, path) -> log.error("Pixiv R18文件发送失败: PID={}", info.getPid(), ex)
+                (ex, path) -> {
+                    // 1. 打印日志
+                    log.error("Pixiv R18作品发送失败", ex);
+                    // 2. 【关键】抛出异常
+                    if (ex instanceof RuntimeException re) {
+                        throw re;
+                    }
+                    throw new BusinessException("作品被吞了...");
+                }
         );
     }
 

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.core.model.dto.TextReply;
 import com.github.winefoxbot.core.model.dto.TextReplyParams;
 import com.github.winefoxbot.core.service.reply.TextReplyService;
+import com.github.winefoxbot.core.utils.DynamicResourceLoader;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -13,6 +14,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Random;
 
+/**
+ * @author FlanChan
+ */
 @Component
 @RequiredArgsConstructor
 public class TextReplyServiceImpl implements TextReplyService {
@@ -20,19 +24,19 @@ public class TextReplyServiceImpl implements TextReplyService {
     private JsonNode root;
     private final Random random = new Random();
 
-    private final String configPath = "config/text-reply.json";
-    private final String defaultReply = "Hello %s";
     private final ObjectMapper objectMapper;
 
     @PostConstruct
     public void init() throws IOException {
-        root = objectMapper.readTree(getClass().getClassLoader().getResource(configPath));
+        String configPath = "config/text-reply.json";
+        root = objectMapper.readTree(DynamicResourceLoader.getResourceAsString(configPath));
     }
 
     @Override
     public TextReply getReply(TextReplyParams params) {
         String type = params.getType().getValue();
         String username = params.getUsername() == null ? "用户" : params.getUsername();
+        String defaultReply = "Hello %s";
         if (root == null || !root.has(type)) {
             return new TextReply(defaultReply.formatted(username), null);
         }
@@ -51,7 +55,7 @@ public class TextReplyServiceImpl implements TextReplyService {
         if (pictureSrc == null || pictureSrc.isEmpty()) {
             return new TextReply(text, null);
         }
-        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(item.path("picture").asText())) {
+        try (InputStream inputStream = DynamicResourceLoader.getInputStream(item.path("picture").asText())) {
             if (inputStream != null) {
                 picture = inputStream.readAllBytes();
             }

@@ -3,7 +3,7 @@ package com.github.winefoxbot.core.service.schedule;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
 import com.github.winefoxbot.core.model.entity.ShiroScheduleTask;
-import com.github.winefoxbot.core.model.enums.PushTargetType;
+import com.github.winefoxbot.core.model.enums.common.PushTargetType;
 import com.github.winefoxbot.core.service.schedule.handler.BotJobHandler;
 import org.jobrunr.jobs.lambdas.JobLambda;
 

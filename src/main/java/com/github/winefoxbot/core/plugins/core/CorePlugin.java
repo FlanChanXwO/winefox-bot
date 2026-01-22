@@ -4,8 +4,9 @@ import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.github.winefoxbot.core.config.app.WineFoxBotProperties;
 import com.github.winefoxbot.core.exception.bot.BotException;
-import com.github.winefoxbot.core.model.dto.GitHubRelease;
-import com.github.winefoxbot.core.model.enums.Permission;
+import com.github.winefoxbot.core.model.dto.update.GitHubRelease;
+import com.github.winefoxbot.core.model.dto.update.GithubVersionInfo;
+import com.github.winefoxbot.core.model.enums.common.Permission;
 import com.github.winefoxbot.core.service.helpdoc.HelpImageService;
 import com.github.winefoxbot.core.service.status.StatusImageService;
 import com.github.winefoxbot.core.service.update.GitHubUpdateService;
@@ -87,12 +88,12 @@ public class CorePlugin {
     public void checkVersion(Bot bot, AnyMessageEvent event) {
         String msg;
         try {
-            GitHubUpdateService.VersionInfo currentVersion = updateService.getCurrentVersionInfo();
+            GithubVersionInfo currentVersion = updateService.getCurrentVersionInfo();
             GitHubRelease latestRelease = updateService.fetchLatestRelease();
             msg = "版本信息：\n" +
                     "当前版本: " + 'v' +  wineFoxBotProperties.getApp().getVersion() + "\n" +
                     "最新版本: " + latestRelease.getTagName();
-            if (latestRelease.getId() > currentVersion.releaseId) {
+            if (latestRelease.getId() > currentVersion.getReleaseId()) {
                 msg += "\n\n检测到新版本！可发送 '/更新版本' 命令进行升级。";
             } else {
                 msg += "\n\n当前已是最新版本。";

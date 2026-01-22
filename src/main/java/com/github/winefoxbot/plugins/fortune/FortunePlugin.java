@@ -3,12 +3,10 @@ package com.github.winefoxbot.plugins.fortune;
 import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.github.winefoxbot.core.config.app.WineFoxBotRobotProperties;
-import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
 import com.github.winefoxbot.core.context.BotContext;
-import com.github.winefoxbot.core.model.enums.Permission;
+import com.github.winefoxbot.core.model.enums.common.Permission;
 import com.github.winefoxbot.core.utils.BotUtils;
-import com.github.winefoxbot.plugins.fortune.config.FortuneApiConfig;
-import com.github.winefoxbot.plugins.fortune.config.FortunePropertiesConfig;
+import com.github.winefoxbot.plugins.fortune.config.FortunePluginConfig;
 import com.github.winefoxbot.plugins.fortune.service.FortuneDataService;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
@@ -29,7 +27,7 @@ import java.util.Objects;
         iconPath = "icon/娱乐功能.png",
         order = 7,
         description = "提供每日运势抽取功能，支持手动刷新运势(未配置前仅限管理和超管)。",
-        config = FortunePropertiesConfig.class
+        config = FortunePluginConfig.class
 )
 @Slf4j
 @RequiredArgsConstructor
@@ -61,7 +59,7 @@ public class FortunePlugin {
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, at = AtEnum.NOT_NEED, cmd = "^/刷新今日运势$")
     public void refreshFortune(Bot bot, AnyMessageEvent event) {
-        FortunePropertiesConfig config = (FortunePropertiesConfig) BotContext.CURRENT_PLUGIN_CONFIG.get();
+        FortunePluginConfig config = BotContext.getFirstPluginConfig();
         if (hasPermissionToRefresh(bot, event.getUserId()) || config.getAllowRefresh()) {
             fortuneService.refreshFortune(bot, event);
         } else {

@@ -6,8 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.core.config.playwright.PlaywrightConfig;
 import com.github.winefoxbot.core.service.file.FileStorageService;
-import com.github.winefoxbot.core.utils.Base64Utils;
-import com.github.winefoxbot.core.utils.ResourceLoader;
+import com.github.winefoxbot.core.utils.DynamicResourceLoader;
 import com.github.winefoxbot.plugins.dailyreport.config.DailyReportProperties;
 import com.github.winefoxbot.plugins.dailyreport.model.dto.BiliHotwordDTO;
 import com.github.winefoxbot.plugins.dailyreport.model.dto.HitokotoDTO;
@@ -78,9 +77,9 @@ public class DailyReportService {
     private static final String CONTEXT_VARIABLE_BILI_HOTWORDS = "biliHotwords";
     private static final String CONTEXT_VARIABLE_CSS_STYLE = "cssStyle";
     private static final String [] CHARACTER_IMAGES = {
-            "classpath:templates/winefox_daily_report/res/image/character_1.png",
-            "classpath:templates/winefox_daily_report/res/image/character_2.png",
-            "classpath:templates/winefox_daily_report/res/image/character_3.png"
+            "templates/winefox_daily_report/res/image/character_1.png",
+            "templates/winefox_daily_report/res/image/character_2.png",
+            "templates/winefox_daily_report/res/image/character_3.png"
     };
 
     private static final String PAGE_CONTAINER_SELECTOR = ".wrapper";
@@ -345,19 +344,19 @@ public class DailyReportService {
         context.setVariables(data);
 
         // 1. 读取并注入 CSS (保持不变)
-        String cssContent = new String(ResourceLoader.getInputStream("classpath:templates/winefox_daily_report/res/css/style.css").readAllBytes(), StandardCharsets.UTF_8);
+        String cssContent = new String(DynamicResourceLoader.getInputStream("templates/winefox_daily_report/res/css/style.css").readAllBytes(), StandardCharsets.UTF_8);
         context.setVariable(CONTEXT_VARIABLE_CSS_STYLE, cssContent);
 
         // 2. 将图片资源转换为 Base64 并注入 Context
-        context.setVariable("imgCharacter", getResourceAsBase64(RandomUtil.randomEle(CHARACTER_IMAGES)));
-        context.setVariable("imgBottom", getResourceAsBase64("classpath:templates/winefox_daily_report/res/image/bottom.png"));
-        context.setVariable("iconNews", getResourceAsBase64("classpath:templates/winefox_daily_report/res/icon/60.png"));
-        context.setVariable("iconFish", getResourceAsBase64("classpath:templates/winefox_daily_report/res/icon/fish.png"));
-        context.setVariable("iconBili", getResourceAsBase64("classpath:templates/winefox_daily_report/res/icon/bilibili.png"));
-        context.setVariable("iconGame", getResourceAsBase64("classpath:templates/winefox_daily_report/res/icon/game.png"));
-        context.setVariable("iconBgm", getResourceAsBase64("classpath:templates/winefox_daily_report/res/icon/bgm.png"));
-        context.setVariable("iconIt", getResourceAsBase64("classpath:templates/winefox_daily_report/res/icon/it.png"));
-        context.setVariable("iconHitokoto", getResourceAsBase64("classpath:templates/winefox_daily_report/res/icon/hitokoto.png"));
+        context.setVariable("imgCharacter",  DynamicResourceLoader.getResourceAsBase64(RandomUtil.randomEle(CHARACTER_IMAGES)));
+        context.setVariable("imgBottom",  DynamicResourceLoader.getResourceAsBase64("templates/winefox_daily_report/res/image/bottom.png"));
+        context.setVariable("iconNews",  DynamicResourceLoader.getResourceAsBase64("templates/winefox_daily_report/res/icon/60.png"));
+        context.setVariable("iconFish",  DynamicResourceLoader.getResourceAsBase64("templates/winefox_daily_report/res/icon/fish.png"));
+        context.setVariable("iconBili",  DynamicResourceLoader.getResourceAsBase64("templates/winefox_daily_report/res/icon/bilibili.png"));
+        context.setVariable("iconGame",  DynamicResourceLoader.getResourceAsBase64("templates/winefox_daily_report/res/icon/game.png"));
+        context.setVariable("iconBgm",  DynamicResourceLoader.getResourceAsBase64("templates/winefox_daily_report/res/icon/bgm.png"));
+        context.setVariable("iconIt",  DynamicResourceLoader.getResourceAsBase64("templates/winefox_daily_report/res/icon/it.png"));
+        context.setVariable("iconHitokoto",  DynamicResourceLoader.getResourceAsBase64("templates/winefox_daily_report/res/icon/hitokoto.png"));
         final String htmlContent = templateEngine.process("winefox_daily_report/main", context);
 
         try (Page page = browser.newPage(new Browser.NewPageOptions().setDeviceScaleFactor(playwrightConfig.getDeviceScaleFactor()))) {
@@ -366,19 +365,6 @@ public class DailyReportService {
             container.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.ATTACHED));
             return container.screenshot(new Locator.ScreenshotOptions()
                     .setType(ScreenshotType.PNG));
-        }
-    }
-
-    /**
-     * 读取资源文件并转换为 Base64 Data URI
-     */
-    private String getResourceAsBase64(String classpath) {
-        try {
-            byte[] bytes = ResourceLoader.getInputStream(classpath).readAllBytes();
-            return Base64Utils.toBase64String(bytes);
-        } catch (Exception e) {
-            log.error("Failed to load resource: {}", classpath, e);
-            return ""; // 返回空或者默认占位图
         }
     }
 

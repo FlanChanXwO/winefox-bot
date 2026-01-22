@@ -1,7 +1,7 @@
 package com.github.winefoxbot.core.model.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
-import com.github.winefoxbot.core.model.enums.PushTargetType;
+import com.github.winefoxbot.core.model.enums.common.PushTargetType;
 import com.github.winefoxbot.core.model.type.GenericEnumTypeHandler;
 import com.github.winefoxbot.core.model.type.PGJsonbTypeHandler;
 import lombok.AllArgsConstructor;

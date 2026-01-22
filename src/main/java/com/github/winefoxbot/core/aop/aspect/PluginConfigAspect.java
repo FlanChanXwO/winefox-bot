@@ -77,6 +77,9 @@ public class PluginConfigAspect {
             try {
                 return joinPoint.proceed();
             } catch (Throwable e) {
+                if (e instanceof RuntimeException re) {
+                    throw re;
+                }
                 throw new RuntimeException(e);
             }
         });

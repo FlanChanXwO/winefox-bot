@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safe Render Template</title>
+    <style>
+        #main {
+            width: 800px;
+            justify-content: center;
+            align-items: center;
+            display: flex;
+        }
+
+        :root {
+            /* 背景色选择低对比度的灰色，减少误判 */
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* 防止截图时出现滚动条 */
+            overflow: hidden;
+        }
+
+        /* 容器：限制宽度，模拟手机阅读体验 */
+        .container {
+            width: 100%;
+            max-width: 600px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 图片卡片样式 */
+        .image-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            position: relative;
+
+            /* 策略1: 增加随机微小旋转，破坏哈希指纹 */
+            /* 注意：Playwright截图时可能需要稍微等待CSS渲染 */
+        }
+
+        .image-card:nth-child(odd) {
+            transform: rotate(0.3deg);
+        }
+
+        .image-card:nth-child(even) {
+            transform: rotate(-0.3deg);
+        }
+
+        /* 图片本身的处理 */
+        .safe-img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 8px;
+
+            /* 策略2: 图像滤镜干扰 */
+            /* 极微小的对比度提升和亮度调整，改变像素值但肉眼难辨 */
+            filter: contrast(1.02) brightness(1.01) sepia(0.03);
+        }
+
+        /* 策略3: 全局噪点层 (关键) */
+        /* 使用SVG生成噪点，覆盖在所有内容之上，极大干扰机器视觉模型 */
+        .noise-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.08; /* 调整透明度：太高影响观看，太低无效 */
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* 策略4: 隐形网格线干扰 */
+        /* 在图片上覆盖极细微的网格，切割特征提取 */
+        .grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            background-image: linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px; /* 网格大小 */
+            z-index: 10;
+            border-radius: 8px;
+        }
+
+        /* 底部防伪/随机码，增加图片的唯一性 */
+        .footer-hash {
+            text-align: center;
+            color: #ccc;
+            font-size: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+<div id="main">
+    <!-- 噪点遮罩层 -->
+    <div class="noise-overlay"></div>
+
+    <div class="container">
+
+        <!-- 图片 1 -->
+        <div class="image-card">
+            <div class="grid-overlay"></div>
+            <!-- 替换 src -->
+            <img src="{img}" class="safe-img" alt="img1" loading="eager">
+        </div>
+
+        <!-- 根据需要添加更多 .image-card，不超过10个 -->
+
+        <div class="footer-hash" id="uniqueHash"></div>
+    </div>
+
+    <script>
+        // 生成一个随机Hash显示在底部，确保每次生成的图片MD5绝对不同
+        document.getElementById('uniqueHash').textContent =
+            `UID: ${Math.random().toString(36).substring(2, 15)} - ${new Date().toISOString()}`;
+    </script>
+</div>
+</body>
+</html>

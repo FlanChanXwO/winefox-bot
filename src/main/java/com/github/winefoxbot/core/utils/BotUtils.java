@@ -1,8 +1,8 @@
 package com.github.winefoxbot.core.utils;
 
 import com.github.winefoxbot.core.model.dto.GroupMemberInfo;
-import com.github.winefoxbot.core.model.enums.GroupMemberRole;
-import com.github.winefoxbot.core.model.enums.MessageType;
+import com.github.winefoxbot.core.model.enums.common.GroupMemberRole;
+import com.github.winefoxbot.core.model.enums.common.MessageType;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.action.common.ActionData;
 import com.mikuac.shiro.dto.action.response.GroupInfoResp;

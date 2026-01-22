@@ -7,6 +7,7 @@ spring:
   # 激活外部/敏感配置文件，命名为 application-secret.yml
   profiles:
     include: secret
+    active: dev
   info:
     build:
       encoding: UTF-8
@@ -15,9 +16,6 @@ spring:
   threads:
     virtual:
       enabled: true
-  data:
-    redis:
-      timeout: 1000ms # Redis 操作超时时间
   main:
     lazy-initialization: false
   sql:
@@ -35,11 +33,33 @@ spring:
       auto-commit: true
       connection-timeout: 30000
       maximum-pool-size: 20
+  # Redis配置
+  data:
+    redis:
+      # 连接超时时间(毫秒)
+      timeout: 3000
+      # Lettuce连接池配置(Spring Boot 4默认使用Lettuce)
+      lettuce:
+        pool:
+          # 最大连接数
+          max-active: 20
+          # 最大阻塞等待时间(毫秒)
+          max-wait: -1
+          # 最大空闲连接数
+          max-idle: 10
+          # 最小空闲连接数
+          min-idle: 5
   ai:
     openai:
       chat:
         completions-path: /v1/chat/completions
-
+    vectorstore:
+      pgvector:
+        initialize-schema: true  # 开启自动初始化表结构
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+        dimensions: 1536
+        max-document-batch-size: 10000 # Optional: Maximum number of documents per batch
 
 # B站解析功能配置
 analysis-bilibili:
@@ -134,7 +154,7 @@ jobrunr:
   job-scheduler:
     enabled: true
   dashboard:
-    enabled: true
+    enabled: false
   jobs:
     default-number-of-retries: 5
 
@@ -180,47 +200,6 @@ winefoxbot:
         addmark-url-template: "https://www.pixiv.net/ajax/illusts/bookmarks/add" # 收藏的URL模板
         unmark-url-template: "https://www.pixiv.net/ajax/illusts/bookmarks/delete" # 取消收藏的URL模板
         download-mirror-host: "i.pixiv.re" # Pixiv图片下载镜像
-    setu:
-      api:
-        # 1. 基础信息
-        url: "https://api.lolicon.app/setu/v2"
-        # 响应类型：有json和image两种可选
-        response-type: json #建议使用 json 类型，便于后续扩展功能
-        # jsonPath 表达式，用于从 API 响应中提取图片 URL
-        json-path: "$.data[*].urls.original"
-
-        # 2. API 查询参数配置
-        params:
-          # 获取图片数量的参数
-          # 对应的 URL 参数: num=1
-          # 目前只支持参数1
-          num:
-            key: "num"
-            value: "1"
-
-          # 排除 AI 作品的参数
-          # 对应的 URL 参数: excludeAI=true
-          excludeAI:
-            key: "excludeAI"
-            value: "true"
-          # 按标签搜索的参数
-          # 对应的 URL 参数: tag=... (值是动态的，这里只定义 key)
-          tag:
-            key: "tag"
-            # value: "" # 值是动态传入的，可以不配置或留空
-          # R18 (成人内容) 开关参数
-          # 开启时 URL 参数: r18=1
-          # 关闭时 URL 参数: r18=0
-          mode:
-            key: "r18"
-            safe-mode-value: 0
-            r18-mode-value: 1
-            mix-mode-value: 2
-        response:
-          r18: # 从返回的响应中获取
-            key: "r18"
-            value: "true"
-            json-path: "$.data[*].r18"
     fortune:
       api: "custom" # 使用自定义模式
       auto-refresh-jrys: true

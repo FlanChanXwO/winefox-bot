@@ -2,7 +2,7 @@ package com.github.winefoxbot.core.controller;
 
 import com.github.winefoxbot.core.init.BotTaskRegistry;
 import com.github.winefoxbot.core.model.entity.ShiroScheduleTask;
-import com.github.winefoxbot.core.model.enums.PushTargetType;
+import com.github.winefoxbot.core.model.enums.common.PushTargetType;
 import com.github.winefoxbot.core.model.vo.webui.req.schedule.TaskIdentifier;
 import com.github.winefoxbot.core.model.vo.webui.req.schedule.TaskSaveRequest;
 import com.github.winefoxbot.core.model.vo.webui.req.schedule.TaskStatusUpdate;

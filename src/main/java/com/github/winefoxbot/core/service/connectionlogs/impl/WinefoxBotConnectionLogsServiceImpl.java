@@ -3,7 +3,7 @@ package com.github.winefoxbot.core.service.connectionlogs.impl;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.github.winefoxbot.core.mapper.WinefoxBotConnectionLogsMapper;
 import com.github.winefoxbot.core.model.entity.WinefoxBotConnectionLogs;
-import com.github.winefoxbot.core.model.enums.ConnectionEventType;
+import com.github.winefoxbot.core.model.enums.common.ConnectionEventType;
 import com.github.winefoxbot.core.service.connectionlogs.WinefoxBotConnectionLogsService;
 import org.springframework.stereotype.Service;
 

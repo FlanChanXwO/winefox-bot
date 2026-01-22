@@ -1,6 +1,6 @@
 package com.github.winefoxbot.core.model.dto;
 
-import com.github.winefoxbot.core.model.enums.GroupMemberRole;
+import com.github.winefoxbot.core.model.enums.common.GroupMemberRole;
 import lombok.Data;
 
 /**

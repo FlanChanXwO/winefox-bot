@@ -1,8 +1,9 @@
 package com.github.winefoxbot.core.utils;
 
+import com.github.winefoxbot.core.exception.common.BusinessException;
 import com.github.winefoxbot.core.model.dto.BroadcastMessageResult;
 import com.github.winefoxbot.core.model.dto.SendMsgResult;
-import com.github.winefoxbot.core.model.enums.MessageType;
+import com.github.winefoxbot.core.model.enums.common.MessageType;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.BotContainer;
 import com.mikuac.shiro.dto.action.common.ActionData;
@@ -72,12 +73,9 @@ public final class SendMsgUtil {
     }
 
     public static SendMsgResult sendMsgByEvent(Bot bot, Event event, String message, boolean escape) {
-        int retry = 0;
         SendMsgResult res = sendMsg(bot, event, message, escape);
-        while (!res.isSuccess() && retry < RETRY_TIMES) {
-            log.warn("消息发送失败，正在重试... 第 {} 次", retry + 1);
-            res = sendMsg(bot, event, message, escape);
-            retry++;
+        if (!res.isSuccess()) {
+            throw new BusinessException("消息被吞了...");
         }
         return res;
     }
@@ -144,11 +142,26 @@ public final class SendMsgUtil {
     }
 
     private static SendMsgResult buildResult(ActionData<MsgId> response) {
+        boolean flag = true;
         if (response != null && response.getRetCode() == 0) {
-            return new SendMsgResult(true, "Message sent successfully", response.getData().getMessageId());
+            if (response.getData() != null) {
+                log.info("[message_sent] | messageId = {}",response.getData().getMessageId());
+            } else {
+                flag = false;
+                log.error("[message_sent] | 没有成功获取到消息ID，可能消息发送失败");
+            }
+        } else {
+            log.error("[message_sent] | 消息发送响应异常，retCode = {}", response != null ? response.getRetCode() : "null");
+            flag = false;
         }
-        String status = response != null ? String.valueOf(response.getStatus()) : "Unknown Error";
-        return new SendMsgResult(false, "Failed to send message: " + status);
+
+        if (flag) {
+            log.info("[message_sent] | 消息发送成功，响应信息：{}", response);
+            return new SendMsgResult(true, "消息发送成功");
+        } else {
+            log.error("[message_sent] | 消息发送失败，响应信息：{}", response);
+            return new SendMsgResult(false, "消息发送失败");
+        }
     }
 
     private static BroadcastMessageResult broadcast(List<Long> ids, Function<Long, ActionData<MsgId>> action) {

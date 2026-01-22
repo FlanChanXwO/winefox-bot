@@ -5,9 +5,9 @@ import com.github.winefoxbot.core.init.ConfigMetadataRegistrar;
 import com.github.winefoxbot.core.manager.ConfigManager;
 import com.github.winefoxbot.core.model.vo.common.Result;
 import com.github.winefoxbot.core.model.vo.webui.req.config.UpdateConfigRequest;
-import com.github.winefoxbot.core.model.vo.webui.resp.PluginConfigSchemaResponse;
-import com.github.winefoxbot.core.model.vo.webui.resp.PluginListItemResponse;
+import com.github.winefoxbot.core.model.vo.webui.resp.*;
 import com.github.winefoxbot.core.service.plugin.PluginService;
+import com.github.winefoxbot.core.service.webui.WebUIStatsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,6 +25,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class WebUIPluginController {
 
+    private final WebUIStatsService statsService;
     private final PluginService pluginService;
     private final ConfigManager configManager;
     private final ConfigMetadataRegistrar configRegistrar;
@@ -155,6 +156,23 @@ public class WebUIPluginController {
 
         pluginService.deleteConfigByScope(pluginId, scope, scopeId);
         return Result.ok();
+    }
+
+    /**
+     * 8. 热门插件统计柱状图
+     * 返回本周 Top 5 插件及其每日数据，前端可取第一个渲染，或渲染堆叠图
+     */
+    @GetMapping("/hot-trends")
+    public List<StatsRankingResponse> getHotTrends(@RequestParam(defaultValue = "WEEK") String range) {
+        return statsService.getPluginRanking(range);
+    }
+
+    /**
+     * 9. 功能调用的各项指标
+     */
+    @GetMapping("/summary")
+    public InvokeSummaryResponse getSummary() {
+        return statsService.getInvokeSummary();
     }
 
 }

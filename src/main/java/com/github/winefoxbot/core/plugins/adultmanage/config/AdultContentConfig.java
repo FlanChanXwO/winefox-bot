@@ -3,7 +3,7 @@ package com.github.winefoxbot.core.plugins.adultmanage.config;
 import com.github.winefoxbot.core.annotation.plugin.ConfigItem;
 import com.github.winefoxbot.core.annotation.plugin.PluginConfig;
 import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
-import com.github.winefoxbot.core.model.enums.AdultContentMode;
+import com.github.winefoxbot.core.model.enums.adultcontent.AdultContentMode;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 

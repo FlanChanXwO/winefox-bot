@@ -1,6 +1,6 @@
 package com.github.winefoxbot.core.annotation.plugin;
 
-import com.github.winefoxbot.core.model.enums.Permission;
+import com.github.winefoxbot.core.model.enums.common.Permission;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

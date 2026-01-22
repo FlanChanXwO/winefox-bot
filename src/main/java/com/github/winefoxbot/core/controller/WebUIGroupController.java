@@ -1,9 +1,11 @@
 package com.github.winefoxbot.core.controller;
 
-import com.github.winefoxbot.core.model.vo.webui.resp.GroupStatsResponse;
+import com.github.winefoxbot.core.model.vo.webui.resp.StatsRankingResponse;
 import com.github.winefoxbot.core.service.webui.WebUIStatsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * @author FlanChan (badapple495@outlook.com)
@@ -17,7 +19,7 @@ public class WebUIGroupController {
 
 
     @GetMapping("/stats")
-    public GroupStatsResponse getGroupIdList() {
-        return statsService.getActiveGroupStats();
+    public List<StatsRankingResponse> getGroupIdList(@RequestParam(defaultValue = "WEEK") String range) {
+        return statsService.getActiveGroupStats(range);
     }
 }

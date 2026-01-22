@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.model.enums;
+package com.github.winefoxbot.core.model.enums.common;
 
 import com.baomidou.mybatisplus.annotation.EnumValue;
 import com.fasterxml.jackson.annotation.JsonValue;

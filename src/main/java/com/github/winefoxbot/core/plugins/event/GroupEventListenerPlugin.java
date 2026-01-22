@@ -3,9 +3,9 @@ package com.github.winefoxbot.core.plugins.event;
 import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.model.dto.TextReply;
 import com.github.winefoxbot.core.model.dto.TextReplyParams;
-import com.github.winefoxbot.core.model.enums.BotReplyTemplateType;
-import com.github.winefoxbot.core.model.enums.GroupAdminChangeType;
-import com.github.winefoxbot.core.model.enums.GroupMemberDecreaseType;
+import com.github.winefoxbot.core.model.enums.reply.BotReplyTemplateType;
+import com.github.winefoxbot.core.model.enums.common.GroupAdminChangeType;
+import com.github.winefoxbot.core.model.enums.common.GroupMemberDecreaseType;
 import com.github.winefoxbot.core.service.reply.TextReplyService;
 import com.github.winefoxbot.core.service.shiro.ShiroGroupMembersService;
 import com.github.winefoxbot.core.service.shiro.ShiroGroupRequestsService;
@@ -13,14 +13,12 @@ import com.github.winefoxbot.core.service.shiro.ShiroGroupsService;
 import com.github.winefoxbot.core.service.shiro.ShiroMessagesService;
 import com.github.winefoxbot.core.utils.BotUtils;
 import com.mikuac.shiro.annotation.*;
-import com.mikuac.shiro.annotation.common.Shiro;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.notice.*;
 import com.mikuac.shiro.dto.event.request.GroupAddRequestEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
 /**
  * @author FlanChan (badapple495@outlook.com)

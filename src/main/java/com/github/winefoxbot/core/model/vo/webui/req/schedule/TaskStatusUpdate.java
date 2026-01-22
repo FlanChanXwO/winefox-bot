@@ -1,6 +1,6 @@
 package com.github.winefoxbot.core.model.vo.webui.req.schedule;
 
-import com.github.winefoxbot.core.model.enums.PushTargetType;
+import com.github.winefoxbot.core.model.enums.common.PushTargetType;
 
 /**
      * 状态更新 DTO

@@ -6,7 +6,7 @@ import com.github.winefoxbot.core.config.helpdoc.HelpDocConfiguration;
 import com.github.winefoxbot.core.model.dto.HelpData;
 import com.github.winefoxbot.core.model.dto.HelpDoc;
 import com.github.winefoxbot.core.model.dto.HelpGroup;
-import com.github.winefoxbot.core.model.enums.Permission;
+import com.github.winefoxbot.core.model.enums.common.Permission;
 import com.github.winefoxbot.core.utils.CommandRegexParser;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.GroupMessageHandler;

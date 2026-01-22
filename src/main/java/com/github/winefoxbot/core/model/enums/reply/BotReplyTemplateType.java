@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.model.enums;
+package com.github.winefoxbot.core.model.enums.reply;
 
 import com.baomidou.mybatisplus.annotation.EnumValue;
 import com.fasterxml.jackson.annotation.JsonValue;
@@ -10,22 +10,27 @@ import lombok.Getter;
  * @since 2025-12-26-16:06
  */
 @Getter
-public enum GroupMemberDecreaseType implements BaseEnum<String> {
-    LEAVE("leave"),
+public enum BotReplyTemplateType implements BaseEnum<String> {
+    STOP("stop"),
+    WELCOME("welcome"),
+    FAREWELL("farewell"),
     KICK("kick"),
-    KICK_ME("kick_me");
+    PROMOTE("promote"),
+    DEMOTE("demote"),
+    ENTER("enter")
+    ;
 
     @EnumValue
     @JsonValue
     private final String value;
 
 
-    GroupMemberDecreaseType(String value) {
+    BotReplyTemplateType(String value) {
         this.value = value;
     }
 
-    public static GroupMemberDecreaseType fromValue(String value) {
-        for (GroupMemberDecreaseType role : GroupMemberDecreaseType.values()) {
+    public static BotReplyTemplateType fromValue(String value) {
+        for (BotReplyTemplateType role : BotReplyTemplateType.values()) {
             if (role.getValue().equals(value)) {
                 return role;
             }

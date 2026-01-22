@@ -3,7 +3,7 @@ package com.github.winefoxbot.plugins.imgexploration;
 import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.github.winefoxbot.core.model.dto.SessionData;
-import com.github.winefoxbot.core.model.enums.Permission;
+import com.github.winefoxbot.core.model.enums.common.Permission;
 import com.github.winefoxbot.core.utils.BotUtils;
 import com.github.winefoxbot.plugins.imgexploration.model.dto.SearchResultItemDTO;
 import com.github.winefoxbot.plugins.imgexploration.service.ImageExplorationRenderer;

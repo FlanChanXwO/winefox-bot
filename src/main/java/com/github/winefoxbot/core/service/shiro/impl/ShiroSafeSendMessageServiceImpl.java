@@ -70,15 +70,21 @@ public class ShiroSafeSendMessageServiceImpl implements ShiroSafeSendMessageServ
 
             SendMsgResult result = SendMsgUtil.sendMsgByEvent(bot, event, builder.build(), false);
 
-            if (result != null && result.isSuccess()) {
-                if (onSuccess != null) onSuccess.accept(result);
+            if (result.isSuccess()) {
+                if (onSuccess != null) {
+                    onSuccess.accept(result);
+                }
             } else {
-                String errorMsg = result != null ? result.getStatus() : "Unknown Error";
-                if (onFailure != null) onFailure.accept(new RuntimeException("消息发送失败: " + errorMsg));
+                String errorMsg = result.getStatus();
+                if (onFailure != null) {
+                    onFailure.accept(new RuntimeException("消息发送失败: " + errorMsg));
+                }
             }
         } catch (Exception e) {
             log.error("发送消息时发生未捕获异常", e);
-            if (onFailure != null) onFailure.accept(e);
+            if (onFailure != null) {
+                onFailure.accept(e);
+            }
         }
     }
 

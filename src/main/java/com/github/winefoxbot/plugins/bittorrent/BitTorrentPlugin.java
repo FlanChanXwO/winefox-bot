@@ -8,7 +8,7 @@ package com.github.winefoxbot.plugins.bittorrent;
 import cn.hutool.core.lang.Pair;
 import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
-import com.github.winefoxbot.core.model.enums.Permission;
+import com.github.winefoxbot.core.model.enums.common.Permission;
 import com.github.winefoxbot.core.service.shiro.ShiroSessionStateService;
 import com.github.winefoxbot.plugins.bittorrent.config.BitTorrentConfig;
 import com.github.winefoxbot.plugins.bittorrent.model.dto.BitTorrentSearchResult;
@@ -101,7 +101,7 @@ public class BitTorrentPlugin {
         Integer page = nextPageInfo.getValue();
 
         // 在 executeSearch 中，当你更新页码时，也要用 put 方法更新缓存
-        // nextPageCache.put(mapKey, new Pair<>(keyword, newPage));
+        // nextPageCache.put(mapKey, new Pair<>(keywords, newPage));
         executeSearch(bot, event, messageId, keyword, page, userId);
 
         return MESSAGE_BLOCK;

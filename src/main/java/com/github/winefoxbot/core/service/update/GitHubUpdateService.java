@@ -1,17 +1,17 @@
 package com.github.winefoxbot.core.service.update;
 
-import com.github.winefoxbot.core.model.dto.GitHubRelease;
+import com.github.winefoxbot.core.model.dto.update.GitHubRelease;
 import com.github.winefoxbot.core.model.dto.RestartInfo;
+import com.github.winefoxbot.core.model.dto.update.GithubVersionInfo;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
-import lombok.Data;
 
 /**
  * @author FlanChan (badapple495@outlook.com)
  * @since 2025-12-25-22:23
  */
 public interface GitHubUpdateService {
-    VersionInfo getCurrentVersionInfo();
+    GithubVersionInfo getCurrentVersionInfo();
 
     GitHubRelease fetchLatestRelease() throws Exception;
 
@@ -23,16 +23,5 @@ public interface GitHubUpdateService {
 
     void saveRestartInfo(RestartInfo restartInfo);
 
-    @Data
-    class VersionInfo {
-        public long releaseId = -1;
-        public String tagName;
-        public long assetId = -1;
-        public long libAssetId = -1;
-        public String libSha256;
-        @Override
-        public String toString() {
-            return "(Tag: %s | Release ID: %d | Asset Id: %d | Lib Asset Id: %d)".formatted(tagName, releaseId, assetId, libAssetId);
-        }
-    }
+
 }

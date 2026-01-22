@@ -1,7 +1,7 @@
 package com.github.winefoxbot.core.model.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
-import com.github.winefoxbot.core.model.enums.ConnectionEventType;
+import com.github.winefoxbot.core.model.enums.common.ConnectionEventType;
 import lombok.Data;
 
 import java.io.Serializable;

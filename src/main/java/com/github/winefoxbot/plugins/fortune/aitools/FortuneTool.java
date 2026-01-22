@@ -1,16 +1,13 @@
 package com.github.winefoxbot.plugins.fortune.aitools;
 
 import com.github.winefoxbot.core.context.BotContext;
-import com.github.winefoxbot.core.model.enums.MessageType;
-import com.github.winefoxbot.core.utils.ConfigReflectionUtil;
+import com.github.winefoxbot.core.model.enums.common.MessageType;
 import com.github.winefoxbot.core.utils.PluginConfigBinder;
-import com.github.winefoxbot.plugins.fortune.config.FortunePropertiesConfig;
+import com.github.winefoxbot.plugins.fortune.config.FortunePluginConfig;
 import com.github.winefoxbot.plugins.fortune.model.vo.FortuneRenderVO;
 import com.github.winefoxbot.plugins.fortune.service.FortuneDataService;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.BotContainer;
-import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
-import com.mikuac.shiro.dto.event.message.MessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -104,7 +101,7 @@ public class FortuneTool {
 
             try {
                 Long groupId = (messageType == MessageType.GROUP) ? sessionId : null;
-                FortunePropertiesConfig config = FortunePropertiesConfig.class.getDeclaredConstructor().newInstance();
+                FortunePluginConfig config = FortunePluginConfig.class.getDeclaredConstructor().newInstance();
                 configBinder.bind(config, groupId, userId);
 
                 String finalDisplayName = displayName;

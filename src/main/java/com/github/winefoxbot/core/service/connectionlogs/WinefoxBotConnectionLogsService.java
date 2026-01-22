@@ -2,7 +2,7 @@ package com.github.winefoxbot.core.service.connectionlogs;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.github.winefoxbot.core.model.entity.WinefoxBotConnectionLogs;
-import com.github.winefoxbot.core.model.enums.ConnectionEventType;
+import com.github.winefoxbot.core.model.enums.common.ConnectionEventType;
 
 /**
 * @author FlanChan

@@ -6,9 +6,13 @@ import com.github.winefoxbot.core.constants.CacheConstants;
 import com.github.winefoxbot.core.model.entity.ShiroGroup;
 import com.github.winefoxbot.core.model.entity.ShiroMessage;
 import com.github.winefoxbot.core.model.entity.WinefoxBotPluginInvokeStats;
+import com.github.winefoxbot.core.model.entity.WinefoxBotPluginMeta;
+import com.github.winefoxbot.core.model.enums.webui.TimeRange;
 import com.github.winefoxbot.core.model.vo.webui.resp.ConsoleStatsResponse;
-import com.github.winefoxbot.core.model.vo.webui.resp.GroupStatsResponse;
+import com.github.winefoxbot.core.model.vo.webui.resp.InvokeSummaryResponse;
+import com.github.winefoxbot.core.model.vo.webui.resp.StatsRankingResponse;
 import com.github.winefoxbot.core.service.plugin.WinefoxBotPluginInvokeStatsService;
+import com.github.winefoxbot.core.service.plugin.WinefoxBotPluginMetaService;
 import com.github.winefoxbot.core.service.shiro.ShiroGroupsService;
 import com.github.winefoxbot.core.service.shiro.ShiroMessagesService;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +35,9 @@ import java.util.stream.Collectors;
 public class WebUIStatsService {
 
     private final WinefoxBotPluginInvokeStatsService statsService;
-     private final ShiroMessagesService shiroMessagesService;
+    private final WinefoxBotPluginMetaService metaService;
+
+    private final ShiroMessagesService shiroMessagesService;
     private final ShiroGroupsService shiroGroupsService;
 
 
@@ -45,53 +51,76 @@ public class WebUIStatsService {
     }
 
     /**
-     * 获取活跃群组排行 (Top 5)
-     * 单独接口，独立缓存
+     * 获取活跃群组排行 (Top 5) - 支持时间筛选
+     * key 生成策略: 'top5_' + 参数 rangeStr
      */
-    @Cacheable(value = CacheConstants.WEBUI_ACTIVE_GROUPS_CACHE, key = "'top5'")
-    public GroupStatsResponse getActiveGroupStats() {
-        log.info("Active groups cache miss. Calculating...");
+    @Cacheable(value = CacheConstants.WEBUI_ACTIVE_GROUPS_CACHE, key = "'top5_' + #rangeStr")
+    public List<StatsRankingResponse> getActiveGroupStats(String rangeStr) {
+        log.info("Calculating active groups for range: {}", rangeStr);
 
-        // 1. 聚合查询：统计每个群的消息数量，取前5名
-        // SQL: SELECT group_id, count(*) as cnt FROM shiro_messages WHERE group_id IS NOT NULL GROUP BY group_id ORDER BY cnt DESC LIMIT 5
+        // 1. 解析时间范围
+        TimeRange range;
+        try {
+            range = TimeRange.valueOf(rangeStr.toUpperCase());
+        } catch (Exception e) {
+            range = TimeRange.WEEK;
+        }
+
+        LocalDate startDate = calculateStartDate(range);
+
+        // 2. 构造聚合查询
         QueryWrapper<ShiroMessage> queryWrapper = new QueryWrapper<>();
-        queryWrapper.select("group_id", "count() as count")
-                .eq("message_type", "group") // 使用 message_type 判断群聊
-                .groupBy("group_id")
+        queryWrapper.select("session_id", "count(*) as count")
+                .eq("message_type", "group");
+
+        // 3. 应用时间过滤
+        if (startDate != null) {
+            // 假设数据库中 time 字段是 datetime 类型，startDate 是 LocalDate
+            if (range == TimeRange.DAY) {
+                // 如果是"日"，限定为当天的 00:00:00 到次日 00:00:00
+                queryWrapper.ge("time", startDate.atStartOfDay())
+                        .lt("time", startDate.plusDays(1).atStartOfDay());
+            } else {
+                // 其他情况 (周/月/年)
+                queryWrapper.ge("time", startDate.atStartOfDay());
+            }
+        }
+
+        queryWrapper.groupBy("session_id")
                 .orderByDesc("count")
                 .last("LIMIT 5");
 
         List<Map<String, Object>> topGroupsMap = shiroMessagesService.listMaps(queryWrapper);
 
         if (topGroupsMap.isEmpty()) {
-            return new GroupStatsResponse(Collections.emptyList());
+            return Collections.emptyList();
         }
 
-        // 2. 提取 Group ID 列表
+        // 4. 提取 Group ID 列表 (session_id 在群聊中即为 group_id)
         Set<Long> groupIds = topGroupsMap.stream()
-                .map(map -> (Long) map.get("group_id"))
+                .map(map -> Long.valueOf(String.valueOf(map.get("session_id"))))
                 .collect(Collectors.toSet());
 
-        // 3. 批量查询群组信息 (为了获取群名)
+        // 5. 批量查询群组详情 (获取群名)
         Map<Long, ShiroGroup> groupInfoMap = shiroGroupsService.list(
                 new LambdaQueryWrapper<ShiroGroup>().in(ShiroGroup::getGroupId, groupIds)
         ).stream().collect(Collectors.toMap(ShiroGroup::getGroupId, Function.identity()));
 
-        // 4. 组装结果
-        List<GroupStatsResponse.GroupActivity> activityList = topGroupsMap.stream().map(map -> {
-            Long groupId = (Long) map.get("group_id");
-            // 注意：MyBatis Plus count(*) 返回类型可能是 Long 或 Integer，安全转换
-            Long count = Long.valueOf(String.valueOf(map.get("count")));
+        // 6. 转换为 StatsRankingResponse 列表
+        return topGroupsMap.stream().map(map -> {
+            Long groupId = Long.valueOf(String.valueOf(map.get("session_id")));
+            // 安全转换 count 数值类型
+            Number countNum = (Number) map.get("count");
+            long count = countNum == null ? 0L : countNum.longValue();
 
             ShiroGroup group = groupInfoMap.get(groupId);
             String groupName = (group != null && group.getGroupName() != null)
                     ? group.getGroupName()
-                    : "未知群组(" + groupId + ")";
+                    : String.valueOf(groupId); // 若无群名则显示群号
 
-            return new GroupStatsResponse.GroupActivity(groupId, groupName, count);
+            // 返回通用统计响应对象 (id, name, value)
+            return new StatsRankingResponse(String.valueOf(groupId), groupName, count);
         }).toList();
-
-        return new GroupStatsResponse(activityList);
     }
 
 
@@ -141,5 +170,116 @@ public class WebUIStatsService {
 
         return new ConsoleStatsResponse.TrendChartData(dates, msgCounts, callCounts);
     }
+
+
+    /**
+     * 获取调用统计概览 (总数/日/周/月/年)
+     */
+    public InvokeSummaryResponse getInvokeSummary() {
+        LocalDate today = LocalDate.now();
+
+        // 为了性能，这里使用 5 次轻量级聚合查询
+        // 也可以写自定义 SQL 一次查出，但 MP 原生写法如下更易维护
+
+        long total = getSumCount(null); // 所有时间
+        long day = getSumCount(today); // 今天
+        long week = getSumCount(today.minusWeeks(1)); // 一周内 (过去7天)
+        long month = getSumCount(today.minusMonths(1)); // 一月内
+        long year = getSumCount(today.minusYears(1)); // 一年内
+
+        return new InvokeSummaryResponse(total, day, week, month, year);
+    }
+
+    /**
+     * 获取插件调用排行 (支持时间筛选)
+     */
+    @Cacheable(value = CacheConstants.WEBUI_PLUGIN_RANKING_CACHE, key = "'ranking_' + #rangeStr")
+    public List<StatsRankingResponse> getPluginRanking(String rangeStr) {
+        TimeRange range;
+        try {
+            range = TimeRange.valueOf(rangeStr.toUpperCase());
+        } catch (Exception e) {
+            range = TimeRange.WEEK; // 默认按周
+        }
+
+        LocalDate startDate = calculateStartDate(range);
+
+        // 使用 MyBatis Plus 的 QueryWrapper 进行分组聚合查询
+        // SELECT plugin_class_name, SUM(call_count) as total FROM stats WHERE stat_date >= ? GROUP BY plugin_class_name ORDER BY total DESC LIMIT 5
+        QueryWrapper<WinefoxBotPluginInvokeStats> wrapper = new QueryWrapper<>();
+        wrapper.select("plugin_class_name", "SUM(call_count) as total_count");
+
+        if (startDate != null) {
+            if (range == TimeRange.DAY) {
+                wrapper.eq("stat_date", startDate);
+            } else {
+                wrapper.ge("stat_date", startDate);
+            }
+        }
+
+        wrapper.groupBy("plugin_class_name")
+                .orderByDesc("total_count") // 按总数降序
+                .last("LIMIT 5");           // 只取前5
+
+        List<Map<String, Object>> resultMaps = statsService.listMaps(wrapper);
+
+        // 获取插件名称映射
+        Map<String, String> nameMap = metaService.list().stream()
+                .collect(Collectors.toMap(WinefoxBotPluginMeta::getClassName, WinefoxBotPluginMeta::getDisplayName, (v1, v2) -> v1));
+
+        return resultMaps.stream().map(map -> {
+            String className = (String) map.get("plugin_class_name");
+            // 注意：不同数据库 SUM 返回类型可能不同 (BigDecimal, Long, Double)，这里做安全转换
+            Number totalNum = (Number) map.get("total_count");
+            long total = totalNum == null ? 0L : totalNum.longValue();
+
+            String displayName = nameMap.getOrDefault(className, className);
+            // 简单处理类名显示，比如 com.xxx.SetuPlugin -> SetuPlugin (如果没有显示名称)
+            if (displayName.equals(className)) {
+                displayName = className.substring(className.lastIndexOf('.') + 1);
+            }
+
+            return new StatsRankingResponse(className, displayName, total);
+        }).toList();
+    }
+
+    private LocalDate calculateStartDate(TimeRange range) {
+        LocalDate today = LocalDate.now();
+        return switch (range) {
+            case DAY -> today;
+            case WEEK -> today.minusWeeks(1); // 或者用 TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)
+            case MONTH -> today.minusMonths(1);
+            case YEAR -> today.minusYears(1);
+            case ALL -> null; // 全部时间不需要起始日期
+        };
+    }
+
+    // --- Helper ---
+
+    private long getSumCount(LocalDate startDate) {
+        var wrapper = new LambdaQueryWrapper<WinefoxBotPluginInvokeStats>();
+        if (startDate != null) {
+            // 如果是具体某一天 (stats表中存的是 LocalDate)
+            // 逻辑调整：如果是"一天内"，通常指 statDate == today
+            // 如果是"一周内"，通常指 statDate >= today - 7
+
+            if (startDate.isEqual(LocalDate.now())) {
+                wrapper.eq(WinefoxBotPluginInvokeStats::getStatDate, startDate);
+            } else {
+                wrapper.ge(WinefoxBotPluginInvokeStats::getStatDate, startDate);
+            }
+        }
+
+        // select sum(call_count)
+        List<Object> objs = statsService.getBaseMapper().selectObjs(
+                wrapper.select(WinefoxBotPluginInvokeStats::getCallCount)
+        );
+
+        return objs.stream()
+                .filter(Objects::nonNull)
+                .mapToLong(o -> ((Number) o).longValue())
+                .sum();
+    }
+
 
 }

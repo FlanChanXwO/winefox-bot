@@ -1,47 +1,55 @@
 package com.github.winefoxbot.core.config.inner;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
-import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.serializer.RedisSerializationContext;
-import org.springframework.data.redis.serializer.RedisSerializer;
+import org.springframework.data.redis.serializer.*;
 
 import java.time.Duration;
-
-import static com.github.winefoxbot.core.constants.CacheConstants.CACHE_KEY_PREFIX;
+import java.util.HashMap;
+import java.util.Map;
 
 @Configuration
 public class CacheConfig {
 
+    /**
+     * 配置RedisCacheManager
+     * 设置默认缓存配置和各个缓存的特定配置
+     */
     @Bean
-    public RedisCacheConfiguration cacheConfiguration(ObjectMapper objectMapper) {
-        // 全局默认配置
-        return RedisCacheConfiguration.defaultCacheConfig()
-                // 设置全局默认过期时间为 1 天
-                .entryTtl(Duration.ofDays(1))
-                // 设置 key 的序列化方式 (可选)
-                .prefixCacheNameWith(CACHE_KEY_PREFIX) // 设置缓存前缀
-                // 设置 Key 为 String 序列化 (这是最佳实践，方便在 Redis GUI 中查看)
-                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(RedisSerializer.string()))
-                // 设置 Value 为 JSON 序列化 (包含 @class 类型信息)
-                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(RedisSerializer.json()))
-                // 不缓存 null 值
-                .disableCachingNullValues();
+    public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+        // 默认缓存配置
+        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(10))  // 默认过期时间10分钟
+                .disableCachingNullValues()  // 不缓存空值
+                .serializeKeysWith(RedisSerializationContext.SerializationPair
+                        .fromSerializer(RedisSerializer.string()))  // key序列化
+                .serializeValuesWith(RedisSerializationContext.SerializationPair
+                        .fromSerializer(RedisSerializer.json()));  // value序列化
+        // 各个缓存的特定配置
+        Map<String, RedisCacheConfiguration> cacheConfigs = new HashMap<>();
+//        // 用户缓存:1小时过期
+//        cacheConfigs.put("users", RedisCacheConfiguration.defaultCacheConfig()
+//                .entryTtl(Duration.ofHours(1))
+//                .prefixCacheNameWith("users:"));
+//        // 商品缓存:30分钟过期
+//        cacheConfigs.put("products", RedisCacheConfiguration.defaultCacheConfig()
+//                .entryTtl(Duration.ofMinutes(30))
+//                .prefixCacheNameWith("products:"));
+//        // 配置缓存:不过期
+//        cacheConfigs.put("config", RedisCacheConfiguration.defaultCacheConfig()
+//                .prefixCacheNameWith("config:")
+//                .disableKeyPrefix());  // 不使用前缀
+        return RedisCacheManager.builder(connectionFactory)
+                .cacheDefaults(defaultConfig)
+                .withInitialCacheConfigurations(cacheConfigs)
+                .transactionAware()  // 支持事务
+                .build();
     }
 
-    @Bean
-    public RedisCacheWriter redisCacheWriter(RedisConnectionFactory redisConnectionFactory) {
-        return RedisCacheWriter.nonLockingRedisCacheWriter(redisConnectionFactory);
-    }
 
-    @Bean
-    public CacheManager cacheManager(RedisCacheWriter redisCacheWriter,
-                                     RedisCacheConfiguration redisCacheConfiguration) {
-        return new RedisCacheManager(redisCacheWriter,redisCacheConfiguration,true);
-    }
 }
+
+

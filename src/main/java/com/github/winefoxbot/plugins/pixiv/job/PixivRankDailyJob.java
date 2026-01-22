@@ -2,7 +2,7 @@ package com.github.winefoxbot.plugins.pixiv.job;
 
 import com.github.winefoxbot.core.annotation.schedule.BotTask;
 import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
-import com.github.winefoxbot.core.model.enums.PushTargetType;
+import com.github.winefoxbot.core.model.enums.common.PushTargetType;
 import com.github.winefoxbot.core.service.schedule.handler.BotJobHandler;
 import com.github.winefoxbot.plugins.pixiv.model.enums.PixivRankPushMode;
 import com.github.winefoxbot.plugins.pixiv.service.PixivRankService;

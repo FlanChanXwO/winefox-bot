@@ -14,7 +14,7 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = true)
 @Data
 @PluginConfig(prefix = "fortune",name = "运势插件配置", scopes = ConfigManager.Scope.GLOBAL)
-public class FortunePropertiesConfig extends BasePluginConfig {
+public class FortunePluginConfig extends BasePluginConfig {
     /**
      * 图片标签
      */

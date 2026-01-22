@@ -7,7 +7,7 @@ import com.github.winefoxbot.core.config.app.WineFoxBotProperties;
 import com.github.winefoxbot.core.config.app.WineFoxBotRobotProperties;
 import com.github.winefoxbot.core.init.HelpDocLoader;
 import com.github.winefoxbot.core.model.dto.HelpGroup;
-import com.github.winefoxbot.core.utils.ResourceLoader;
+import com.github.winefoxbot.core.utils.DynamicResourceLoader;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,7 +59,7 @@ public class WineFoxBotChatConfig {
         String avatarDir = wineFoxBotChatProperties.getAvatarDir();
         String avatar = wineFoxBotChatProperties.getAvatar();
 
-        try (InputStream inputStream = ResourceLoader.getInputStream(avatarDir + File.separator + avatar + File.separator + WineFoxBotChatProperties.AVATAR_FILE_NAME)) {
+        try (InputStream inputStream = DynamicResourceLoader.getInputStream(avatarDir + File.separator + avatar + File.separator + WineFoxBotChatProperties.AVATAR_FILE_NAME)) {
             this.systemPrompt = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new RuntimeException("Failed to load system prompt from " + avatarDir, e);

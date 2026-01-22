@@ -2,8 +2,8 @@ package com.github.winefoxbot.core.model.entity;
 
 import cn.hutool.json.JSONArray;
 import com.baomidou.mybatisplus.annotation.*;
-import com.github.winefoxbot.core.model.enums.MessageDirection;
-import com.github.winefoxbot.core.model.enums.MessageType;
+import com.github.winefoxbot.core.model.enums.common.MessageDirection;
+import com.github.winefoxbot.core.model.enums.common.MessageType;
 import com.github.winefoxbot.core.model.type.PGJsonTypeHandler;
 import lombok.Data;
 

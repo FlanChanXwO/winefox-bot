@@ -1,7 +1,7 @@
 package com.github.winefoxbot.plugins.fortune.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.github.winefoxbot.core.model.enums.MessageType;
+import com.github.winefoxbot.core.model.enums.common.MessageType;
 import com.github.winefoxbot.plugins.fortune.model.entity.FortuneData;
 import com.github.winefoxbot.plugins.fortune.model.vo.FortuneRenderVO;
 import com.mikuac.shiro.core.Bot;

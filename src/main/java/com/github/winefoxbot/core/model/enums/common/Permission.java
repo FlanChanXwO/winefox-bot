@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.model.enums;// package com.yourproject.common.enums; // 放在你的枚举包下
+package com.github.winefoxbot.core.model.enums.common;// package com.yourproject.common.enums; // 放在你的枚举包下
 
 import lombok.Getter;
 

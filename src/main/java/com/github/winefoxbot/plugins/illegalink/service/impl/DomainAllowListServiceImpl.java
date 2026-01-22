@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 public class DomainAllowListServiceImpl implements DomainAllowListService {
 
     // 从 classpath 读取我们的白名单文件
-    @Value("classpath:allow-domain-list.txt")
+    @Value("classpath:data/link/allow-domain-list.txt")
     private Resource allowListResource;
 
     private final List<String> allowedPatterns = new CopyOnWriteArrayList<>();

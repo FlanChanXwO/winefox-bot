@@ -2,6 +2,7 @@ package com.github.winefoxbot.plugins.watergroup.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.github.winefoxbot.core.annotation.common.Retry;
 import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.model.entity.ShiroGroupMember;
 import com.github.winefoxbot.core.model.entity.ShiroUser;
@@ -139,6 +140,7 @@ public class WaterGroupPosterDrawServiceImpl implements WaterGroupPosterDrawServ
         return renderByPlaywright(html);
     }
 
+    @Retry(retryOn = RuntimeException.class)
     private File renderByPlaywright(String html) {
         Browser.NewPageOptions pageOptions = new Browser.NewPageOptions();
         pageOptions.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");

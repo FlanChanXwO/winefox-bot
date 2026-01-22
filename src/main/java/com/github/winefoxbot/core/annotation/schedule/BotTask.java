@@ -1,6 +1,6 @@
 package com.github.winefoxbot.core.annotation.schedule;
 
-import com.github.winefoxbot.core.model.enums.PushTargetType;
+import com.github.winefoxbot.core.model.enums.common.PushTargetType;
 import org.springframework.stereotype.Component;
 
 import java.lang.annotation.*;

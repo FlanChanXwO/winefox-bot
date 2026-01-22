@@ -3,11 +3,11 @@ package com.github.winefoxbot.plugins.fortune.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.github.winefoxbot.core.annotation.common.RedissonLock;
-import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
 import com.github.winefoxbot.core.context.BotContext;
-import com.github.winefoxbot.core.model.enums.MessageType;
+import com.github.winefoxbot.core.model.enums.common.MessageType;
+import com.github.winefoxbot.plugins.fortune.FortunePlugin;
 import com.github.winefoxbot.plugins.fortune.config.FortuneApiConfig;
-import com.github.winefoxbot.plugins.fortune.config.FortunePropertiesConfig;
+import com.github.winefoxbot.plugins.fortune.config.FortunePluginConfig;
 import com.github.winefoxbot.plugins.fortune.mapper.FortuneDataMapper;
 import com.github.winefoxbot.plugins.fortune.model.entity.FortuneData;
 import com.github.winefoxbot.plugins.fortune.model.vo.FortuneRenderVO;
@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 
 /**
@@ -219,7 +220,8 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
         if ("none".equals(apiType)) {
             return null;
         }
-        FortunePropertiesConfig config = (FortunePropertiesConfig) BotContext.CURRENT_PLUGIN_CONFIG.get();
+        Optional<FortunePluginConfig> config = BotContext.getPluginConfig(FortunePluginConfig.class);
+        FortunePluginConfig fortuneConfig = config.orElseThrow(() -> new IllegalStateException("无法获取 FortunePluginConfig 配置"));
         try {
             return switch (apiType) {
                 case "wr" -> fetchUrlFromJson("https://api.obfs.dev/api/bafortune", "$.url");
@@ -227,7 +229,7 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
                     String loliconBase = "https://api.lolicon.app/setu/v1";
                     HttpUrl loliconUrl = HttpUrl.parse(loliconBase).newBuilder()
                             .addQueryParameter("r18", "0")
-                            .addQueryParameter("tag", config.getTag())
+                            .addQueryParameter("tag", fortuneConfig.getTag())
                             .addQueryParameter("excludeAI", "true")
                             .build();
                     yield fetchUrlFromJson(loliconUrl.toString(), "$.data[0].url");
@@ -267,7 +269,8 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
     }
 
     private String buildUrlWithParams(String baseUrl, FortuneApiConfig.Params params) {
-        FortunePropertiesConfig config = (FortunePropertiesConfig) BotContext.CURRENT_PLUGIN_CONFIG.get();
+        Optional<FortunePluginConfig> config = BotContext.getPluginConfig(FortunePluginConfig.class);
+        FortunePluginConfig fortuneConfig = config.orElseThrow(() -> new IllegalStateException("无法获取 FortunePluginConfig 配置"));
         HttpUrl httpUrl = HttpUrl.parse(baseUrl);
         if (httpUrl == null) return baseUrl;
         HttpUrl.Builder builder = httpUrl.newBuilder();
@@ -275,7 +278,7 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
             for (FortuneApiConfig.ParamItem item : params.getStaticParams()) {
                 builder.addQueryParameter(item.getKey(), item.getValue());
             }
-            builder.addQueryParameter("tag",config.getTag());
+            builder.addQueryParameter("tag",fortuneConfig.getTag());
         }
         return builder.build().toString();
     }

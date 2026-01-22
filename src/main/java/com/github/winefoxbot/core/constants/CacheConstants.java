@@ -34,6 +34,12 @@ public final class CacheConstants {
      */
     public static final String WEBUI_ACTIVE_GROUPS_CACHE = "webui:console:active_groups";
 
+    /**
+     * WebUI 插件使用排行缓存
+     * 建议 TTL: 30分钟 ~ 1小时 (避免频繁全表扫描插件使用记录)
+     */
+    public static final String WEBUI_PLUGIN_RANKING_CACHE = "webui:plugin:ranking";
+
     // --- Pixiv 插件模块 ---
     /**
      * Pixiv 作品信息缓存

@@ -1,7 +1,7 @@
 package com.github.winefoxbot.core.service.schedule.handler;
 
 import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
-import com.github.winefoxbot.core.model.enums.PushTargetType;
+import com.github.winefoxbot.core.model.enums.common.PushTargetType;
 import com.mikuac.shiro.core.Bot;
 
 /**

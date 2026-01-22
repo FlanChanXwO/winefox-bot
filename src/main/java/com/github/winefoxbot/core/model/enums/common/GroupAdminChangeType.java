@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.model.enums;
+package com.github.winefoxbot.core.model.enums.common;
 
 import com.baomidou.mybatisplus.annotation.EnumValue;
 import com.fasterxml.jackson.annotation.JsonValue;
@@ -10,24 +10,21 @@ import lombok.Getter;
  * @since 2025-12-26-16:06
  */
 @Getter
-public enum GroupMemberRole implements BaseEnum<String> {
-    OWNER("owner", "群主"),
-    ADMIN("admin", "管理员"),
-    MEMBER("member", "普通成员");
+public enum GroupAdminChangeType implements BaseEnum<String> {
+    SET("set"),
+    UNSET("unset");
 
     @EnumValue
+    @JsonValue
     private final String value;
 
-    @JsonValue
-    private final String description;
 
-    GroupMemberRole(String value, String description) {
+    GroupAdminChangeType(String value) {
         this.value = value;
-        this.description = description;
     }
 
-    public static GroupMemberRole fromValue(String value) {
-        for (GroupMemberRole role : GroupMemberRole.values()) {
+    public static GroupAdminChangeType fromValue(String value) {
+        for (GroupAdminChangeType role : GroupAdminChangeType.values()) {
             if (role.getValue().equals(value)) {
                 return role;
             }

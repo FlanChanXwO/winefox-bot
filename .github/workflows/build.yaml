@@ -25,10 +25,8 @@ jobs:
       - name: Get Project Info
         id: get_project_info
         run: |
-          # 获取 Maven 版本号
           PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           FAT_JAR_NAME="winefox-bot.jar"
-          # 使用版本号命名 Jar
           RELEASE_ASSET_NAME="winefox-bot-${PROJECT_VERSION}.jar"
           
           echo "project_version=${PROJECT_VERSION}" >> $GITHUB_OUTPUT
@@ -37,58 +35,44 @@ jobs:
 
       - name: Download and Integrate Latest WebUI
         env:
-          # 使用内置 Token 即可读取公共仓库的 Release
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "⬇️ Fetching latest WebUI from FlanChanXwo/winefox-bot-webui..."
-          
-          # 1. 下载：从指定仓库下载最新的包含 "-static.zip" 后缀的文件
-          # --clobber 表示覆盖下载，--output 指定临时文件名
-          gh release download --repo FlanChanXwo/winefox-bot-webui \
-            --pattern "*-static.zip" \
-            --output webui.zip \
-            --clobber
-          
-          # 2. 准备目录：创建 Spring Boot 标准静态资源目录
-          # 注意：GitHub Actions checkout 下来的代码通常是干净的，但 mkdir -p 保证目录存在
+          echo "⬇️ Fetching latest WebUI..."
+          gh release download --repo FlanChanXwo/winefox-bot-webui --pattern "*-static.zip" --output webui.zip --clobber
           mkdir -p src/main/resources/static
-          
-          # 3. 解压：将 zip 包解压到 static 目录中
-          # -o 覆盖已存在文件，-d 指定目标目录
           unzip -o webui.zip -d src/main/resources/static
-          
-          # 4. 清理：删除下载的 zip 包，保持环境整洁
           rm webui.zip
-          
-          # 5. (可选) 验证一下文件是否就位
-          echo "✅ WebUI installed. Listing files in static:"
           ls -F src/main/resources/static/
 
+      # 【修改点 1】增加 -P prod 参数，激活 pom.xml 中的资源分离配置
+      # 这会导致 target/resources 文件夹生成，且 JAR 包体积变小
       - name: Build JAR with Maven
-        run: mvn -B package spring-boot:repackage --file pom.xml -s .mvn/settings.xml
+        run: mvn -B package spring-boot:repackage --file pom.xml -s .mvn/settings.xml -P prod
 
-      - name: Rename JAR and Zip Libs
+      # 【修改点 2】打包 resources 文件夹
+      - name: Rename JAR and Zip Assets
         run: |
           mv "target/${{ steps.get_project_info.outputs.fat_jar_name }}" "target/${{ steps.get_project_info.outputs.release_asset_name }}"
           cd target
+          
+          # 打包 lib (依赖包)
           if [ -d "lib" ]; then
              zip -r lib.zip lib/
           fi
+          
+          # [新增] 打包 resources (静态资源)
+          if [ -d "resources" ]; then
+             echo "Packing separated resources..."
+             zip -r resources.zip resources/
+          fi
           cd ..
 
-      # 【已删除】Force delete and recreate 'latest' tag (不再需要)
-
-      # 【核心修改】创建 Release
-      # 使用 v + Maven版本号作为 tag
-      # 使用 Commit Message 作为 body
       - name: Create Release and Upload Initial Asset
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          # 例如: v1.0.0
           tag_name: v${{ steps.get_project_info.outputs.project_version }}
           make_latest: true
-          # 使用本次 Commit 的信息作为发布日志
           body: |
             ${{ github.event.head_commit.message }}
             
@@ -96,6 +80,7 @@ jobs:
           files: |
             target/${{ steps.get_project_info.outputs.release_asset_name }}
             target/lib.zip
+            target/resources.zip
 
       - name: Generate final release-info.properties
         id: generate_properties
@@ -103,28 +88,38 @@ jobs:
           ASSETS_JSON='${{ steps.create_release.outputs.assets }}'
           JAR_NAME="${{ steps.get_project_info.outputs.release_asset_name }}"
           LIB_NAME="lib.zip"
+          RES_NAME="resources.zip"  # [新增]
           RELEASE_ID='${{ steps.create_release.outputs.id }}'
-          # 获取当前的 Tag Name
           TAG_NAME="v${{ steps.get_project_info.outputs.project_version }}"
           
           ASSET_ID=$(echo "$ASSETS_JSON" | jq --arg name "$JAR_NAME" -r '.[] | select(.name == $name) | .id')
-          
           LIB_ASSET_ID=$(echo "$ASSETS_JSON" | jq --arg name "$LIB_NAME" -r '.[] | select(.name == $name) | .id')
+          RES_ASSET_ID=$(echo "$ASSETS_JSON" | jq --arg name "$RES_NAME" -r '.[] | select(.name == $name) | .id') # [新增]
+          
+          # 计算 lib 的 hash
           if [ -d "target/lib" ]; then
              LIB_SHA256=$(find target/lib -type f -name "*.jar" -exec sha256sum {} + | sort | sha256sum | awk '{print $1}')
           else
              LIB_SHA256=""
           fi
-          echo "Calculated Content-Based Lib SHA256: $LIB_SHA256"
           
-          if [ -z "$RELEASE_ID" ] || [ -z "$ASSET_ID" ] || [ "$ASSET_ID" == "null" ]; then
-            echo "Error: Could not determine Release ID or Asset ID."
+          # [新增] 计算 resources.zip 的 hash (用于判断是否需要更新静态资源)
+          if [ -f "target/resources.zip" ]; then
+             RES_SHA256=$(sha256sum target/resources.zip | awk '{print $1}')
+          else
+             RES_SHA256=""
+          fi
+          
+          echo "Lib SHA256: $LIB_SHA256"
+          echo "Res SHA256: $RES_SHA256"
+          
+          if [ -z "$RELEASE_ID" ] || [ -z "$ASSET_ID" ]; then
+            echo "Error: Could not determine IDs."
             exit 1
           fi
 
           PROPERTIES_FILE="release-info.properties"
           echo "github.release.id=$RELEASE_ID" > $PROPERTIES_FILE
-          # 【新增】写入 Tag Name
           echo "github.release.tag_name=$TAG_NAME" >> $PROPERTIES_FILE
           echo "github.asset.id=$ASSET_ID" >> $PROPERTIES_FILE
           
@@ -133,16 +128,21 @@ jobs:
              echo "github.lib.sha256=$LIB_SHA256" >> $PROPERTIES_FILE
           fi
           
-          echo "Generated final properties:"
+          # [新增] 写入资源包信息
+          if [ ! -z "$RES_ASSET_ID" ] && [ "$RES_ASSET_ID" != "null" ]; then
+             echo "github.resources.asset.id=$RES_ASSET_ID" >> $PROPERTIES_FILE
+             echo "github.resources.sha256=$RES_SHA256" >> $PROPERTIES_FILE
+          fi
+          
           cat $PROPERTIES_FILE
 
       - name: Inject properties into JAR
         run: |
           JAR_PATH="target/${{ steps.get_project_info.outputs.release_asset_name }}"
+          # 依然把元数据注入到 JAR 包中，作为版本控制的“大脑”
           jar uf "$JAR_PATH" -C . "release-info.properties"
-          echo "Injected final release-info.properties into $JAR_PATH"
+          echo "Injected release-info.properties"
 
-      # 上传注入后的 JAR (使用 tag_name 指定上传目标)
       - name: Overwrite Release Asset with final JAR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

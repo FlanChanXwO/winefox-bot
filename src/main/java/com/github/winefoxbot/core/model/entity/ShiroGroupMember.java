@@ -1,7 +1,7 @@
 package com.github.winefoxbot.core.model.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
-import com.github.winefoxbot.core.model.enums.GroupMemberRole;
+import com.github.winefoxbot.core.model.enums.common.GroupMemberRole;
 import com.github.winefoxbot.core.model.type.GenericEnumTypeHandler;
 import lombok.Data;
 

@@ -1,7 +1,7 @@
 package com.github.winefoxbot.core.annotation.plugin;
 
 import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
-import com.github.winefoxbot.core.model.enums.Permission;
+import com.github.winefoxbot.core.model.enums.common.Permission;
 import com.mikuac.shiro.annotation.common.Shiro;
 import org.springframework.stereotype.Component;
 

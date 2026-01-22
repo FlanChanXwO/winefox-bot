@@ -1,6 +1,6 @@
 package com.github.winefoxbot.core.model.dto;
 
-import com.github.winefoxbot.core.model.enums.BotReplyTemplateType;
+import com.github.winefoxbot.core.model.enums.reply.BotReplyTemplateType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

@@ -3,7 +3,7 @@ package com.github.winefoxbot.core.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.github.winefoxbot.core.model.entity.ShiroMessage;
 import com.github.winefoxbot.core.model.entity.ShiroUserMessage;
-import com.github.winefoxbot.core.model.enums.MessageType;
+import com.github.winefoxbot.core.model.enums.common.MessageType;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
