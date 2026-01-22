@@ -68,6 +68,11 @@ public class ObjectStorageService implements FileStorageService {
     }
 
     @Override
+    public boolean deleteByCacheKey(String cacheKey) {
+        throw new UnsupportedOperationException(NOT_IMPLEMENTED_MSG);
+    }
+
+    @Override
     public byte[] readFileAsBytes(String path) throws IOException {
         throw new UnsupportedOperationException(NOT_IMPLEMENTED_MSG);
     }
