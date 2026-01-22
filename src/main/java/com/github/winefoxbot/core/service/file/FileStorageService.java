@@ -93,6 +93,11 @@ public interface FileStorageService {
     InputStream readFileAsStream(String path) throws IOException;
 
     /**
+     * 根据缓存键保存输入流，并设置缓存时长。
+     */
+    Path saveStreamByCacheKey(String cacheKey, InputStream is, Duration imageCacheDuration);
+
+    /**
      * 删除文件。
      *
      * @param path          要删除的文件的完整路径

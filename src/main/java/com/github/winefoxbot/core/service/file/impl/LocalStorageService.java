@@ -242,6 +242,17 @@ public class LocalStorageService implements FileStorageService {
     }
 
     @Override
+    public Path saveStreamByCacheKey(String cacheKey, InputStream is, Duration imageCacheDuration) {
+        try {
+            return writeFile(cacheKey, is, imageCacheDuration, null);
+        } catch (IOException e) {
+            log.error("Failed to save stream by cache key: {}", cacheKey, e);
+            return null;
+        }
+    }
+
+
+    @Override
     public boolean deleteFile(String pathString, Consumer<Path> afterDeleteCallback) throws IOException {
         Path filePath;
         try {

@@ -103,7 +103,7 @@ public class WaterGroupPosterDrawServiceImpl implements WaterGroupPosterDrawServ
         context.setVariable("generator", buildGeneratorName(rankList));
 
         // 5. 渲染
-        String html = templateEngine.process("water_group/water_group_poster", context);
+        String html = templateEngine.process("water_group/main", context);
         return renderByPlaywright(html);
     }
 

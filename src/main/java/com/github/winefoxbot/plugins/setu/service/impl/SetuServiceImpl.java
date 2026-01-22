@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
@@ -54,7 +55,6 @@ public class SetuServiceImpl implements SetuService {
     private static final Duration IMAGE_CACHE_DURATION = Duration.ofHours(1);
 
     private static final String KEY_SETU_MODE = "setu.content.mode";
-    private static final String KEY_SETU_DEFAULT_API = "setu.api.default";
 
     private static final String MODE_SFW = "sfw";
     private static final String MODE_R18 = "r18";
@@ -249,10 +249,9 @@ public class SetuServiceImpl implements SetuService {
             }
 
             if (response.isSuccessful() && response.body() != null) {
-                byte[] bytes = response.body().bytes();
-                if (bytes.length > 0) {
-                    fileStorageService.saveFileByCacheKey(cacheKey, bytes, IMAGE_CACHE_DURATION);
-                    return fileStorageService.getFilePathByCacheKey(cacheKey);
+                // 获取流，而不是加载到内存
+                try (InputStream is = response.body().byteStream()) {
+                    return fileStorageService.saveStreamByCacheKey(cacheKey, is, IMAGE_CACHE_DURATION);
                 }
             } else {
                 log.warn("图片下载失败: Code={}, URL={}", code, url);

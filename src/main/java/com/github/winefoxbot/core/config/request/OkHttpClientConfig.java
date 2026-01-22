@@ -34,11 +34,12 @@ public class OkHttpClientConfig {
     public OkHttpClient okHttpClient(AutoSwitchProxySelector proxySelector) {
         try {
             Dispatcher dispatcher = new Dispatcher();
-            dispatcher.setMaxRequests(64);
-            dispatcher.setMaxRequestsPerHost(10);
+            dispatcher.setMaxRequests(500);
+            dispatcher.setMaxRequestsPerHost(100);
             ConnectionPool connectionPool = new ConnectionPool(50, 5, TimeUnit.MINUTES);
             return new OkHttpClient.Builder()
                     .connectTimeout(10, TimeUnit.SECONDS)
+                    .readTimeout(30, TimeUnit.SECONDS)
                     .retryOnConnectionFailure(true)
                     .connectionPool(connectionPool)
                     .dispatcher(dispatcher)
