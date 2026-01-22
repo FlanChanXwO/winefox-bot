@@ -54,7 +54,6 @@ public class WebUIStatsService {
      * 获取活跃群组排行 (Top 5) - 支持时间筛选
      * key 生成策略: 'top5_' + 参数 rangeStr
      */
-    @Cacheable(value = CacheConstants.WEBUI_ACTIVE_GROUPS_CACHE, key = "'top5_' + #rangeStr")
     public List<StatsRankingResponse> getActiveGroupStats(String rangeStr) {
         log.info("Calculating active groups for range: {}", rangeStr);
 
@@ -193,7 +192,6 @@ public class WebUIStatsService {
     /**
      * 获取插件调用排行 (支持时间筛选)
      */
-    @Cacheable(value = CacheConstants.WEBUI_PLUGIN_RANKING_CACHE, key = "'ranking_' + #rangeStr")
     public List<StatsRankingResponse> getPluginRanking(String rangeStr) {
         TimeRange range;
         try {

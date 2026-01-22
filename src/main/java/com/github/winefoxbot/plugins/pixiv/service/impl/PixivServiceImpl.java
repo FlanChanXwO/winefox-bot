@@ -8,6 +8,7 @@ import com.github.winefoxbot.plugins.pixiv.config.PixivConfig;
 import com.github.winefoxbot.plugins.pixiv.model.dto.common.PixivArtworkInfo;
 import com.github.winefoxbot.plugins.pixiv.model.enums.PixivArtworkType;
 import com.github.winefoxbot.plugins.pixiv.service.PixivService;
+import com.google.common.util.concurrent.Striped;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,7 +57,7 @@ public class PixivServiceImpl implements PixivService {
     private static final String PIXIV_BASE = "https://www.pixiv.net";
     private static final Duration CACHE_EXPIRATION = Duration.ofHours(6); // 缓存过期时间
     private static final String PIXIV_IMAGE_SUBFOLDER = "pixiv/images";
-
+    private final Striped<Lock> IMAGE_CACHE_LOCK = Striped.lock(64);
     private static final boolean ENABLE_COMPRESSION = false;
 
     /**

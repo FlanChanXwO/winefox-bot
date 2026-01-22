@@ -106,10 +106,8 @@ public class ShiroBotAfterCompletionMsgHandler {
     }
 
     /**
-     * 2. 锁住特定群组信息的更新
-     * Key: save_group:lock:{groupId}
+     * 2. 特定群组信息的更新
      */
-    @RedissonLock(prefix = "save_group:lock", key = "#group.groupId")
     public void saveGroupSafe(ShiroGroup group) {
         shiroGroupsService.saveOrUpdate(group);
     }
@@ -124,10 +122,8 @@ public class ShiroBotAfterCompletionMsgHandler {
     }
 
     /**
-     * 4. 锁住特定消息的保存 (防止重复入库)
-     * Key: save_msg:lock:{messageId}
+     * 4. 消息的保存
      */
-    @RedissonLock(prefix = "save_msg:lock", key = "#message.messageId")
     public void saveMessageSafe(ShiroMessage message) {
         shiroMessagesService.save(message);
     }

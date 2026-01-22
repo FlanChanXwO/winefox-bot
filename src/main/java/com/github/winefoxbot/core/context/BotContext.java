@@ -1,6 +1,7 @@
 package com.github.winefoxbot.core.context;
 
 import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
+import com.github.winefoxbot.plugins.fortune.config.FortunePluginConfig;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.MessageEvent;
 
@@ -108,6 +109,4 @@ public final class BotContext {
         return ScopedValue.where(CURRENT_PLUGIN_CONFINS, Map.of(config.getClass(), config))
                 .call(callable::call);
     }
-
-
 }

@@ -11,6 +11,7 @@ import com.github.winefoxbot.plugins.setu.model.dto.SetuProviderRequest;
 import com.github.winefoxbot.plugins.setu.model.enums.SetuApiType;
 import com.github.winefoxbot.plugins.setu.service.SetuImageProvider;
 import com.github.winefoxbot.plugins.setu.service.SetuService;
+import com.google.common.util.concurrent.Striped;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import com.mikuac.shiro.dto.event.message.MessageEvent;
@@ -32,6 +33,8 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Stream;
 
 /**
@@ -54,6 +57,7 @@ public class SetuServiceImpl implements SetuService {
     private final FileStorageProperties fileStorageProperties;
     private final ConfigManager configManager;
     private final ShiroSafeSendMessageService safeSendMessageService;
+    private final Striped<Lock> IMAGE_CACHE_LOCK = Striped.lock(64);
 
     private static final Duration IMAGE_CACHE_DURATION = Duration.ofHours(1);
 
@@ -241,28 +245,34 @@ public class SetuServiceImpl implements SetuService {
             return cachedPath;
         }
 
-        // 2. 执行下载
-        Request request = new Request.Builder().url(url).build();
-        try (Response response = httpClient.newCall(request).execute()) {
-            int code = response.code();
+        Lock lock = IMAGE_CACHE_LOCK.get(url);
+        lock.lock();
+        try {
+            // 2. 执行下载
+            Request request = new Request.Builder().url(url).build();
+            try (Response response = httpClient.newCall(request).execute()) {
+                int code = response.code();
 
-            if (code == 404) {
-                log.warn("图片链接失效 (404): {}", url);
-                return null;
-            }
-
-            if (response.isSuccessful() && response.body() != null) {
-                // 获取流，而不是加载到内存
-                try (InputStream is = response.body().byteStream()) {
-                    return fileStorageService.saveStreamByCacheKey(cacheKey, is, IMAGE_CACHE_DURATION);
+                if (code == 404) {
+                    log.warn("图片链接失效 (404): {}", url);
+                    return null;
                 }
-            } else {
-                log.warn("图片下载失败: Code={}, URL={}", code, url);
+
+                if (response.isSuccessful() && response.body() != null) {
+                    // 获取流，而不是加载到内存
+                    try (InputStream is = response.body().byteStream()) {
+                        return fileStorageService.saveStreamByCacheKey(cacheKey, is, IMAGE_CACHE_DURATION);
+                    }
+                } else {
+                    log.warn("图片下载失败: Code={}, URL={}", code, url);
+                    return null;
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
-        } catch (IOException e) {
-            log.error("图片下载IO异常: URL={}", url, e);
+        } finally {
+            lock.unlock();
         }
-        return null;
     }
 
 
