@@ -29,7 +29,7 @@ public class ObjectStorageService implements FileStorageService {
     }
 
     @Override
-    public Path saveStreamByCacheKey(String cacheKey, InputStream is, Duration imageCacheDuration) {
+    public Path saveStreamByCacheKey(String cacheKey, InputStream is, Duration imageCacheDuration, long expectedLength) {
         throw new UnsupportedOperationException(NOT_IMPLEMENTED_MSG);
     }
 

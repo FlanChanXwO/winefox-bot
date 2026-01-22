@@ -242,15 +242,64 @@ public class LocalStorageService implements FileStorageService {
     }
 
     @Override
-    public Path saveStreamByCacheKey(String cacheKey, InputStream is, Duration imageCacheDuration) {
+    public Path saveStreamByCacheKey(String cacheKey, InputStream is, Duration imageCacheDuration, long expectedLength) {
+        Path finalPath = resolveSecurely(cacheKey);
+        // 创建同目录下的临时文件，确保 move 操作是原子的（跨分区 move 可能不是原子的）
+        Path tempPath = finalPath.resolveSibling(finalPath.getFileName() + ".tmp." + UUID.randomUUID());
+
         try {
-            return writeFile(cacheKey, is, imageCacheDuration, null);
+            // 确保父目录存在
+            Files.createDirectories(finalPath.getParent());
+
+            // 1. 将流写入临时文件
+            long copiedBytes = Files.copy(is, tempPath, StandardCopyOption.REPLACE_EXISTING);
+
+            // 2. 校验文件长度 (如果 expectedLength > 0)
+            if (expectedLength > 0 && copiedBytes != expectedLength) {
+                throw new IOException("File size mismatch. Expected: " + expectedLength + ", Actual: " + copiedBytes);
+            }
+
+            // 3. 原子移动：只有下载完整且校验通过，才覆盖正式文件
+            Files.move(tempPath, finalPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+
+            log.info("Stream saved securely to: {}", finalPath);
+
+            // 4. 注册文件记录（用于过期管理）
+            registerFile(finalPath, imageCacheDuration, null);
+
+            return finalPath;
+
         } catch (IOException e) {
-            log.error("Failed to save stream by cache key: {}", cacheKey, e);
+            log.error("Failed to save stream securely for key: {}", cacheKey, e);
+            // 清理残留的临时文件
+            try {
+                Files.deleteIfExists(tempPath);
+            } catch (IOException ignored) {
+                // 忽略清理时的错误
+            }
             return null;
         }
     }
 
+
+    @Override
+    public boolean deleteByCacheKey(String cacheKey) {
+        try {
+            Path filePath = resolveSecurely(cacheKey);
+            boolean deleted = deleteFile(filePath, null);
+
+            if (deleted) {
+                // 因为 deleteFile(Path) 内部没有调用 saveRecords（为了批量操作性能），
+                // 但 deleteByCacheKey 是单个业务操作，应该立即持久化变更。
+                saveRecords();
+                log.info("Successfully deleted cache key: {}", cacheKey);
+            }
+            return deleted;
+        } catch (Exception e) {
+            log.error("Error deleting by cache key: {}", cacheKey, e);
+            return false;
+        }
+    }
 
     @Override
     public boolean deleteFile(String pathString, Consumer<Path> afterDeleteCallback) throws IOException {

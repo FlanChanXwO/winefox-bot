@@ -1,6 +1,7 @@
 package com.github.winefoxbot.plugins.setu.service.impl;
 
 import cn.hutool.core.util.URLUtil;
+import cn.hutool.http.HttpStatus;
 import com.github.winefoxbot.core.config.file.FileStorageProperties;
 import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.exception.common.BusinessException;
@@ -21,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import okhttp3.ResponseBody;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
@@ -253,28 +255,44 @@ public class SetuServiceImpl implements SetuService {
             if (cachedPath != null && cachedPath.toFile().exists()) {
                 return cachedPath;
             }
-
             // 2. 执行下载
             Request request = new Request.Builder().url(url).build();
+
             try (Response response = httpClient.newCall(request).execute()) {
                 int code = response.code();
-
-                if (code == 404) {
+                if (code == HttpStatus.HTTP_NOT_FOUND) {
                     log.warn("图片链接失效 (404): {}", url);
                     return null;
                 }
 
-                if (response.isSuccessful() && response.body() != null) {
-                    // 获取流，而不是加载到内存
-                    try (InputStream is = response.body().byteStream()) {
-                        return fileStorageService.saveStreamByCacheKey(cacheKey, is, IMAGE_CACHE_DURATION);
-                    }
-                } else {
+                ResponseBody body = response.body();
+                if (!response.isSuccessful() || body == null) {
                     log.warn("图片下载失败: Code={}, URL={}", code, url);
                     return null;
                 }
+
+                // 1. 获取预期的文件大小（可能为 -1，表示未知）
+                long expectedLength = body.contentLength();
+
+                try (InputStream is = body.byteStream()) {
+                    // 传递 expectedLength 给存储服务，让它在内部做校验
+                    // 或者使用原子写入模式（下载到临时文件 -> 成功则重命名）
+                    return fileStorageService.saveStreamByCacheKey(
+                            cacheKey,
+                            is,
+                            IMAGE_CACHE_DURATION,
+                            expectedLength // <--- 建议修改你的 Service 接口支持传入预期大小
+                    );
+                } catch (IOException e) {
+                    // 2. 关键点：如果流传输中途断开，这里会捕获异常
+                    // 你必须确保 fileStorageService 能够感知到失败，并清理掉那个坏文件
+                    log.error("流读取中断，清理脏数据: {}", cacheKey, e);
+                    fileStorageService.deleteByCacheKey(cacheKey);
+                    throw new RuntimeException("图片流传输中断", e);
+                }
+
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RuntimeException("网络请求失败", e);
             }
         } finally {
             lock.unlock();

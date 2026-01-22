@@ -95,7 +95,7 @@ public interface FileStorageService {
     /**
      * 根据缓存键保存输入流，并设置缓存时长。
      */
-    Path saveStreamByCacheKey(String cacheKey, InputStream is, Duration imageCacheDuration);
+    Path saveStreamByCacheKey(String cacheKey, InputStream is, Duration imageCacheDuration, long expectedLength);
 
     /**
      * 删除文件。
@@ -120,6 +120,8 @@ public interface FileStorageService {
      * @throws IOException 如果发生IO错误
      */
     boolean deleteDirectory(String directoryRelativePath) throws IOException;
+
+    boolean deleteByCacheKey(String cacheKey);
 
     /**
      * 检查文件是否存在。
