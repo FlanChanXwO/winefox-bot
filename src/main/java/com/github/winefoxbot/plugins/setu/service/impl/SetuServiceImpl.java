@@ -248,6 +248,12 @@ public class SetuServiceImpl implements SetuService {
         Lock lock = IMAGE_CACHE_LOCK.get(url);
         lock.lock();
         try {
+            // 再次检查缓存，防止并发重复下载
+            cachedPath = fileStorageService.getFilePathByCacheKey(cacheKey);
+            if (cachedPath != null && cachedPath.toFile().exists()) {
+                return cachedPath;
+            }
+
             // 2. 执行下载
             Request request = new Request.Builder().url(url).build();
             try (Response response = httpClient.newCall(request).execute()) {
