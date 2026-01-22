@@ -18,16 +18,12 @@ import com.microsoft.playwright.options.WaitUntilState;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.StreamUtils;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -45,99 +41,80 @@ public class WaterGroupPosterDrawServiceImpl implements WaterGroupPosterDrawServ
     private final Browser browser;
     private final ShiroGroupMembersService shiroGroupMembersService;
     private final ShiroUsersService usersService;
-    private final ResourceLoader resourceLoader;
+    private final TemplateEngine templateEngine; // 注入模板引擎
 
     @Override
     public File drawPoster(List<WaterGroupMessageStat> stats) {
         if (CollectionUtils.isEmpty(stats)) {
-            // 如果没有统计数据，可以返回一个表示空状态的图片或直接返回
             return null;
         }
 
-        // 计算总发言数
-        long totalMsgCount = stats.stream()
-                .mapToLong(WaterGroupMessageStat::getMsgCount)
-                .sum();
-
-        // 排序
+        // 1. 数据准备：计算总数、排序
+        long totalMsgCount = stats.stream().mapToLong(WaterGroupMessageStat::getMsgCount).sum();
         stats.sort(Comparator.comparingInt(WaterGroupMessageStat::getMsgCount).reversed());
 
+        // 2. 批量查询用户信息
         List<Long> userIds = stats.stream().map(WaterGroupMessageStat::getUserId).distinct().toList();
-        Long groupId = stats.isEmpty() ? null : stats.getFirst().getGroupId();
+        Long groupId = stats.getFirst().getGroupId();
 
         Map<Long, ShiroUser> userMap = Collections.emptyMap();
         Map<Long, ShiroGroupMember> memberMap = Collections.emptyMap();
 
-        if (!userIds.isEmpty() && groupId != null) {
-            // 1. 一次性查询所有用户信息
-            userMap = usersService.list(new LambdaQueryWrapper<ShiroUser>()
-                            .in(ShiroUser::getUserId, userIds))
-                    .stream()
-                    .collect(Collectors.toMap(ShiroUser::getUserId, Function.identity()));
-
-            // 2. 一次性查询所有群成员信息
+        if (!userIds.isEmpty()) {
+            userMap = usersService.list(new LambdaQueryWrapper<ShiroUser>().in(ShiroUser::getUserId, userIds))
+                    .stream().collect(Collectors.toMap(ShiroUser::getUserId, Function.identity()));
             memberMap = shiroGroupMembersService.list(new LambdaQueryWrapper<ShiroGroupMember>()
-                            .eq(ShiroGroupMember::getGroupId, groupId)
-                            .in(ShiroGroupMember::getUserId, userIds))
-                    .stream()
-                    .collect(Collectors.toMap(ShiroGroupMember::getUserId, Function.identity()));
+                            .eq(ShiroGroupMember::getGroupId, groupId).in(ShiroGroupMember::getUserId, userIds))
+                    .stream().collect(Collectors.toMap(ShiroGroupMember::getUserId, Function.identity()));
         }
 
         final Map<Long, ShiroUser> finalUserMap = userMap;
         final Map<Long, ShiroGroupMember> finalMemberMap = memberMap;
 
-        List<WaterGroupMemberStat> statList = stats.stream()
-                .map(e -> {
-                    WaterGroupMemberStat stat = new WaterGroupMemberStat();
-                    BeanUtil.copyProperties(e, stat);
+        // 3. 组装视图数据 (DTO)
+        List<Map<String, Object>> rankList = new ArrayList<>();
+        for (int i = 0; i < stats.size(); i++) {
+            WaterGroupMessageStat stat = stats.get(i);
+            int rank = i + 1;
 
-                    ShiroGroupMember member = finalMemberMap.get(e.getUserId());
-                    if (member != null) {
-                        stat.setNickname(member.getMemberNickname());
-                    } else {
-                        // 如果找不到群成员信息，可以设置一个默认值
-                        stat.setNickname("未知成员");
-                    }
+            ShiroGroupMember member = finalMemberMap.get(stat.getUserId());
+            String nickname = (member != null) ? member.getMemberNickname() : "未知成员";
 
-                    ShiroUser user = finalUserMap.get(e.getUserId());
-                    if (user != null) {
-                        stat.setAvtarUrl(user.getAvatarUrl());
-                    } else {
-                        // 设置一个默认头像URL
-                        stat.setAvtarUrl("");
-                    }
-                    return stat;
-                }).toList();
+            ShiroUser user = finalUserMap.get(stat.getUserId());
+            String avatarUrl = (user != null) ? user.getAvatarUrl() : "";
 
+            double percent = totalMsgCount == 0 ? 0 : stat.getMsgCount() * 100.0 / totalMsgCount;
 
-        StringBuilder rankHtml = new StringBuilder();
-        for (int i = 0; i < statList.size(); i++) {
-            rankHtml.append(
-                    buildRankItemHtml(i + 1, statList.get(i), totalMsgCount)
-            );
+            // 纯粹的数据 Map，不包含任何 HTML 标签
+            Map<String, Object> item = new HashMap<>();
+            item.put("rank", rank);
+            item.put("nickname", nickname);
+            item.put("avatarUrl", avatarUrl);
+            item.put("msgCount", stat.getMsgCount());
+            item.put("percent", percent); // 让前端格式化或者这里传字符串都可以
+
+            rankList.add(item);
         }
 
-        // 读取模板
-        String template;
-        try {
-            // 1. 使用 resourceLoader 获取资源对象
-            Resource resource = resourceLoader.getResource("classpath:templates/water_group/water_group_poster.html");
-            // 2. 从资源对象获取输入流 (InputStream)
-            try (InputStream inputStream = resource.getInputStream()) {
-                // 3. 使用工具类将输入流复制到字符串，并指定编码
-                template = StreamUtils.copyToString(inputStream, StandardCharsets.UTF_8);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("读取海报模板文件失败", e);
-        }
+        // 4. 构建 Thymeleaf Context
+        Context context = new Context();
+        context.setVariable("time", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+        context.setVariable("rankList", rankList);
+        context.setVariable("generator", buildGeneratorName(rankList));
 
-        String html = template
-                .replace("{{time}}", LocalDateTime.now().format(
-                        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")))
-                .replace("{{rank_list}}", rankHtml.toString())
-                .replace("{{generator}}", buildGenerator(statList));
-
+        // 5. 渲染
+        String html = templateEngine.process("water_group/water_group_poster", context);
         return renderByPlaywright(html);
+    }
+
+    private String buildGeneratorName(List<Map<String, Object>> rankList) {
+        if (rankList.isEmpty()) return "本群";
+        return rankList.stream()
+                .limit(Math.min(rankList.size(), 4))
+                .map(m -> (String) m.get("nickname"))
+                .filter(Objects::nonNull)
+                .filter(s -> !s.isBlank())
+                .collect(Collectors.joining("、")) + " 等";
     }
 
     @Retry(retryOn = RuntimeException.class)
@@ -146,104 +123,13 @@ public class WaterGroupPosterDrawServiceImpl implements WaterGroupPosterDrawServ
         pageOptions.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
         try (Page page = browser.newPage(pageOptions)) {
             page.setViewportSize(800, 100);
-            page.setContent(html, new Page.SetContentOptions()
-                    .setWaitUntil(WaitUntilState.NETWORKIDLE).setTimeout(30000));
-            // 获取 poster 元素的高度，并设置为视口高度，确保截图完整
+            page.setContent(html, new Page.SetContentOptions().setWaitUntil(WaitUntilState.NETWORKIDLE).setTimeout(30000));
             int height = (int) page.locator(".poster").boundingBox().height;
             page.setViewportSize(800, height);
             GroupMessageEvent messageEvent = (GroupMessageEvent) BotContext.CURRENT_MESSAGE_EVENT.get();
             File out = new File("water_group_rank_%s.png".formatted(messageEvent.getGroupId()));
-            page.screenshot(new Page.ScreenshotOptions()
-                    .setPath(out.toPath())
-                    .setFullPage(true) // 使用fullPage确保内容截全
-                    .setScale(ScreenshotScale.CSS));
+            page.screenshot(new Page.ScreenshotOptions().setPath(out.toPath()).setFullPage(true).setScale(ScreenshotScale.CSS));
             return out;
         }
     }
-
-
-    private String buildGenerator(List<WaterGroupMemberStat> stats) {
-        if (stats == null || stats.isEmpty()) {
-            return "本群";
-        }
-
-        // 最多显示 4 个，防止太长
-        int limit = Math.min(stats.size(), 4);
-
-        return stats.stream()
-                .limit(limit)
-                .map(WaterGroupMemberStat::getNickname)
-                .filter(Objects::nonNull)
-                .filter(name -> !name.isBlank())
-                .collect(Collectors.joining("、")) + " 等"; // 加上 "等" 更自然
-    }
-
-
-    private String buildRankItemHtml(
-            int rank,
-            WaterGroupMemberStat stat,
-            long totalCount
-    ) {
-        double percent = totalCount == 0
-                ? 0
-                : stat.getMsgCount() * 100.0 / totalCount;
-
-        String barColor;
-        String rankClass = "";  // 新增：用于存储特殊的CSS类
-        String rankIcon = "";   // 新增：用于存储皇冠图标HTML
-
-        switch (rank) {
-            case 1:
-                barColor = "linear-gradient(90deg, #FFB86C, #FF79C6)";
-                rankClass = "rank-1";
-                // 使用SVG图标，因为它清晰且易于嵌入
-                rankIcon = "<span class='crown gold'>👑</span>";
-                break;
-            case 2:
-                barColor = "linear-gradient(90deg, #8BE9FD, #50FA7B)";
-                rankClass = "rank-2";
-                rankIcon = "<span class='crown silver'>🥈</span>"; // Emoji也可以，但SVG更可控
-                break;
-            case 3:
-                barColor = "linear-gradient(90deg, #BD93F9, #FF79C6)";
-                rankClass = "rank-3";
-                rankIcon = "<span class='crown bronze'>🥉</span>";
-                break;
-            default:
-                barColor = "#44475A";
-                // 其他排名没有特殊类和图标
-                break;
-        }
-
-        return """
-                <div class="rank-item %s">
-                  <div class="rank-number">%d</div>
-                  <div class="avatar">
-                    <img src="%s" alt="avatar"/>
-                  </div>
-                  <div class="info">
-                    <div class="name">%s %s</div>
-                    <div class="count">发言次数: %d</div>
-                  </div>
-                  <div class="progress-container">
-                    <div class="progress-bar-bg">
-                        <div class="progress-bar-fg" style="width: %.2f%%; background: %s;"></div>
-                    </div>
-                    <div class="percent-text">%.2f%%</div>
-                  </div>
-                </div>
-                """
-                .formatted(
-                        rankClass,          // 应用特殊CSS类
-                        rank,
-                        stat.getAvtarUrl(),
-                        stat.getNickname(),
-                        rankIcon,           // 在名字后面添加皇冠
-                        stat.getMsgCount(),
-                        percent,
-                        barColor,
-                        percent
-                );
-    }
-
 }

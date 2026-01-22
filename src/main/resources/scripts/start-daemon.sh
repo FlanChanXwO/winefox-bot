@@ -2,7 +2,7 @@
 
 # ===================== 配置区 =====================
 # Java 启动参数
-JAVA_OPTS="-Xms400m -Xmx800m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=./logs/heapdump.hprof -Djava.io.tmpdir=./tmp -Dfile.encoding=UTF-8"
+JAVA_OPTS="-Xms400m -Xmx800m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=./logs/heapdump.hprof -Djava.io.tmpdir=./tmp -Dfile.encoding=UTF-8 -Dspring.profiles.active=prod"
 
 # 目标 JAR 文件的相对路径
 JAR_PATH="winefox-bot.jar"

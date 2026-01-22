@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 :: ===================== 配置区 =====================
-set "JAVA_OPTS=-Xms400m -Xmx800m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=.\logs\heapdump.hprof -Djava.io.tmpdir=.\tmp -Dfile.encoding=UTF-8"
+set "JAVA_OPTS=-Xms400m -Xmx800m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=.\logs\heapdump.hprof -Djava.io.tmpdir=.\tmp -Dfile.encoding=UTF-8 -Dspring.profiles.active=prod"
 :: ====================================================
 
 set "JAR_PATH=winefox-bot.jar"
