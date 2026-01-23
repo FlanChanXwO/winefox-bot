@@ -1,10 +1,11 @@
 package com.github.winefoxbot.core.service.status.impl;
 
+import cn.hutool.core.util.RandomUtil;
 import com.github.winefoxbot.core.config.playwright.PlaywrightConfig;
 import com.github.winefoxbot.core.config.status.StatusImageGeneratorConfig;
 import com.github.winefoxbot.core.service.denpencyversion.DependencyVersionService;
 import com.github.winefoxbot.core.service.status.StatusImageService;
-import com.github.winefoxbot.core.utils.Base64Utils;
+import com.github.winefoxbot.core.utils.DynamicResourceLoader;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
@@ -15,8 +16,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.springframework.context.ApplicationContext;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
@@ -25,14 +24,13 @@ import oshi.hardware.CentralProcessor;
 import oshi.hardware.GlobalMemory;
 import oshi.hardware.HardwareAbstractionLayer;
 import oshi.hardware.NetworkIF;
+import oshi.software.os.OSFileStore;
 import oshi.software.os.OperatingSystem;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.List;
@@ -44,12 +42,10 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class StatusImageServiceImpl implements StatusImageService {
 
-    private static final String CLASSPATH_PREFIX = "classpath:";
     private static final DecimalFormat DF = new DecimalFormat("0.00");
 
     private final TemplateEngine templateEngine;
     private final Browser browser;
-    private final ResourcePatternResolver resourceResolver;
     private final PlaywrightConfig playwrightConfig;
     private final StatusImageGeneratorConfig config;
     // 用于获取插件数量
@@ -58,6 +54,38 @@ public class StatusImageServiceImpl implements StatusImageService {
     private final ApplicationContext applicationContext;
     // 用户获取shirobot版本号
     private final DependencyVersionService dependencyVersionService;
+
+    /**
+     * 人物立绘图片路径列表。
+     */
+    private static final List<String> characterImages = List.of(
+           "templates/status/res/image/character/1.png",
+           "templates/status/res/image/character/2.png",
+           "templates/status/res/image/character/3.png",
+           "templates/status/res/image/character/4.png",
+           "templates/status/res/image/character/5.png",
+           "templates/status/res/image/character/6.png",
+           "templates/status/res/image/character/7.png"
+    );
+
+    /**
+     * 顶部横幅图片路径列表。
+     */
+    private static final List<String> topBannerImages = List.of(
+            "templates/status/res/image/banner/top-banner_1.png",
+            "templates/status/res/image/banner/top-banner_2.png",
+            "templates/status/res/image/banner/top-banner_3.jpg"
+    );
+
+    /**
+     * HTML 模板文件的 Classpath 路径
+     */
+    private static final String HTML_TEMPLATE_PATH = "status/main";
+
+    /**
+     * CSS 样式文件的 Classpath 路径
+     */
+    private static final String CSS_TEMPLATE_PATH = "templates/status/res/css/style.css";
 
     @Override
     public byte[] generateStatusImage() throws IOException, InterruptedException {
@@ -117,8 +145,8 @@ public class StatusImageServiceImpl implements StatusImageService {
         dataModel.put("swapUsed", memory.getVirtualMemory().getSwapUsed() / 1e9);
         dataModel.put("swapTotal", memory.getVirtualMemory().getSwapTotal() / 1e9);
 
-        long diskTotalBytes = os.getFileSystem().getFileStores().stream().mapToLong(fs -> fs.getTotalSpace()).sum();
-        long diskUsableBytes = os.getFileSystem().getFileStores().stream().mapToLong(fs -> fs.getUsableSpace()).sum();
+        long diskTotalBytes = os.getFileSystem().getFileStores().stream().mapToLong(OSFileStore::getTotalSpace).sum();
+        long diskUsableBytes = os.getFileSystem().getFileStores().stream().mapToLong(OSFileStore::getUsableSpace).sum();
         dataModel.put("diskUsed", (diskTotalBytes - diskUsableBytes) / 1e9);
         dataModel.put("diskTotal", diskTotalBytes / 1e9);
 
@@ -149,13 +177,13 @@ public class StatusImageServiceImpl implements StatusImageService {
     private String renderHtmlTemplate(Map<String, Object> dataModel) throws IOException {
         Context context = new Context();
         context.setVariables(dataModel);
-        String renderedHtml = templateEngine.process(config.getHtmlTemplatePath(), context);
+        String renderedHtml = templateEngine.process(HTML_TEMPLATE_PATH, context);
 
         // 后续逻辑不变
-        String cssContent = readResourceContent(config.getCssTemplatePath());
+        String cssContent = readResourceContent();
 
-        String characterImageBase64 = imagePathToBase64(config.getCharacterImagePath());
-        String topBannerImageBase64 = imagePathToBase64(config.getTopBannerImagePath());
+        String characterImageBase64 = imagePathToBase64(getRandomImagePath(characterImages));
+        String topBannerImageBase64 = imagePathToBase64(getRandomImagePath(topBannerImages));
 
         cssContent = cssContent.replace("${characterImage}", characterImageBase64);
         cssContent = cssContent.replace("${topBannerImage}", topBannerImageBase64);
@@ -175,53 +203,13 @@ public class StatusImageServiceImpl implements StatusImageService {
     }
 
     private String imagePathToBase64(String imagePath) {
-        if (imagePath == null || imagePath.isBlank()) {
-            log.warn("图片路径未配置，将使用默认透明图片。");
-            return config.getDefaultImageBase64();
-        }
-        
-        try {
-            if (imagePath.startsWith(CLASSPATH_PREFIX)) {
-                Resource resource = resourceResolver.getResource(imagePath);
-                if (!resource.exists()) {
-                    log.error("图片资源未找到: {}", imagePath);
-                    return config.getDefaultImageBase64();
-                }
-
-                return Base64Utils.toBase64String(resource);
-            } else {
-                File file = new File(imagePath);
-                if (!file.exists()) {
-                    log.error("图片资源未找到: {}", imagePath);
-                    return config.getDefaultImageBase64();
-                }
-
-                return Base64Utils.toBase64String(file);
-            }
-        } catch (IOException e) {
-            log.error("读取图片资源失败: {}", imagePath, e);
-            return config.getDefaultImageBase64(); // 出错时返回默认值
-        }
+        return DynamicResourceLoader.getResourceAsBase64(imagePath);
     }
 
-    private String readResourceContent(String path) throws IOException {
-            if (path.startsWith(CLASSPATH_PREFIX)) {
-                Resource resource = resourceResolver.getResource(path);
-                if (!resource.exists()) {
-                    throw new IOException("无法找到模板资源: " + path);
-                }
-                try (InputStream is = resource.getInputStream()) {
-                    return new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                }
-            } else {
-                File file = new File(path);
-                if (!file.exists()) {
-                    throw new IOException("无法找到模板资源: " + path);
-                }
-                try (InputStream is = Files.newInputStream(file.toPath())) {
-                    return new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                }
-            }
+    private String readResourceContent() throws IOException {
+        try (InputStream is = DynamicResourceLoader.getInputStream(CSS_TEMPLATE_PATH)) {
+            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 
 
@@ -231,6 +219,11 @@ public class StatusImageServiceImpl implements StatusImageService {
 
     private String toSystemInfoEllipsis(String str) {
         return str.length() > 35 ? str.substring(0, 35) + "..." : str;
+    }
+
+
+    private String getRandomImagePath(List<String> imageList) {
+        return RandomUtil.randomEle(imageList);
     }
 
 }

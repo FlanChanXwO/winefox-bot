@@ -175,22 +175,6 @@ winefoxbot:
       # 项目名称，会在版本号那行前面出现
       # Dashboard 的名称，会显示在图片中
       dashboard-name: "WineFoxBot"
-      # 是否随机选择图片，false 则使用列表中的第一个
-      random-image: true
-      # 人物立绘图片列表。支持 classpath 和绝对/相对文件路径
-      character-images:
-        - "classpath:templates/status/res/image/character/1.png"
-        - "classpath:templates/status/res/image/character/2.png"
-        - "classpath:templates/status/res/image/character/3.png"
-        - "classpath:templates/status/res/image/character/4.png"
-        - "classpath:templates/status/res/image/character/5.png"
-        - "classpath:templates/status/res/image/character/6.png"
-        - "classpath:templates/status/res/image/character/7.png"
-      # 顶部横幅图片列表。
-      top-banner-images:
-        - "classpath:templates/status/res/image/banner/top-banner_1.png"
-        - "classpath:templates/status/res/image/banner/top-banner_2.png"
-        - "classpath:templates/status/res/image/banner/top-banner_3.jpg"
     pixiv:
       # API 相关配置
       api:
