@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.github.winefoxbot.core.annotation.common.RedissonLock;
 import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.model.enums.common.MessageType;
-import com.github.winefoxbot.plugins.fortune.FortunePlugin;
 import com.github.winefoxbot.plugins.fortune.config.FortuneApiConfig;
 import com.github.winefoxbot.plugins.fortune.config.FortunePluginConfig;
 import com.github.winefoxbot.plugins.fortune.mapper.FortuneDataMapper;
@@ -23,6 +22,9 @@ import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,20 +47,23 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
 
     private final FortuneApiConfig apiConfig;
     private final OkHttpClient httpClient;
-    // 注入新的渲染服务
     private final FortuneRenderService renderService;
+
+    @Lazy
+    @Autowired
+    private FortuneDataService self;
 
     private final double[] WEIGHTS = {0.1, 0.15, 0.2, 0.25, 0.15, 0.12, 0.07, 0.005};
 
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public void processFortune(Bot bot, AnyMessageEvent event) {
+    public void getFortune(Bot bot, AnyMessageEvent event) {
         final long userId = event.getUserId();
 
         // 获取用户显示名称 (群名片 > 昵称)
         String displayName = "OP";
         if (event.getSender() != null) {
-             displayName = event.getSender().getCard() != null && !event.getSender().getCard().isEmpty()
+            displayName = event.getSender().getCard() != null && !event.getSender().getCard().isEmpty()
                     ? event.getSender().getCard()
                     : event.getSender().getNickname();
         }
@@ -70,7 +75,11 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
         sendFortuneImage(bot, userId, groupId, type, vo);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    /**
+     * 获取运势渲染数据
+     * 注意：移除了 @Transactional，防止锁在事务提交前释放导致并发读取到旧数据
+     * MyBatis-Plus 的 saveOrUpdate 内部自带事务，这里依靠 RedissonLock 保证业务原子性
+     */
     @Override
     @RedissonLock(prefix = "fortune:lock" ,key = "#userId")
     public FortuneRenderVO getFortuneRenderVO(long userId, String displayName) {
@@ -112,15 +121,18 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
         // 2. 数据组装：准备渲染所需的 VO 对象
         String imageUrl = null;
         if ( !"none".equals(apiConfig.getApi())) {
-            imageUrl = getImageUrl(apiConfig.getApi());
+            try {
+                imageUrl = self.getSyncedImageUrl(apiConfig.getApi(), userId, today.toString());
+            } catch (Exception e) {
+                log.error("获取运势图片失败", e);
+            }
         }
 
-        log.info("请求的图片URL: {}", imageUrl);
+        log.info("最终使用的图片URL: {}", imageUrl);
 
         String title = apiConfig.getJrysTitles().get(Math.min(starNum, apiConfig.getJrysTitles().size() - 1));
         String desc = apiConfig.getJrysMessages().get(Math.min(starNum, apiConfig.getJrysMessages().size() - 1));
 
-        // 使用 switch 表达式计算主题色
         String themeClass = switch (starNum) {
             case 7, 6 -> "theme-red";
             case 5, 4 -> "theme-gold";
@@ -140,14 +152,19 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
         );
     }
 
+
+    @Cacheable(value = "fortune:img", key = "#userId + ':' + #dateStr", unless = "#result == null")
+    @Override
+    public String getSyncedImageUrl(String apiType, long userId, String dateStr) {
+        log.debug("Cache Miss - 调用 API 获取图片: User={}, Date={}", userId, dateStr);
+        return getImageUrlInternal(apiType);
+    }
+
     @Override
     @Async
     public void sendFortuneImage(Bot bot, long userId, Long groupId, MessageType type, FortuneRenderVO vo) {
-        // 3. 调用渲染服务并发送
         try {
-            // 调用渲染服务
             byte[] imgBytes = renderService.render(vo);
-
             var sendMsg = MsgUtils.builder();
             if (type == MessageType.GROUP) {
                 sendMsg.at(userId);
@@ -159,15 +176,12 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
             } else {
                 bot.sendPrivateMsg(userId, sendMsg.build(), false);
             }
-
         } catch (Exception e) {
             log.error("图片渲染失败，降级为文本发送", e);
-            // 降级策略
             fallbackTextFortune(bot, userId, groupId, type, vo.starCount(), vo.title(), vo.description(), apiConfig.getJrysExtraMessage());
         }
     }
 
-    // 纯文本回退逻辑
     private void fallbackTextFortune(Bot bot, Long userId, Long groupId, MessageType type, int starNum, String title, String desc, String extra) {
         StringBuilder stars = new StringBuilder();
         for (int i = 0; i < 7; i++) {
@@ -189,11 +203,11 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
         }
     }
 
-    // ---------------- 下面的辅助方法保持不变 ----------------
-
     @Override
     public void refreshFortune(Bot bot, AnyMessageEvent event) {
         this.removeById(event.getUserId());
+        // 注意：刷新运势时，可能需要清理缓存，或者等待第二天自动过期
+        // 如果想立即刷新图片，可以注入 CacheManager 手动 evict，这里暂时只清理 DB
         MsgUtils msg = MsgUtils.builder().at(event.getUserId()).text(" 已刷新你的今日运势！");
         bot.sendMsg(event, msg.build(), false);
     }
@@ -216,7 +230,8 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
         return 0;
     }
 
-    private String getImageUrl(String apiType) {
+    // 将原 getImageUrl 改名为 Internal，供缓存方法调用
+    private String getImageUrlInternal(String apiType) {
         if ("none".equals(apiType)) {
             return null;
         }
@@ -255,7 +270,6 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
         Request request = new Request.Builder().url(url).get().build();
         try (Response response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful() || response.body() == null) return null;
-            // JDK 16+ Pattern Matching for instanceof
             Object result = JsonPath.read(response.body().string(), jsonPath);
             if (result instanceof List<?> list && !list.isEmpty() && list.get(0) != null) {
                 return list.get(0).toString();

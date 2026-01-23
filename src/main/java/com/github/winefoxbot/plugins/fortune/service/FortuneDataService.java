@@ -6,6 +6,7 @@ import com.github.winefoxbot.plugins.fortune.model.entity.FortuneData;
 import com.github.winefoxbot.plugins.fortune.model.vo.FortuneRenderVO;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
+import org.springframework.cache.annotation.Cacheable;
 
 /**
 * @author FlanChan
@@ -14,9 +15,12 @@ import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 */
 public interface FortuneDataService extends IService<FortuneData> {
 
-    void processFortune(Bot bot, AnyMessageEvent event);
+    void getFortune(Bot bot, AnyMessageEvent event);
 
     FortuneRenderVO getFortuneRenderVO(long userId, String displayName);
+
+    @Cacheable(value = "fortune:img", key = "#userId + ':' + #dateStr", unless = "#result == null")
+    String getSyncedImageUrl(String apiType, long userId, String dateStr);
 
     void sendFortuneImage(Bot bot, long userId, Long groupId, MessageType type, FortuneRenderVO vo);
 

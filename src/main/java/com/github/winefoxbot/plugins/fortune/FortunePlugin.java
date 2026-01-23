@@ -47,7 +47,7 @@ public class FortunePlugin {
     @MessageHandlerFilter(types = MsgTypeEnum.text, at = AtEnum.NOT_NEED, cmd = "^/?(今日运势|jrys)$")
     public void getFortune(Bot bot, AnyMessageEvent event) {
         log.info("用户 {} 请求今日运势", event.getUserId());
-        fortuneService.processFortune(bot, event);
+        fortuneService.getFortune(bot, event);
     }
 
     @PluginFunction(

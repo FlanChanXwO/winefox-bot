@@ -8,6 +8,7 @@ import com.github.winefoxbot.core.exception.common.BusinessException;
 import com.github.winefoxbot.core.manager.ConfigManager;
 import com.github.winefoxbot.core.service.file.FileStorageService;
 import com.github.winefoxbot.core.service.shiro.ShiroSafeSendMessageService;
+import com.github.winefoxbot.core.utils.ImageObfuscator;
 import com.github.winefoxbot.plugins.setu.model.dto.SetuProviderRequest;
 import com.github.winefoxbot.plugins.setu.model.enums.SetuApiType;
 import com.github.winefoxbot.plugins.setu.service.SetuImageProvider;
@@ -50,15 +51,13 @@ import java.util.stream.Stream;
 public class SetuServiceImpl implements SetuService {
 
     private final OkHttpClient httpClient;
-
-    // 注入所有实现了 SetuImageProvider 的 Bean，Key 为 BeanName
-    // Spring 会自动将所有实现类注入到这个 Map 中
     private final Map<String, SetuImageProvider> providerMap;
-
     private final FileStorageService fileStorageService;
     private final FileStorageProperties fileStorageProperties;
     private final ConfigManager configManager;
     private final ShiroSafeSendMessageService safeSendMessageService;
+    private final ImageObfuscator imageObfuscator;
+
     private final Striped<Lock> IMAGE_CACHE_LOCK = Striped.lock(64);
 
     private static final Duration IMAGE_CACHE_DURATION = Duration.ofHours(1);
@@ -343,9 +342,37 @@ public class SetuServiceImpl implements SetuService {
                 localUrlList,
                 result -> log.info("SFW 图片发送成功: {}", result.getStatus()),
                 ex -> {
-                    log.error("SFW 图片发送失败", ex);
-                    if (ex instanceof RuntimeException re) throw re;
-                    throw new BusinessException("瑟图发送失败了...");
+                    log.warn("SFW 直发失败，尝试混淆后重发: {}", ex.getMessage());
+
+                    // === 新增：混淆重试逻辑 ===
+                    try {
+                        // 1. 使用工具类包装图片
+                        List<Path> obfuscatedPaths = imageObfuscator.wrap(downloadedPaths);
+
+                        if (obfuscatedPaths.isEmpty()) {
+                            throw new BusinessException("图片混淆失败，无法重试");
+                        }
+
+                        List<String> newUrlList = obfuscatedPaths.stream()
+                                .map(path -> path.toUri().toString())
+                                .toList();
+
+                        // 2. 尝试再次发送
+                        safeSendMessageService.sendMessage(
+                                msg ,
+                                newUrlList,
+                                res -> log.info("混淆图片补发成功"),
+                                retryEx -> {
+                                    log.error("混淆图片补发依然失败", retryEx);
+                                    // 只有这里才抛出最终异常
+                                    throw new BusinessException("瑟图被严格审核拦截了，发不出来...");
+                                }
+                        );
+
+                    } catch (Exception e) {
+                        log.error("执行混淆重发流程异常", e);
+                        if (e instanceof RuntimeException re) throw re;
+                    }
                 }
         );
     }

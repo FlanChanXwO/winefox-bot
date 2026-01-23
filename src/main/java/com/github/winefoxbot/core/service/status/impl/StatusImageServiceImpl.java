@@ -37,6 +37,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * @author FlanChan
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -58,7 +61,7 @@ public class StatusImageServiceImpl implements StatusImageService {
     /**
      * 人物立绘图片路径列表。
      */
-    private static final List<String> characterImages = List.of(
+    private static final List<String> CHARACTER_IMAGES = List.of(
            "templates/status/res/image/character/1.png",
            "templates/status/res/image/character/2.png",
            "templates/status/res/image/character/3.png",
@@ -71,7 +74,7 @@ public class StatusImageServiceImpl implements StatusImageService {
     /**
      * 顶部横幅图片路径列表。
      */
-    private static final List<String> topBannerImages = List.of(
+    private static final List<String> TOP_BANNER_IMAGES = List.of(
             "templates/status/res/image/banner/top-banner_1.png",
             "templates/status/res/image/banner/top-banner_2.png",
             "templates/status/res/image/banner/top-banner_3.jpg"
@@ -182,8 +185,8 @@ public class StatusImageServiceImpl implements StatusImageService {
         // 后续逻辑不变
         String cssContent = readResourceContent();
 
-        String characterImageBase64 = imagePathToBase64(getRandomImagePath(characterImages));
-        String topBannerImageBase64 = imagePathToBase64(getRandomImagePath(topBannerImages));
+        String characterImageBase64 = imagePathToBase64(getRandomImagePath(CHARACTER_IMAGES));
+        String topBannerImageBase64 = imagePathToBase64(getRandomImagePath(TOP_BANNER_IMAGES));
 
         cssContent = cssContent.replace("${characterImage}", characterImageBase64);
         cssContent = cssContent.replace("${topBannerImage}", topBannerImageBase64);
