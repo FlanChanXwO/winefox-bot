@@ -83,7 +83,7 @@ public class ImgExplorationPlugin {
             description = "/搜图 + (回复一张图片)\n示例：发送一张图片并回复附带文字“/搜图”即可使用此功能, 通过上传的图片搜索其来源，返回可能的出处图片")
     @Async
     @AnyMessageHandler
-    @MessageHandlerFilter(types = {MsgTypeEnum.reply, MsgTypeEnum.text}, reply = ReplyEnum.REPLY_ALL, cmd = "\\[CQ:reply,id=\\d+\\](/搜图)$")
+    @MessageHandlerFilter(types = {MsgTypeEnum.reply, MsgTypeEnum.text}, reply = ReplyEnum.REPLY_ALL, cmd = "\\[CQ:reply,id=\\d+\\]\\s*(\\[CQ:at,qq=\\d+\\])?\\s*(/搜图)$")
     public void searchImage(Bot bot, AnyMessageEvent event) {
         Optional<ArrayMsg> replyMsg = event.getArrayMsg().stream().filter(e -> e.getType() == MsgTypeEnum.reply).findFirst();
         if (replyMsg.isEmpty()) {
