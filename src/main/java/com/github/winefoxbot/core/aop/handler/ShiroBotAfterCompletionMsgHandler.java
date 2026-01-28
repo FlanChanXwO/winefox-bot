@@ -23,6 +23,7 @@ import com.mikuac.shiro.dto.event.message.MessageEvent;
 import com.mikuac.shiro.dto.event.message.PrivateMessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
@@ -146,10 +147,11 @@ public class ShiroBotAfterCompletionMsgHandler {
 
         Long selfId = bot.getSelfId();
         Long userId = event.getUserId();
+        Long groupId = event instanceof GroupMessageEvent groupEvent ? groupEvent.getGroupId() : null;
         MessageType messageType = MessageType.fromValue(event.getMessageType());
         JSONArray jsonMessage = MessageConverter.parseCQToJSONArray(event.getRawMessage());
         String jsonString = jsonMessage.toJSONString(1);
-        log.info("[{}] | [{}] | {} : {}", direction.getValue(), messageType.getValue(), userId, jsonString.substring(0, Math.min(jsonString.length(), 1000)));
+        log.info("[{}] | [{}{}] | {} : {}", direction.getValue(), messageType.getValue(), messageType.equals(MessageType.GROUP) ? groupId : StringUtils.EMPTY, userId, jsonString.substring(0, Math.min(jsonString.length(), 1000)));
 
         message.setMessageId(msgId);
         message.setSelfId(selfId);
