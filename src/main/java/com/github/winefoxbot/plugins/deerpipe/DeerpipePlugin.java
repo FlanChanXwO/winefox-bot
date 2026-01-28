@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 /**
  * @author FlanChan
  */
-@Plugin(name = "🦌管",description = "可以🦌", order = 5, permission = Permission.USER,  iconPath = "icon/鹿.png")
+@Plugin(name = "🦌管",description = "可以🦌", order = 4, permission = Permission.USER,  iconPath = "icon/鹿.png")
 @RequiredArgsConstructor
 @Slf4j
 public class DeerpipePlugin {
