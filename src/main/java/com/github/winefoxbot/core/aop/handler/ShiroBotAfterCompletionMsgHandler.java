@@ -151,7 +151,7 @@ public class ShiroBotAfterCompletionMsgHandler {
         MessageType messageType = MessageType.fromValue(event.getMessageType());
         JSONArray jsonMessage = MessageConverter.parseCQToJSONArray(event.getRawMessage());
         String jsonString = jsonMessage.toJSONString(1);
-        log.info("[{}] | [{}{}] | {} : {}", direction.getValue(), messageType.getValue(), messageType.equals(MessageType.GROUP) ? groupId : StringUtils.EMPTY, userId, jsonString.substring(0, Math.min(jsonString.length(), 1000)));
+        log.info("[{}] | [{}{}] | {} : {}", direction.getValue(), messageType.getValue(), messageType.equals(MessageType.GROUP) ? '(' + String.valueOf(groupId) + ')' : StringUtils.EMPTY, userId, jsonString.substring(0, Math.min(jsonString.length(), 1000)));
 
         message.setMessageId(msgId);
         message.setSelfId(selfId);
