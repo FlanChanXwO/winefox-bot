@@ -2,27 +2,9 @@ spring:
   thymeleaf:
     # 【生产环境】指向 JAR 包外部的 resources/templates 目录
     prefix: file:./resources/templates/
-    cache: true # 生产环境开启缓存，提升性能（如果你想热更新HTML，可设为false）
+    cache: false
 
   web:
     resources:
       # 【生产环境】指向 JAR 包外部的 resources/static 目录
       static-locations: file:./resources/static/, classpath:/META-INF/resources/
-
-winefoxbot:
-  plugins:
-    status:
-      # 【生产环境】图片资源也必须指向外部文件！
-      # 因为打包时 excludes 掉了，JAR 包里根本没有这些图片，用 classpath 会报错
-      character-images:
-        - "file:./resources/templates/status/res/image/character/1.png"
-        - "file:./resources/templates/status/res/image/character/2.png"
-        - "file:./resources/templates/status/res/image/character/3.png"
-        - "file:./resources/templates/status/res/image/character/4.png"
-        - "file:./resources/templates/status/res/image/character/5.png"
-        - "file:./resources/templates/status/res/image/character/6.png"
-        - "file:./resources/templates/status/res/image/character/7.png"
-      top-banner-images:
-        - "file:./resources/templates/status/res/image/banner/top-banner_1.png"
-        - "file:./resources/templates/status/res/image/banner/top-banner_2.png"
-        - "file:./resources/templates/status/res/image/banner/top-banner_3.jpg"
