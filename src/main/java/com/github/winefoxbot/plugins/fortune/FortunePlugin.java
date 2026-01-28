@@ -59,7 +59,7 @@ public class FortunePlugin {
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, at = AtEnum.NOT_NEED, cmd = "^/刷新今日运势$")
     public void refreshFortune(Bot bot, AnyMessageEvent event) {
-        FortunePluginConfig config = BotContext.getFirstPluginConfig();
+        FortunePluginConfig config = (FortunePluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
         if (hasPermissionToRefresh(bot, event.getUserId()) || config.getAllowRefresh()) {
             fortuneService.refreshFortune(bot, event);
         } else {

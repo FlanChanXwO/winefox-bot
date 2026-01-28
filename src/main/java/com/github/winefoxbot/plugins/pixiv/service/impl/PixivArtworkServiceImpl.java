@@ -15,6 +15,9 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
 
+/**
+ * @author FlanChan
+ */
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -27,28 +30,9 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
 
     /**
      * 统一处理并发送Pixiv作品的核心方法
-     * 现在的实现非常轻量级，核心逻辑已下沉至 ShiroSafeSendMessageService
      */
     @Override
-    public void sendArtwork(PixivArtworkInfo pixivArtworkInfo, List<File> files, String additionalText) {
-        processArtworkSending(pixivArtworkInfo, files, additionalText);
-    }
-
-    @Override
-    public void sendArtworkToUser(PixivArtworkInfo pixivArtworkInfo, List<File> files, String additionalText) {
-        processArtworkSending(pixivArtworkInfo, files, additionalText);
-    }
-
-    @Override
-    public void sendArtworkToGroup( PixivArtworkInfo pixivArtworkInfo, List<File> files, String additionalText) {
-        processArtworkSending(pixivArtworkInfo, files, additionalText);
-    }
-
-    /**
-     * 内部通用处理逻辑
-     * 不再需要传递 Bot 和 Event，SafeService 会自动从 Context 获取
-     */
-    private void processArtworkSending(PixivArtworkInfo info, List<File> files, String additionalText) {
+    public void sendArtwork(PixivArtworkInfo info, List<File> files, String additionalText) {
         if (files == null || files.isEmpty()) {
             log.warn("PID: {} 的文件列表为空，无法发送。", info.getPid());
             safeSendMessageService.sendMessage("未能获取到 PID: " + info.getPid() + " 的图片文件！", null, null, null);
@@ -66,6 +50,7 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
             safeSendMessageService.sendMessage("处理作品时发生内部错误：" + e.getMessage(), null, null, null);
         }
     }
+
 
     /**
      * 处理非R18作品：直接发送图文消息

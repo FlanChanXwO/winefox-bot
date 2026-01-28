@@ -1,5 +1,6 @@
 package com.github.winefoxbot.plugins.pixiv.aitools;
 
+import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.model.enums.common.MessageType;
 import com.github.winefoxbot.core.utils.SendMsgUtil;
 import com.github.winefoxbot.plugins.pixiv.model.dto.common.PixivArtworkInfo;
@@ -9,6 +10,8 @@ import com.github.winefoxbot.plugins.pixiv.service.PixivBookmarkService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivService;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.BotContainer;
+import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
+import com.mikuac.shiro.dto.event.message.MessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -34,17 +37,9 @@ public class PixivBookmarkRandomImageTool {
 
     private final PixivService pixivService;
     private final PixivBookmarkService pixivBookmarkService;
-    private final BotContainer botContainer;
     private final PixivArtworkService artworkService;
 
-    public record PixivBookmarkImageRequest(
-            @ToolParam(required = false, description = "调用该工具所需的uid，需要从json消息的uid字段中获取")
-            Long userId,
-            @ToolParam(required = false, description = "调用该工具所需的session_id，需要从json消息的session_id字段中获取")
-            Long sessionId,
-            @ToolParam(required = true, description = "调用该工具所需的message_type，需要从json消息的message_type字段中获取,该参数必须为小写")
-            String messageType
-    ) {}
+    public record PixivBookmarkImageRequest() {}
 
     public record PixivBookmarkImageResponse(
             @ToolParam(description = "是否调用工具成功：true:成功 false:失败")  Boolean success,
@@ -55,27 +50,21 @@ public class PixivBookmarkRandomImageTool {
     @Description("""
     获取用户随机收藏的P站作品图片。
     当用户想要随机查看主人收藏的P站作品时，调用此工具。
-    该工具会从用户的P站收藏夹中随机选择一件作品，并获取其详细信息和图片文件，然后发送给用户。
-    当你调用此工具时，请确保传递正确的用户ID、会话ID和消息类型参数。
+    该工具会从用户的P站收藏夹中随机选择一件作品，并获取其详细信息和图片文件，然后发送给用户，当你请求成功时，图片已经被发送了。
+    该工具不需要其他输入参数。
     """)
     public Function<PixivBookmarkImageRequest,PixivBookmarkImageResponse> randomPixivBookmarkTool() {
-        return pixivBookmarkImageRequest -> {
-            Optional<Bot> botOptional = botContainer.robots.values().stream().findFirst();
-            if (botOptional.isEmpty()) {
-                return new PixivBookmarkImageResponse(false, "没有可用的机器人实例");
-            }
-
-
-            Bot bot = botOptional.get();
+        return _ -> {
+            log.info("AI调用随机P站收藏工具");
+            Bot bot = BotContext.CURRENT_BOT.get();
+            AnyMessageEvent event = (AnyMessageEvent) BotContext.CURRENT_MESSAGE_EVENT.get();
             try {
-                String tipMsg = "正在为你获取随机收藏的P站作品...";
-                sendTip(pixivBookmarkImageRequest, bot, tipMsg);
+                bot.sendMsg(event, "正在从收藏夹中抽取作品，请稍候...", false);
                 // 1. 随机获取一个收藏
-                Optional<PixivBookmark> bookmarkOptional = pixivBookmarkService.getRandomBookmark(pixivBookmarkImageRequest.userId(), pixivBookmarkImageRequest.sessionId);
+                Optional<PixivBookmark> bookmarkOptional = pixivBookmarkService.getRandomBookmark(event.getUserId(),event.getGroupId());
                 if (bookmarkOptional.isEmpty()) {
-                    tipMsg = "你的收藏夹为空，无法获取随机收藏。";
-                    sendTip(pixivBookmarkImageRequest, bot, tipMsg);
-                    return new PixivBookmarkImageResponse(false, "收藏夹为空");
+                    bot.sendMsg(event, "收藏夹是空的哦，还没法抽卡呢~", false);
+                    return new PixivBookmarkImageResponse(false, "收藏夹为空，无法抽取随机收藏");
                 }
                 PixivBookmark bookmark = bookmarkOptional.get();
                 String pid = bookmark.getId();
@@ -84,7 +73,7 @@ public class PixivBookmarkRandomImageTool {
                 // 3. 异步下载图片文件
                 List<File> files = pixivService.fetchImages(pid).join();
                 // 4. 调用统一的发送服务
-                sendImage(pixivBookmarkImageRequest, bot, pixivArtworkInfo, files, pid);
+                artworkService.sendArtwork(pixivArtworkInfo,files,null);
                 return new PixivBookmarkImageResponse(true, "随机收藏发送成功");
             } catch (Exception e) {
                 log.error("网络异常，获取随机收藏失败: {}", e.getMessage(), e);
@@ -93,24 +82,4 @@ public class PixivBookmarkRandomImageTool {
         };
     }
 
-    private void sendImage(PixivBookmarkImageRequest pixivBookmarkImageRequest, Bot bot, PixivArtworkInfo pixivArtworkInfo, List<File> files, String pid) {
-        MessageType messageType = MessageType.fromValue(pixivBookmarkImageRequest.messageType.toLowerCase());
-
-        if (messageType.equals(MessageType.GROUP)) {
-            artworkService.sendArtworkToGroup(pixivArtworkInfo, files, null);
-            log.info("群 [{}] 的随机收藏发送完成，作品ID: {}。", pixivBookmarkImageRequest.sessionId, pid);
-        } else {
-            artworkService.sendArtworkToUser(pixivArtworkInfo, files, null);
-            log.info("用户 [{}] 的随机收藏发送完成，作品ID: {}。", pixivBookmarkImageRequest.sessionId, pid);
-        }
-    }
-
-    private static void sendTip(PixivBookmarkImageRequest pixivBookmarkImageRequest, Bot bot, String tipMsg) {
-        MessageType messageType = MessageType.fromValue(pixivBookmarkImageRequest.messageType.toLowerCase());
-        if (messageType.equals(MessageType.GROUP)) {
-            SendMsgUtil.sendGroupMsg(bot, pixivBookmarkImageRequest.sessionId, tipMsg,false);
-        } else {
-            SendMsgUtil.sendPrivateMsg(bot, pixivBookmarkImageRequest.sessionId, tipMsg, false);
-        }
-    }
 }

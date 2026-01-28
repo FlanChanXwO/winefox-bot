@@ -55,8 +55,6 @@ public class WebUIStatsService {
      * key 生成策略: 'top5_' + 参数 rangeStr
      */
     public List<StatsRankingResponse> getActiveGroupStats(String rangeStr) {
-        log.info("Calculating active groups for range: {}", rangeStr);
-
         // 1. 解析时间范围
         TimeRange range;
         try {

@@ -8,6 +8,8 @@ import com.github.winefoxbot.plugins.fortune.model.vo.FortuneRenderVO;
 import com.github.winefoxbot.plugins.fortune.service.FortuneDataService;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.BotContainer;
+import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
+import com.mikuac.shiro.dto.event.message.MessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -29,102 +31,39 @@ import java.util.function.Function;
 @Slf4j
 public class FortuneTool {
 
-    private final BotContainer botContainer;
-    private final FortuneDataService fortuneDataService;
+    private final FortuneDataService fortuneService;
     private final PluginConfigBinder configBinder;
 
-    // 1. 定义请求参数结构
-    public record FortuneRequest(
-            @ToolParam(required = false, description = "调用该工具所需的uid，需要从json消息的uid字段中获取")
-            Long userId,
-            @ToolParam(required = false, description = "调用该工具所需的session_id，需要从json消息的session_id字段中获取")
-            Long sessionId,
-            @ToolParam(description = "调用该工具所需的message_type，需要从json消息的message_type字段中获取,该参数必须为小写")
-            String messageType
-    ) {
-    }
+    public record FortuneRequest() {}
 
     public record FortuneResponse(
-            @ToolParam(description = "是否调用工具成功：true:成功 false:失败") Boolean success,
-            @ToolParam(description = "错误信息") String message,
-            @ToolParam(description = "今日运势数据") FortuneContent fortuneContent
-    ) {
-    }
-
-    public record FortuneContent(
-            @ToolParam(description = "运势标题 (大吉/中吉...)") String title,
-            @ToolParam(description = "运势描述") String description,
-            @ToolParam(description = "额外描述 (宜/忌等)") String extraMessage,
-            @ToolParam(description = "星星数量") int starCount
-    ) {
-    }
+            Boolean success,
+            String message
+    ) {}
 
 
     @Bean("fortuneGetTool")
     @Description("""
             获取今日运势信息的工具。
             当用户想要查询今日运势时，应该调用此工具。
-            该工具返回用户的今日运势信息，包括标题、描述、额外信息，运势具体等级以'运势标题'为准
+            该工具调用后会发送今日运势卡片到用户所在的聊天中，并返回运势的获取结果。
+            该工具不需要任何输入参数。
             """)
     public Function<FortuneRequest, FortuneResponse> fortuneGetTool() {
-        return req -> {
-            Optional<Bot> botOptional = botContainer.robots.values().stream().findFirst();
-            if (botOptional.isEmpty()) {
-                return new FortuneResponse(false, "没有可用的机器人实例", null);
-            }
-            Bot bot = botOptional.get();
-
-            Long userId = req.userId();
-            Long sessionId = req.sessionId();
-            MessageType messageType = MessageType.fromValue(req.messageType().toLowerCase());
-
-            log.info("AI工具请求今日运势，userId: {}, sessionId: {}, messageType: {}", userId, sessionId, messageType);
-
-            // 尝试获取用户显示名称
-            String displayName = "指挥官";
+        return _ -> {
+            log.info("AI工具调用：获取今日运势");
+            Bot bot = BotContext.CURRENT_BOT.get();
+            AnyMessageEvent messageEvent = (AnyMessageEvent) BotContext.CURRENT_MESSAGE_EVENT.get();
             try {
-                if (messageType == MessageType.GROUP && sessionId != null) {
-                    var info = bot.getGroupMemberInfo(sessionId, userId, true);
-                    if (info != null && info.getData() != null) {
-                        String card = info.getData().getCard();
-                        displayName = (card != null && !card.isEmpty()) ? card : info.getData().getNickname();
-                    }
-                } else {
-                    var info = bot.getStrangerInfo(userId, true);
-                    if (info != null && info.getData() != null) {
-                        displayName = info.getData().getNickname();
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("获取用户信息失败，使用默认名称", e);
-            }
-
-            try {
-                Long groupId = (messageType == MessageType.GROUP) ? sessionId : null;
                 FortunePluginConfig config = FortunePluginConfig.class.getDeclaredConstructor().newInstance();
-                configBinder.bind(config, groupId, userId);
-
-                String finalDisplayName = displayName;
-                FortuneContent fortuneContent = BotContext.callWithConfig(config, () -> {
-                    // 获取运势数据 VO
-                    FortuneRenderVO vo = fortuneDataService.getFortuneRenderVO(userId, finalDisplayName);
-
-                    // 发送图片任务
-                    fortuneDataService.sendFortuneImage(bot, userId, groupId, messageType, vo);
-
-                    // 返回运势文本内容给AI
-                    return new FortuneContent(
-                            vo.title(),
-                            vo.description(),
-                            vo.extraMessage(),
-                            vo.starCount()
-                    );
+                configBinder.bind(config, messageEvent.getGroupId(), messageEvent.getUserId());
+                BotContext.runWithContext(bot,messageEvent,config, () -> {
+                    fortuneService.getFortune(bot, messageEvent);
                 });
-                return new FortuneResponse(true, "运势获取成功，运势卡片已发送", fortuneContent);
-
+                return new FortuneResponse(true, "运势获取成功，运势卡片已发送");
             } catch (Exception e) {
                 log.error("AI工具获取运势失败", e);
-                return new FortuneResponse(false, "系统内部错误: " + e.getMessage(), null);
+                return new FortuneResponse(false, "运势获取失败");
             }
         };
     }

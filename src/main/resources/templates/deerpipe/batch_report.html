@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <style th:utext="${cssStyle}"></style>
+    <title>🦌管批量结算报告</title>
+</head>
+<body>
+<div class="batch-container">
+    <div class="header">
+        <div class="header-content">
+            <div class="title">🦌管批量结算报告</div>
+            <div class="subtitle">BATCH SETTLEMENT REPORT</div>
+        </div>
+    </div>
+
+    <div class="list-container">
+        <div class="list-row" th:each="item : ${results}">
+            <!-- 左侧：昵称 -->
+            <div class="left-section">
+                <span class="nickname" th:text="${item.nickname}">用户昵称</span>
+            </div>
+
+            <!-- 右侧：信息 -->
+            <div class="right-info">
+                <!-- 次数显示 -->
+                <span class="count-info">
+                    第 <b th:text="${item.count}">1</b> 次
+                </span>
+
+                <!-- +1 徽章 (样式统一为日历风格) -->
+                <div class="plus-badge">+1</div>
+
+                <!-- 状态标签 -->
+                <span class="status success" th:if="${item.isNew}">今日首鹿</span>
+                <span class="status old" th:if="${!item.isNew}">老手</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="summary">
+        <div class="summary-label">本次结算统计</div>
+        <div class="summary-data">
+            <span class="data-item">共帮 <b th:text="${totalCount}">10</b> 人</span>
+            <span class="data-item highlight">成功 <b th:text="${successCount}">10</b> 人</span>
+        </div>
+    </div>
+</div>
+</body>
+</html>

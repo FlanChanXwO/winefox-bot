@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <style th:utext="${cssStyle}"></style>
+  <title>🦌管日历</title>
+</head>
+<body>
+<div class="container">
+  <!-- 1. 顶部卡片头部 -->
+  <div class="header">
+    <div class="avatar-box">
+      <!-- 增加头像边框阴影效果 -->
+      <img class="avatar" th:src="'data:image/png;base64,' + ${avatarBase64}" th:if="${avatarBase64 != null}"  alt="头像"/>
+    </div>
+    <div class="header-info">
+      <div class="title" th:text="${year} + '年' + ${month} + '月'">2025年1月</div>
+      <div class="subtitle">DEER PIPE CALENDAR</div>
+    </div>
+    <!-- 右上角装饰 -->
+    <div class="header-deco-img">
+      <img th:src="${assets.character}"  alt="人物"/>
+    </div>
+  </div>
+
+  <!-- 2. 星期栏 -->
+  <div class="week-header">
+    <span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span><span>周日</span>
+  </div>
+
+  <!-- 3. 日历主体 -->
+  <div class="calendar-grid">
+    <div class="week-row" th:each="week : ${calendar}">
+      <div class="day-box" th:each="day : ${week}"
+           th:classappend="${day.dayOfMonth == 0} ? 'empty' : (${day.count > 0} ? 'active' : '')">
+
+        <th:block th:if="${day.dayOfMonth > 0}">
+          <!-- 背景图容器 -->
+          <div class="bg-wrapper">
+            <img class="bg-pipe" th:src="${assets.deerPipe}" />
+          </div>
+
+          <!-- 签到成功的大勾 -->
+          <img class="check-mark" th:src="${assets.check}" th:if="${day.count > 0}" />
+
+          <!-- 日期数字 -->
+          <div class="day-num" th:text="${day.dayOfMonth}">1</div>
+
+          <!-- 次数徽章 (美化版) -->
+          <div class="count-badge" th:if="${day.count > 1}">
+            <span th:text="${day.count > 99 ? '99+' : '+' + (day.count - 1)}">+1</span>
+          </div>
+        </th:block>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

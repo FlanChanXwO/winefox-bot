@@ -3,6 +3,8 @@ name: Java CI/CD with Maven
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - 'pom.xml' # 只有 pom.xml 变动时才尝试检查
 
 jobs:
   build_and_release:

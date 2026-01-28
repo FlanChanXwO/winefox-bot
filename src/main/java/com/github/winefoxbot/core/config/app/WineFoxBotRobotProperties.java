@@ -25,14 +25,4 @@ public class WineFoxBotRobotProperties {
      */
     @ShowInDashboard(label = "机器人昵称", description = "机器人的显示名称")
     private String nickname = "酒狐";
-    /**
-     * 机器人主人名称
-     */
-    @ShowInDashboard(label = "机器人主人名称", description = "机器人的主人的显示名称")
-    private String masterName = "雾理魔雨莎";
-    /**
-     * 机器人ID
-     */
-    @ShowInDashboard(label = "机器人ID", description = "机器人的唯一标识ID")
-    private String botId = "114514";
 }

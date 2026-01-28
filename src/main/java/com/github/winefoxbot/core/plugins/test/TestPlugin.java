@@ -1,5 +1,6 @@
 package com.github.winefoxbot.core.plugins.test;
 
+import com.github.winefoxbot.core.actionpath.napcat.CustomFaceActionPath;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.github.winefoxbot.core.model.enums.common.Permission;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
@@ -8,12 +9,16 @@ import com.mikuac.shiro.annotation.common.Shiro;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.common.utils.OneBotMedia;
 import com.mikuac.shiro.core.Bot;
+import com.mikuac.shiro.dto.action.common.ActionData;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
+import com.mikuac.shiro.enums.ActionPathEnum;
 import com.mikuac.shiro.enums.MsgTypeEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.regex.Matcher;
 
 /**
@@ -39,6 +44,16 @@ public class TestPlugin {
     public void emoji(Bot bot, AnyMessageEvent event) {
         bot.sendMsg(event, MsgUtils.builder()
                 .img(new OneBotMedia())
+                .build(), false);
+    }
+
+    @AnyMessageHandler
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/emojis$")
+    public void emojis(Bot bot, AnyMessageEvent event) {
+        ActionData<List<String>> actionData = bot.customRequest(CustomFaceActionPath.FETCH_CUSTOM_FACE, CustomFaceActionPath.FetchCustomFaceParams.builder().count(50).build().toParamMap());
+        List<String> data = actionData.getData();
+        bot.sendMsg(event, MsgUtils.builder()
+                        .text(StringUtils.join(data,","))
                 .build(), false);
     }
 

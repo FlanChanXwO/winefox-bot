@@ -6,7 +6,6 @@ import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.github.winefoxbot.core.model.enums.common.Permission;
 import com.github.winefoxbot.core.service.common.SmartTagService;
-import com.github.winefoxbot.plugins.setu.config.SetuPluginConfig;
 import com.github.winefoxbot.plugins.setu.service.SetuService;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
@@ -26,8 +25,7 @@ import java.util.regex.Matcher;
         permission = Permission.USER,
         iconPath = "icon/娱乐功能.png",
         description = "提供随机福利图片获取功能，支持标签和数量限制。",
-        order = 7,
-        config = SetuPluginConfig.class
+        order = 7
 )
 @Slf4j
 @RequiredArgsConstructor

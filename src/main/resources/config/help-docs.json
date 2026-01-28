@@ -156,58 +156,6 @@
       ]
     },
     {
-      "name": "鹿管功能",
-      "order": 5,
-      "icon": "icon/鹿.png",
-      "documentation": [
-        {
-          "name": "鹿管一次",
-          "description": "记录自己完成了一次鹿管。",
-          "permission": "普通用户",
-          "commands": [
-            "🦌管1次",
-            "鹿管1次"
-          ]
-        },
-        {
-          "name": "帮他人鹿管",
-          "description": "帮指定的群友（@xxx）记录一次鹿管。\n用法: 🦌 @某人 或 鹿 @某人",
-          "permission": "普通用户",
-          "commands": [
-            "🦌",
-            "鹿"
-          ]
-        },
-        {
-          "name": "补记鹿管",
-          "description": "为本月的指定日期补记一次鹿管。\n用法: 补🦌 [日期]，例如 补🦌 15",
-          "permission": "普通用户",
-          "commands": [
-            "补🦌",
-            "补鹿"
-          ]
-        },
-        {
-          "name": "查看鹿历",
-          "description": "查看自己或指定群友（@xxx）的本月鹿管日历。\n用法1: 🦌历\n用法2: 🦌历 @某人",
-          "permission": "普通用户",
-          "commands": [
-            "🦌历",
-            "鹿历"
-          ]
-        },
-        {
-          "name": "鹿管功能帮助",
-          "description": "打开鹿管插件的专属帮助说明。",
-          "permission": "普通用户",
-          "commands": [
-            "🦌帮助",
-            "鹿帮助"
-          ]
-        }
-      ]
-    },
-    {
       "name": "扩展娱乐功能",
       "documentation": [
         {

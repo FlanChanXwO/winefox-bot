@@ -40,6 +40,9 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.COMMAND_PRE
 import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.COMMAND_SUFFIX;
 import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
 
+/**
+ * @author FlanChan
+ */
 @Plugin(
         name = "聊天功能",
         permission = Permission.USER,
@@ -50,15 +53,11 @@ import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
 @RequiredArgsConstructor
 public class ChatPlugin {
 
-    // 核心服务
     private final OpenAiService openAiService;
     private final ShiroMessagesService shiroMessagesService;
     private final VoiceReplyService voiceReplyService;
-    // 辅助类，用于构建AI输入
     private final AiInteractionHelper aiInteractionHelper;
-    private final ShiroSessionStateService shiroSessionStateService;
 
-    // ... (戳一戳相关的字段保持不变)
     private final Map<Long, Integer> pokePityCounter = new ConcurrentHashMap<>();
     private static final int PITY_THRESHOLD = 30;
     private static final double PROACTIVE_POKE_BACK_CHANCE = 0.3;
@@ -77,67 +76,18 @@ public class ChatPlugin {
         return MESSAGE_IGNORE;
     }
 
-    @PluginFunction(name = "清空会话",
-            description = "清空当前会话的消息记录，重新开始对话。",
-            permission = Permission.ADMIN,
-            hidden = true,
-            commands = {COMMAND_PREFIX + "清空会话" + COMMAND_SUFFIX})
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/清空会话$")
-    public void clearConversation(Bot bot, AnyMessageEvent event) {
-        Long sessionId = BotUtils.getSessionId(event);
-        MessageType messageType = MessageType.fromValue(event.getMessageType());
-        shiroMessagesService.clearConversation(sessionId, messageType);
-        bot.sendMsg(event, "当前会话的消息记录已经被我忘掉啦，可以开始新的聊天咯！", false);
-    }
-
-    @Async
-    @Order(100)
-    @Block
-    @PrivateMessageHandler
-    @PluginFunction(name = "私聊聊天回复",
-            hidden = true,
-            description = "在私聊中与酒狐进行智能聊天。",
-            permission = Permission.SUPERADMIN)
-    @MessageHandlerFilter(types = {MsgTypeEnum.text, MsgTypeEnum.image} , cmd = "^(?!/)(?!\\s+$).+")
-    public void handlePrivateChatMessage(Bot bot, PrivateMessageEvent event) {
-        String sessionKey = shiroSessionStateService.getSessionKey(event);
-        if (shiroSessionStateService.isInCommandMode(sessionKey)) {
-            return;
-        }
-
-        // 注意：这里不再单纯检查 plainMessage 是否为空，因为消息可能只包含图片
-        // 但是通常需要过滤掉纯命令
-        String plainMessage = MessageConverter.getPlainTextMessage(event.getMessage());
-        if (plainMessage.startsWith("/")) {
-            return;
-        }
-
-        Long userId = event.getUserId();
-
-        // 关键修改：传递原始的 JSONArray (event.getMessage())
-        AiMessageInput userMsg = aiInteractionHelper.createChatMessageInput(bot, userId, null, MessageConverter.parseCQToJSONArray(event.getRawMessage()));
-        String resp = openAiService.complete(userId, MessageType.PRIVATE, userMsg);
-        if (resp != null && !resp.isEmpty()) {
-            bot.sendPrivateMsg(userId, resp, false);
-        }
-    }
-
-
-    @GroupMessageHandler
     @Async
     @Order(100)
     @Block
     @Limit(userPermits = 1, timeInSeconds = 5, notificationIntervalSeconds = 30, message = "说话太快了，酒狐需要思考一会儿哦~")
     @MessageHandlerFilter(types = {MsgTypeEnum.text, MsgTypeEnum.image},at = AtEnum.NEED, cmd = "^(?!/)(?!\\s+$).+")
-    public void handleGroupChatMessage(Bot bot, GroupMessageEvent event) {
-        Long groupId = event.getGroupId();
-        Long userId = event.getUserId();
-        AiMessageInput userMsg = aiInteractionHelper.createChatMessageInput(bot, userId, groupId, MessageConverter.parseCQToJSONArray(event.getRawMessage()));
-        String resp = openAiService.complete(groupId, MessageType.GROUP, userMsg);
+    public void handleChatMessage(Bot bot, AnyMessageEvent event) {
+        AiMessageInput userMsg = aiInteractionHelper.createChatMessageInput(MessageConverter.getPlainTextMessage(event.getMessage()));
+        String resp = openAiService.complete(userMsg);
         if (resp != null && !resp.isEmpty()) {
-            MsgUtils msgBuilder = MsgUtils.builder().at(userId).text(" ").text(resp);
-            bot.sendGroupMsg(groupId, msgBuilder.build(), false);
+            MsgUtils msgBuilder = MsgUtils.builder().at(event.getUserId()).text(" ").text(resp);
+            bot.sendMsg(event, msgBuilder.build(), false);
         }
     }
 
@@ -219,7 +169,7 @@ public class ChatPlugin {
             }
 
             // 如果没决定播放语音，或者语音文件没找到，回退到 AI 文本
-            handlePokeWithAI(bot, event, isGroup, true);
+            handlePokeWithAi(bot, event, isGroup, true);
             return false;
         }
 
@@ -234,21 +184,18 @@ public class ChatPlugin {
         }
 
         // 3. 所有语音路径都未命中，执行最终的AI文本回复
-        handlePokeWithAI(bot, event, isGroup, false);
+        handlePokeWithAi(bot, event, isGroup, false);
         return false; // 未播放语音
     }
 
     /**
      * 调用 AI 服务处理戳一戳事件
      */
-    private void handlePokeWithAI(Bot bot, PokeNoticeEvent event, boolean isGroup, boolean isPokingBack) {
-        long userId = event.getUserId();
-        long groupId = isGroup ? event.getGroupId() : 0L;
-        Long sessionId = isGroup ? groupId : userId;
-        MessageType messageType = isGroup ? MessageType.GROUP : MessageType.PRIVATE;
-
-        AiMessageInput pokeInput = aiInteractionHelper.createPokeMessageInput(bot, userId, isGroup ? groupId : null, isPokingBack);
-        String aiReply = openAiService.complete(sessionId, messageType, pokeInput);
+    private void handlePokeWithAi(Bot bot, PokeNoticeEvent event, boolean isGroup, boolean isPokingBack) {
+        Long userId = event.getUserId();
+        Long groupId = event.getGroupId();
+        AiMessageInput pokeInput = aiInteractionHelper.createPokeMessageInput(isPokingBack);
+        String aiReply = openAiService.complete(pokeInput);
 
         if (aiReply != null && !aiReply.isEmpty()) {
             if (isGroup) {

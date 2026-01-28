@@ -2,12 +2,17 @@ package com.github.winefoxbot.core.aop.aspect;
 
 import com.github.winefoxbot.core.context.BotContext;
 import com.mikuac.shiro.core.Bot;
+import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
+import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import com.mikuac.shiro.dto.event.message.MessageEvent;
+import com.mikuac.shiro.dto.event.notice.PokeNoticeEvent;
+import jodd.bean.BeanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
+import org.springframework.beans.BeanUtils;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -43,7 +48,9 @@ public class BotContextAspect {
             "(@within(com.mikuac.shiro.annotation.common.Shiro) && @within(org.springframework.stereotype.Component))" +
             ") && " +
             // 方法级别约束
-            "(@annotation(com.mikuac.shiro.annotation.AnyMessageHandler) || " +
+            "(@annotation(com.mikuac.shiro.annotation.PrivatePokeNoticeHandler) || " +
+            "@annotation(com.mikuac.shiro.annotation.GroupPokeNoticeHandler) || " +
+            "@annotation(com.mikuac.shiro.annotation.AnyMessageHandler) || " +
             "@annotation(com.mikuac.shiro.annotation.GroupMessageHandler) || " +
             "@annotation(com.mikuac.shiro.annotation.PrivateMessageHandler))")
     public void botContextPointcut() {
@@ -61,6 +68,10 @@ public class BotContextAspect {
                 bot = b;
             } else if (arg instanceof MessageEvent e) {
                 event = e;
+            } else if (arg instanceof PokeNoticeEvent e) {
+                event = new AnyMessageEvent();
+                BeanUtils.copyProperties(e, event);
+                event.setMessageType(e.getGroupId() == null ? "private" : "group");
             }
         }
 

@@ -1,10 +1,15 @@
 package com.github.winefoxbot.plugins.chat.config;
 
+import com.github.winefoxbot.core.utils.DynamicResourceLoader;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
@@ -31,10 +36,14 @@ public class ChatClientConfig {
     }
 
     @Bean
-    public ChatClient openAiChatClient(ChatClient.Builder builder, List<String> aiToolNames) {
-        // 将扫描到的所有工具名称注册为全局默认工具
-        return builder
-                .defaultToolNames(aiToolNames.toArray(new String[0]))
-                .build();
+    public ChatClient openAiChatClient(ChatClient.Builder builder, List<String> aiToolNames) throws IOException {
+        try (InputStream inputStream = DynamicResourceLoader.getInputStream("chat" + File.separator + "avatar.md")) {
+            String systemPrompt = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+            // 将扫描到的所有工具名称注册为全局默认工具
+            return builder
+                    .defaultSystem(systemPrompt)
+                    .defaultToolNames(aiToolNames.toArray(new String[0]))
+                    .build();
+        }
     }
 }

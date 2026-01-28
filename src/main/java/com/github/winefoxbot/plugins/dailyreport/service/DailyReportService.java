@@ -98,7 +98,7 @@ public class DailyReportService {
     private final DailyReportProperties properties;
     private final FileStorageService fileStorageService;
     private final HolidayService holidayService;
-    private final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
+    private final ExecutorService virtualThreadExecutor;
     private final Lock lock = new ReentrantLock();
 
 

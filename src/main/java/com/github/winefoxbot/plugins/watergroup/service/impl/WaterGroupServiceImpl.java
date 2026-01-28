@@ -61,7 +61,7 @@ public class WaterGroupServiceImpl implements WaterGroupService {
      */
     @Override
     public List<WaterGroupMessageStat> getDailyRanking(long groupId) {
-        WaterGroupPluginConfig config = BotContext.getFirstPluginConfig();
+        WaterGroupPluginConfig config = (WaterGroupPluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
         return dayMapper.selectList(new LambdaQueryWrapper<WaterGroupMessageStat>()
                 .eq(WaterGroupMessageStat::getGroupId, groupId)
                 .eq(WaterGroupMessageStat::getDate, LocalDate.now()) // 只查询今天的数据

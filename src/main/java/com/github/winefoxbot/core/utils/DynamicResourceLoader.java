@@ -32,7 +32,7 @@ public class DynamicResourceLoader {
      * 智能获取资源流
      * 优先查找运行目录下的 resources/ 文件夹，如果没有，再找 classpath
      *
-     * @param relativePath 相对路径，例如 "templates/winefox_daily_report/res/css/style.css"
+     * @param relativePath 相对路径，例如 "templates/winefox_daily_report/res/css/calendar.css"
      *                     (注意：不要带 classpath: 或 file: 前缀)
      */
     public static InputStream getInputStream(String relativePath) throws IOException {

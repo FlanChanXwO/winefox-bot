@@ -235,8 +235,7 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
         if ("none".equals(apiType)) {
             return null;
         }
-        Optional<FortunePluginConfig> config = BotContext.getPluginConfig(FortunePluginConfig.class);
-        FortunePluginConfig fortuneConfig = config.orElseThrow(() -> new IllegalStateException("无法获取 FortunePluginConfig 配置"));
+        FortunePluginConfig fortuneConfig = (FortunePluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
         try {
             return switch (apiType) {
                 case "wr" -> fetchUrlFromJson("https://api.obfs.dev/api/bafortune", "$.url");
@@ -283,8 +282,7 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
     }
 
     private String buildUrlWithParams(String baseUrl, FortuneApiConfig.Params params) {
-        Optional<FortunePluginConfig> config = BotContext.getPluginConfig(FortunePluginConfig.class);
-        FortunePluginConfig fortuneConfig = config.orElseThrow(() -> new IllegalStateException("无法获取 FortunePluginConfig 配置"));
+        FortunePluginConfig fortuneConfig = (FortunePluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
         HttpUrl httpUrl = HttpUrl.parse(baseUrl);
         if (httpUrl == null) return baseUrl;
         HttpUrl.Builder builder = httpUrl.newBuilder();
