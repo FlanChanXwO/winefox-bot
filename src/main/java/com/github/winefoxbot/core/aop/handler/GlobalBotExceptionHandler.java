@@ -4,9 +4,15 @@ import cn.hutool.core.util.RandomUtil;
 import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.exception.bot.BotException;
 import com.github.winefoxbot.core.exception.common.BusinessException;
+import com.github.winefoxbot.core.model.enums.common.MessageType;
 import com.github.winefoxbot.core.utils.SendMsgUtil;
+import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.core.Bot;
+import com.mikuac.shiro.dto.action.common.ActionData;
+import com.mikuac.shiro.dto.action.response.MsgResp;
+import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import com.mikuac.shiro.dto.event.message.MessageEvent;
+import com.mikuac.shiro.dto.event.message.PrivateMessageEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -31,13 +37,11 @@ import java.util.List;
 @Slf4j
 public class GlobalBotExceptionHandler {
 
-    // 复用之前的切入点定义，或者你可以提取到一个公共的 Pointcut类 中
     @Pointcut("(" +
             // 场景A: 使用了 @Plugin 自定义注解 (内部含有 @Shiro 和 @Component)
             "@within(com.github.winefoxbot.core.annotation.plugin.Plugin) || " +
             // 场景B: 原生 Shiro 写法 (直接标记 @Shiro 和 @Component)
-            "(@within(com.mikuac.shiro.annotation.common.Shiro) && @within(org.springframework.stereotype.Component))" +
-            ") && " +
+            "(@within(com.mikuac.shiro.annotation.common.Shiro) && @within(org.springframework.stereotype.Component))" + ") && " +
             "(@annotation(com.mikuac.shiro.annotation.AnyMessageHandler) || " +
             "@annotation(com.mikuac.shiro.annotation.GroupMessageHandler) || " +
             "@annotation(com.mikuac.shiro.annotation.PrivateMessageHandler) || " +
@@ -71,12 +75,25 @@ public class GlobalBotExceptionHandler {
 
     private void handleException(String replyMsg, Throwable e, ProceedingJoinPoint joinPoint) {
         log.error("插件执行异常: [{}] - {}", joinPoint.getSignature().toShortString(), e.getMessage(), e);
-
         if (BotContext.CURRENT_BOT.isBound() && BotContext.CURRENT_MESSAGE_EVENT.isBound()) {
             Bot bot = BotContext.CURRENT_BOT.get();
             MessageEvent event = BotContext.CURRENT_MESSAGE_EVENT.get();
             // 发送错误提示
-            SendMsgUtil.sendMsgByEvent(bot, event, replyMsg, false);
+            MsgUtils msgbuilder = MsgUtils.builder();
+            Integer messageId = null;
+            if (event instanceof GroupMessageEvent ev && MessageType.fromValue(ev.getMessageType()).equals(MessageType.GROUP)) {
+                msgbuilder.at(ev.getUserId());
+                messageId = ev.getMessageId();
+            } else if (event instanceof PrivateMessageEvent ev) {
+                messageId = ev.getMessageId();
+            }
+            if (messageId != null) {
+                ActionData<MsgResp> msgResp = bot.getMsg(messageId);
+                if (msgResp.getRetCode() == 0) {
+                    msgbuilder.reply(messageId);
+                }
+            }
+            SendMsgUtil.sendMsgByEvent(bot, event, msgbuilder.text(replyMsg).build(), false);
         } else {
             log.warn("捕获到异常，但无法获取 Bot 上下文 (ScopedValue 未绑定)，无法发送错误消息给用户。");
         }
