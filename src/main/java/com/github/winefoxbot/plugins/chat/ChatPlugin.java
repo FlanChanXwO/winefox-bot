@@ -26,6 +26,7 @@ import com.mikuac.shiro.enums.AtEnum;
 import com.mikuac.shiro.enums.MsgTypeEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.scheduling.annotation.Async;
 
@@ -83,10 +84,10 @@ public class ChatPlugin {
     @Limit(userPermits = 1, timeInSeconds = 5, notificationIntervalSeconds = 30, message = "说话太快了，酒狐需要思考一会儿哦~")
     @MessageHandlerFilter(types = {MsgTypeEnum.text, MsgTypeEnum.image},at = AtEnum.NEED, cmd = "^(?!/)(?!\\s+$).+")
     public void handleChatMessage(Bot bot, AnyMessageEvent event) {
-        AiMessageInput userMsg = aiInteractionHelper.createChatMessageInput(MessageConverter.getPlainTextMessage(event.getMessage()));
+        AiMessageInput userMsg = aiInteractionHelper.createChatMessageInput(event);
         String resp = openAiService.complete(userMsg);
         if (resp != null && !resp.isEmpty()) {
-            MsgUtils msgBuilder = MsgUtils.builder().at(event.getUserId()).text(" ").text(resp);
+            MsgUtils msgBuilder = MsgUtils.builder().at(event.getUserId()).text(StringUtils.SPACE).text(resp);
             bot.sendMsg(event, msgBuilder.build(), false);
         }
     }
@@ -199,7 +200,7 @@ public class ChatPlugin {
 
         if (aiReply != null && !aiReply.isEmpty()) {
             if (isGroup) {
-                bot.sendGroupMsg(groupId, aiReply, false);
+                bot.sendGroupMsg(groupId, MsgUtils.builder().at(userId).text(aiReply).build(), false);
             } else {
                 bot.sendPrivateMsg(userId, aiReply, false);
             }
@@ -221,11 +222,10 @@ public class ChatPlugin {
     }
 
     private void sendPokeVoice(Bot bot, boolean isGroup, Long groupId, Long userId, String voiceFilePath) {
-        MsgUtils msg = MsgUtils.builder().voice(voiceFilePath);
         if (isGroup) {
-            bot.sendGroupMsg(groupId, msg.build(), false);
+            bot.sendGroupMsg(groupId, MsgUtils.builder().at(userId).voice(voiceFilePath).build(), false);
         } else {
-            bot.sendPrivateMsg(userId, msg.build(), false);
+            bot.sendPrivateMsg(userId, MsgUtils.builder().voice(voiceFilePath).build(), false);
         }
     }
 }

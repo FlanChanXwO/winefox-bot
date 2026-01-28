@@ -66,14 +66,17 @@ public class DeerpipePlugin {
         boolean allow = command.matches("开|on");
         List<String> logs = new ArrayList<>();
 
+        long operatorId = event.getUserId();
+        boolean operatorIsSuper = robotProperties.getSuperUsers().contains(operatorId);
+
         for (Long targetId : atList) {
-            // 2. 检查目标权限：不能给管理员/群主设置
-            if (BotUtils.isAdmin(bot,targetId)|| robotProperties.getSuperUsers().contains(targetId)) {
+            // 2. 检查目标权限：不能给管理员/群主设置，除非操作者是超管
+            if (!operatorIsSuper && (BotUtils.isAdmin(bot, targetId) || robotProperties.getSuperUsers().contains(targetId))) {
                 continue;
             }
 
             deerService.setAllowHelpStatus(targetId, allow);
-            logs.add("用户 " + BotUtils.getGroupMemberNickname(bot,event.getGroupId(),targetId) + " 被鹿策略设置为: " + (allow ? "允许" : "禁止"));
+            logs.add("用户 " + BotUtils.getGroupMemberNickname(bot, event.getGroupId(), targetId) + " 被鹿策略设置为: " + (allow ? "允许" : "禁止"));
         }
         if (logs.isEmpty()) {
             bot.sendGroupMsg(event.getGroupId(), "没有成功设置任何用户，可能是因为目标用户是管理员或群主，或者是超级管理员", false);

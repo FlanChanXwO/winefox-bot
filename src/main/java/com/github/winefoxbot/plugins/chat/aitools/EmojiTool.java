@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Description;
@@ -32,7 +33,7 @@ import java.util.function.Function;
 /**
  * @author FlanChan
  */
-@ConditionalOnBean(EmoteVectorStoreLoader.class)
+@ConditionalOnBooleanProperty("winefox.ai.chat.enable-emoji")
 @Configuration(proxyBeanMethods = false)
 @Slf4j
 @RequiredArgsConstructor

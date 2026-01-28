@@ -53,7 +53,7 @@ public class TestPlugin {
         ActionData<List<String>> actionData = bot.customRequest(CustomFaceActionPath.FETCH_CUSTOM_FACE, CustomFaceActionPath.FetchCustomFaceParams.builder().count(50).build().toParamMap());
         List<String> data = actionData.getData();
         bot.sendMsg(event, MsgUtils.builder()
-                        .text(StringUtils.join(data,","))
+                        .text(StringUtils.join(data,"\n"))
                 .build(), false);
     }
 

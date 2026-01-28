@@ -33,10 +33,19 @@
         }
 
         .container {
-            width: 800px; /* 固定宽度，方便截图 */
+            width: 1400px; /* 从 800px 增加到 1400px，宽度翻倍以容纳双列 */
             padding: 20px;
-            background-color: #fff0f5; /* 整体淡粉色背景 */
+            background-color: #fff0f5;
             box-sizing: border-box;
+            /* 防止容器高度坍塌 */
+            overflow: hidden;
+        }
+
+        .card-masonry-container {
+            /* 使用 CSS Column 布局实现瀑布流 */
+            column-count: 2;          /* 分为 2 列 */
+            column-gap: 20px;         /* 列间距 */
+            margin-bottom: 20px;
         }
 
         .header {
@@ -48,6 +57,11 @@
             border-radius: 12px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
             margin-bottom: 20px;
+        }
+
+        .header, .footer {
+            column-span: all; /* 如果你希望头尾贯穿（需父容器支持，或移出分列容器） */
+            width: 100%;
         }
 
         .character-placeholder img {
@@ -78,9 +92,18 @@
         .help-card {
             background-color: white;
             border-radius: 12px;
-            margin-bottom: 20px;
+            margin-bottom: 20px; /* 卡片垂直间距 */
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            overflow: hidden; /* 防止内容溢出圆角 */
+            overflow: hidden;
+
+            /* 关键属性：防止卡片在列之间断开 */
+            break-inside: avoid;
+            -webkit-column-break-inside: avoid;
+            page-break-inside: avoid;
+
+            /* 确保作为 block 元素渲染 */
+            display: inline-block;
+            width: 100%;
         }
 
         .card-header {
@@ -244,25 +267,26 @@
     </div>
 
     <!-- 功能分组卡片，使用 th:each 循环 -->
-    <div th:each="group : ${help_data.groups}" class="help-card">
-        <div class="card-header">
-            <!-- [修改] 动态决定图标 -->
-            <!-- 如果group.icon不为null，用它；否则，用help_data.defaultIcon -->
-            <img th:src="${group.icon != null ? res[group.icon] : res['icon/默认图标.png']}" class="card-icon" alt="">
-            <span class="card-title" th:text="${group.name}">功能分组标题</span>
-        </div>
-        <div class="card-body">
-            <table class="help-table">
-                <tbody>
-                <!-- [修改] 循环遍历 group.documentation -->
-                <tr th:each="doc : ${group.documentation}">
-                    <td th:text="${doc.name}">功能名称</td>
-                    <td th:text="${doc.permission}">权限</td>
-                    <td th:text="${doc.description}">这是一段功能的详细描述信息...</td>
-                    <td th:utext="${doc.getFormattedCommands().replace('\n', '<br/>')}">/command</td>
-                </tr>
-                </tbody>
-            </table>
+    <div class="card-masonry-container">
+        <!-- 功能分组卡片，使用 th:each 循环 -->
+        <div th:each="group : ${help_data.groups}" class="help-card">
+            <div class="card-header">
+                <img th:src="${group.icon != null ? res[group.icon] : res['icon/默认图标.png']}" class="card-icon" alt="">
+                <span class="card-title" th:text="${group.name}">功能分组标题</span>
+            </div>
+            <div class="card-body">
+                <table class="help-table">
+                    <tbody>
+                    <tr th:each="doc : ${group.documentation}">
+                        <td th:text="${doc.name}" style="width: 15%;">功能名称</td>
+                        <!-- 如果宽度不够，可以适当隐藏 权限 列，或者简写 -->
+                        <td th:text="${doc.permission}" style="width: 10%;">权限</td>
+                        <td th:text="${doc.description}">描述...</td>
+                        <td th:utext="${doc.getFormattedCommands().replace('\n', '<br/>')}" style="width: 30%;">/cmd</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 

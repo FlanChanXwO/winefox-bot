@@ -4,6 +4,8 @@ import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.model.entity.ShiroUserMessage;
 import com.github.winefoxbot.core.model.enums.common.MessageDirection;
 import com.github.winefoxbot.core.utils.BotUtils;
+import com.github.winefoxbot.core.utils.MessageConverter;
+import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import lombok.Data;
@@ -57,28 +59,49 @@ public class AiInteractionHelper {
 
         return new AiMessageInput(finalContent, imageUrls);
     }
-
     /**
      * 构建当前对话输入
-     * 格式化为 `[昵称]: 内容`
+     * <p>修复：支持图片提取 + 自动处理At唤醒词逻辑</p>
      */
-    public AiMessageInput createChatMessageInput(String message) {
+    public AiMessageInput createChatMessageInput(AnyMessageEvent event) {
         Bot bot = BotContext.CURRENT_BOT.get();
-        AnyMessageEvent event = (AnyMessageEvent) BotContext.CURRENT_MESSAGE_EVENT.get();
         Long userId = event.getUserId();
         Long groupId = event.getGroupId();
         boolean isGroupMessage = groupId != null;
+
+        // 获取昵称
         String nickname = isGroupMessage
                 ? BotUtils.getGroupMemberNickname(bot, groupId, userId)
                 : BotUtils.getUserNickname(bot, userId);
 
-        List<String> imageUrls = new ArrayList<>();
+        // 1. 获取内容
+        String rawMessage = event.getRawMessage();
+        String plainText = MessageConverter.getPlainTextMessage(rawMessage);
+
+        // 2. 提取图片列表
+        List<String> imageUrls = ShiroUtils.getMsgImgUrlList(event.getArrayMsg());;
+
+        // 3. 处理唤醒词逻辑 (解决需要手动输入"酒狐"的问题)
+        // 既然进入了这个方法，说明 Controller 层已经校验过 At 了 (或者在私聊)
+        // 为了满足 Prompt 中 "提及名字才回复" 的设定，我们在此处做 Prompt Engineering
+        String finalContent = plainText;
+
+        // 只有当文本不包含"酒狐"时，才自动添加称呼前缀
+        boolean hasWakeWord = StringUtils.containsAny(plainText, "酒狐");
+
+        if (!hasWakeWord) {
+            // 隐式添加唤醒词，让 AI 知道这是对它说的话
+            // 格式示例: [张三(12345)]: 酒狐，(原始消息)
+            finalContent = "酒狐，" + plainText;
+        }
 
         // 构造符合 Prompt 要求的格式
-        String formattedMsg = String.format("[%s(%s)]: %s%s", nickname,userId, message.contains("酒狐") ? "酒狐，" : StringUtils.EMPTY, message);
+        // 最终格式: [昵称(UID)]: (酒狐，)内容
+        String formattedMsg = String.format("[%s(%s)]: %s", nickname, userId, finalContent);
 
         return new AiMessageInput(formattedMsg, imageUrls);
     }
+
 
     /**
      * 构建戳一戳输入

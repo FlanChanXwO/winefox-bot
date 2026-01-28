@@ -6,6 +6,9 @@ import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -153,6 +156,52 @@ public final class MessageConverter {
     }
 
     /**
+     * 从消息中提取所有图片的 URL
+     * @param message 原始消息字符串 (JSON 或 CQ码)
+     * @return 图片 URL 列表
+     */
+    public static List<String> getImageUrls(String message) {
+        if (StrUtil.isEmpty(message)) {
+            return Collections.emptyList();
+        }
+        JSONArray array;
+        try {
+            // 尝试解析 JSON
+            if (JSONUtil.isTypeJSONArray(message)) {
+                array = JSONUtil.parseArray(message);
+            } else {
+                // 尝试解析 CQ 码
+                array = parseCQToJSONArray(message);
+            }
+        } catch (Exception e) {
+            log.warn("解析消息图片失败: {}", message, e);
+            return Collections.emptyList();
+        }
+
+        List<String> imageUrls = new ArrayList<>();
+        for (Object item : array) {
+            if (item instanceof JSONObject segment) {
+                String type = segment.getStr("type");
+                if ("image".equals(type)) {
+                    JSONObject data = segment.getJSONObject("data");
+                    if (data != null) {
+                        // 优先获取 url，如果没有则尝试获取 file (部分实现 file 也是 url)
+                        String url = data.getStr("url");
+                        if (StrUtil.isBlank(url)) {
+                            url = data.getStr("file");
+                        }
+                        if (StrUtil.isNotBlank(url) && url.startsWith("http")) {
+                            imageUrls.add(url);
+                        }
+                    }
+                }
+            }
+        }
+        return imageUrls;
+    }
+
+
+    /**
      * 【私有辅助方法】处理单个消息段 JSONObject，并返回其文本表示。
      *
      * @param segment 代表单个消息段的 JSONObject
@@ -206,4 +255,5 @@ public final class MessageConverter {
                 .replace("&#91;", "[")
                 .replace("&#93;", "]");
     }
+
 }
