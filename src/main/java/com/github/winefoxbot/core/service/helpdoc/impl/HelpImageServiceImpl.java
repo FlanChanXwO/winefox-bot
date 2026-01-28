@@ -1,5 +1,6 @@
 package com.github.winefoxbot.core.service.helpdoc.impl;
 
+import cn.hutool.core.convert.NumberChineseFormatter;
 import com.github.winefoxbot.core.init.HelpDocLoader;
 import com.github.winefoxbot.core.model.dto.HelpData;
 import com.github.winefoxbot.core.model.dto.HelpGroup;
@@ -82,39 +83,100 @@ public class HelpImageServiceImpl implements HelpImageService {
     }
 
     @Override
-    public byte[] generateHelpImageByGroup(String groupName) {
-        String normalizedGroupName = groupName.trim().toLowerCase();
-        if (normalizedGroupName.isEmpty()) return null;
+    public byte[] generateHelpImageByGroup(String input) {
+        // 1. 预处理输入
+        if (input == null || input.isBlank()) return null;
+        String trimmedInput = input.trim();
 
-        String cacheKey = String.format(CACHE_PARENT_DIR + "/group_%s.png", normalizedGroupName);
+        // 获取所有帮助数据（假设这个操作开销不大，或者是缓存的）
+        HelpData allHelpData = helpDocLoader.getSortedHelpData();
+        List<HelpGroup> groups = allHelpData.getGroups();
+
+        if (groups == null || groups.isEmpty()) return null;
+
+        // 2. 尝试定位目标 HelpGroup
+        Optional<HelpGroup> targetGroupOpt = findGroup(trimmedInput, groups);
+
+        // 如果找不到对应的组，直接返回 null
+        if (targetGroupOpt.isEmpty()) return null;
+
+        HelpGroup targetGroup = targetGroupOpt.get();
+        String normalizedGroupName = targetGroup.getName().trim().toLowerCase();
+
+        // 3. 构建统一的 Cache Key (始终使用组名，而非输入的数字)
+        String cacheKey = String.format("%s/group_%s.png", CACHE_PARENT_DIR, normalizedGroupName);
+
+        // 4. 尝试从缓存获取
         byte[] cachedImage = fileStorageService.getFileByCacheKey(cacheKey);
         if (cachedImage != null) return cachedImage;
 
-        HelpData allHelpData = helpDocLoader.getSortedHelpData();
-        Optional<HelpGroup> targetGroupOpt = allHelpData.getGroups().stream()
-                .filter(g -> g.getName().equalsIgnoreCase(groupName.trim()))
-                .findFirst();
-
-        if (targetGroupOpt.isEmpty()) return null;
-
+        // 5. 双重检查锁生成图片
         generateHelpLock.lock();
         try {
+            // 二次检查缓存
             cachedImage = fileStorageService.getFileByCacheKey(cacheKey);
             if (cachedImage != null) {
                 return cachedImage;
             }
+
+            // 构造仅包含该组的数据对象
             HelpData singleGroupData = new HelpData();
             singleGroupData.setDefaultIcon(allHelpData.getDefaultIcon());
-            singleGroupData.setGroups(List.of(targetGroupOpt.get()));
+            singleGroupData.setGroups(List.of(targetGroup));
 
+            // 渲染图片
             byte[] image = renderHelpImage(singleGroupData);
+
+            // 存入缓存
             fileStorageService.saveFileByCacheKey(cacheKey, image, Duration.ofDays(1));
             return image;
         } finally {
             generateHelpLock.unlock();
         }
     }
-    // ... end of unmodified methods ...
+
+    /**
+     * 查找逻辑分离，支持 数字索引 和 名称匹配
+     */
+    private Optional<HelpGroup> findGroup(String input, List<HelpGroup> groups) {
+        // 尝试解析为数字索引
+        int index = parseIndex(input);
+
+        if (index != -1) {
+            // 逻辑索引转 List 下标 (用户输入 1 代表第 1 个，即下标 0)
+            int listIndex = index - 1;
+            if (listIndex >= 0 && listIndex < groups.size()) {
+                return Optional.of(groups.get(listIndex));
+            }
+            // 如果数字越界，你可能希望降级去匹配名字，或者直接返回 empty，这里默认返回 empty
+            return Optional.empty();
+        }
+
+        // 如果不是数字，按名称查找
+        return groups.stream()
+                .filter(g -> g.getName().equalsIgnoreCase(input))
+                .findFirst();
+    }
+
+    /**
+     * 解析索引辅助方法 (复用你之前的 parseCount 逻辑或简化版)
+     */
+    private int parseIndex(String text) {
+        try {
+            // 优先尝试纯数字
+            return Integer.parseInt(text);
+        } catch (NumberFormatException e) {
+            // 如果不是纯数字，尝试解析中文数字 (如 "一", "二")
+            // 这里复用了你之前提供的思路，如果之前的 parseCount 可用，也可以直接调
+            try {
+                // 假设 NumberChineseFormatter 存在
+                return NumberChineseFormatter.chineseToNumber(text);
+            } catch (Exception ignored) {
+                return -1;
+            }
+        }
+    }
+
 
     private byte[] renderHelpImage(HelpData helpData) {
         Context context = new Context();
