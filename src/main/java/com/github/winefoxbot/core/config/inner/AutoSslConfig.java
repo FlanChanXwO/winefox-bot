@@ -26,44 +26,66 @@ public class AutoSslConfig implements WebServerFactoryCustomizer<ConfigurableSer
 
     @Override
     public void customize(ConfigurableServletWebServerFactory factory) {
-        Path certPath = Paths.get(CERT_DIR);
-        
-        if (!Files.exists(certPath) || !Files.isDirectory(certPath)) {
-            log.warn("⚠️ 证书目录 {} 不存在或不是目录，跳过 SSL 配置。", certPath.toAbsolutePath());
-            return;
-        }
+        Path certRoot = Paths.get(CERT_DIR);
+        log.info("🔍 正在目录中扫描证书: " + certRoot.toAbsolutePath());
 
-        try (Stream<Path> stream = Files.walk(certPath, 1)) {
-            Optional<Path> keystore = stream
-                    .filter(p -> {
-                        String name = p.getFileName().toString();
-                        return name.endsWith(".p12") || name.endsWith(".jks") || name.endsWith(".keystore");
-                    })
+        try (Stream<Path> stream = Files.walk(certRoot, 1)) {
+            // 1. 寻找 .pfx 文件
+            Optional<Path> pfxFileOpt = stream
+                    .filter(p -> p.toString().toLowerCase().endsWith(".pfx"))
                     .findFirst();
 
-            if (keystore.isPresent()) {
-                configureSsl(factory, keystore.get());
+            if (pfxFileOpt.isPresent()) {
+                Path pfxPath = pfxFileOpt.get();
+                log.info("✅ 找到证书文件: {}", pfxPath.getFileName());
+
+                // 2. 寻找对应的密码文件 (假设密码文件就在旁边，且以 .txt 结尾)
+                // 逻辑：在该目录下找任意一个包含 "password" 字样的 txt 文件，或者直接找那个特定文件
+                String password = findPassword(certRoot);
+
+                if (password != null) {
+                    configureSsl(factory, pfxPath, password);
+                } else {
+                    log.warn("⚠️ 找到了 .pfx 证书，但未找到包含密码的 .txt 文件，SSL 无法开启。");
+                }
             } else {
-                System.out.println("⚠️ 证书目录为空，SSL未启用。");
+                log.warn("ℹ️ 未检测到 .pfx 证书文件，跳过 SSL 配置。");
             }
 
         } catch (IOException e) {
-            throw new RuntimeException("读取证书目录失败", e);
+            e.printStackTrace();
         }
     }
 
-    private void configureSsl(ConfigurableServletWebServerFactory factory, Path keystorePath) {
-        log.info("✅ 启用 SSL，使用证书文件: {}", keystorePath.toAbsolutePath());
+    private String findPassword(Path dir) throws IOException {
+        try (Stream<Path> stream = Files.walk(dir, 1)) {
+            Optional<Path> passFile = stream
+                    .filter(p -> {
+                        String name = p.getFileName().toString().toLowerCase();
+                        // 匹配规则：是txt文件，且文件名包含 password
+                        return name.endsWith(".txt") && name.contains("password");
+                    })
+                    .findFirst();
+
+            if (passFile.isPresent()) {
+                log.info("✅ 找到密码文件: {}", passFile.get().getFileName());
+                // 读取文件内容并去除首尾空格
+                return Files.readString(passFile.get()).trim();
+            }
+        }
+        return null;
+    }
+
+    private void configureSsl(ConfigurableServletWebServerFactory factory, Path pfxPath, String password) {
         Ssl ssl = new Ssl();
         ssl.setEnabled(true);
-        ssl.setKeyStore(keystorePath.toAbsolutePath().toString());
-        ssl.setKeyStorePassword(KEYSTORE_PASSWORD);
-        if (keystorePath.toString().endsWith(".jks")) {
-            ssl.setKeyStoreType("JKS");
-        } else {
-            ssl.setKeyStoreType("PKCS12");
-        }
-
+        // 设置证书路径
+        ssl.setKeyStore(pfxPath.toAbsolutePath().toString());
+        // 设置读取到的密码
+        ssl.setKeyStorePassword(password);
+        // pfx 就是 PKCS12
+        ssl.setKeyStoreType("PKCS12");
         factory.setSsl(ssl);
+        log.info("🚀 SSL 配置成功！");
     }
 }
