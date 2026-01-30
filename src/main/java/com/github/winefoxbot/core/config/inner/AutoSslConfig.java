@@ -32,6 +32,10 @@ public class AutoSslConfig implements WebServerFactoryCustomizer<ConfigurableSer
     public void customize(ConfigurableServletWebServerFactory factory) {
         Path certRoot = Paths.get(CERT_DIR);
         log.info("🔍 正在目录中扫描证书: " + certRoot.toAbsolutePath());
+        if (!certRoot.toFile().exists()) {
+            log.warn("⚠️ 证书目录不存在，跳过 SSL 配置。");
+            return;
+        }
 
         try (Stream<Path> stream = Files.walk(certRoot, 1)) {
             // 1. 寻找 .pfx 文件

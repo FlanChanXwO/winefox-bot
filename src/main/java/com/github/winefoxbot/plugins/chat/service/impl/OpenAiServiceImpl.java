@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * @author FlanChan
@@ -130,7 +131,32 @@ public class OpenAiServiceImpl implements OpenAiService {
 
         Prompt prompt = new Prompt(messages);
         log.info("Sending {} messages to AI.", messages.size());
-        return chatClient.prompt(prompt).call().content();
+        return cleanResponse(chatClient.prompt(prompt).call().content());
+    }
+
+
+    public static String cleanResponse(String rawResponse) {
+        if (rawResponse == null) return "";
+
+        String result = rawResponse.trim();
+
+        // 1. 去除首尾的引号 (如果模型输出了 JSON String 格式)
+        if (result.startsWith("\"") && result.endsWith("\"")) {
+            try {
+                // 如果不想引入库，简单的处理如下：
+                result = result.substring(1, result.length() - 1);
+            } catch (Exception e) {
+                // 解析失败则保留原样
+            }
+        }
+
+        // 2. 处理转义换行符 (Java 15+ text blocks 风格处理)
+        result = result.replace("\\n", "\n");
+
+        // 3. 处理转义的引号 \" -> "
+        result = result.replace("\\\"", "\"");
+
+        return result;
     }
 
 

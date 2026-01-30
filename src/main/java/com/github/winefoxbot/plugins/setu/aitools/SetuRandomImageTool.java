@@ -33,20 +33,20 @@ public class SetuRandomImageTool {
     public record SetuRequest(
             @ToolParam(required = false, description = "图片标签或关键词，例如'白丝'、'黑丝'、'碧蓝档案'等。如果用户没有指定，则为空。")
             String keyword,
-            @ToolParam(required = false,description = "请求图片数量，默认为1，最大不得超过10个")
+            @ToolParam(required = false,description = "请求图片数量，必须指定数量，最小1份，最大不得超过10个")
             int num
     ) {}
 
     public record SetuResponse(
-            @ToolParam(description = "是否调用工具成功：true:成功 false:失败")  Boolean success,
-            @ToolParam(description = "错误信息") String message) {}
+            Boolean success,
+           String message) {}
 
     @Bean
     @Description("""
     获取一个随机的色图，可以指定标签和数量。
     当用户需要获取色图时，调用此工具以触发图片发送功能，当你请求成功时，图片已经被发送了。
-    例如，用户可能会说“给我来几张白丝的图片”或“我想看一些碧蓝档案的色图”等。
-    该工具接受用户ID、会话ID、消息类型、标签和数量作为参数，并返回调用结果。
+    例如，用户可能会说“给我来几张白丝的图片”或“我想看一些碧蓝档案的色图”，“给我色图”等。
+    该工具接受标签和数量作为参数，并返回调用结果。
     """)
     public Function<SetuRequest, SetuResponse> randomSetuTool() {
         return request -> {
