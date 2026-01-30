@@ -38,18 +38,22 @@ public class WebUIFileManagerService {
     public List<FileItemResponse> listFiles(String pathString) throws IOException {
         // 如果路径为空，列出系统根目录 (例如 Windows 的 C:\, D:\)
         if (!StringUtils.hasText(pathString)) {
-            File[] roots = File.listRoots();
-            return Arrays.stream(roots)
+            return Arrays.stream(File.listRoots())
                     .map(file -> new FileItemResponse(
                             String.valueOf(file.getAbsolutePath().hashCode()),
                             file.getAbsolutePath(),
                             file.getAbsolutePath(),
                             "-",
-                            formatSize(file.getTotalSpace()), // 显示总空间作为代替
+                            formatSize(file.getTotalSpace()),
                             "folder",
                             0L,
-                            !file.isDirectory() && isEditableFile(file.getName())
+                            false
                     )).toList();
+        }
+
+        if (System.getProperty("os.name").toLowerCase().contains("win")
+                && pathString.matches("^[a-zA-Z]:$")) {
+            pathString = pathString + File.separator;
         }
 
         Path path = Paths.get(pathString);
@@ -66,9 +70,11 @@ public class WebUIFileManagerService {
                     BasicFileAttributes attrs = Files.readAttributes(p, BasicFileAttributes.class);
                     boolean isDir = attrs.isDirectory();
                     boolean editable = !isDir && isEditableFile(fileName);
-                    
-                    String formattedDate = LocalDateTime.ofInstant(attrs.lastModifiedTime().toInstant(), ZoneId.systemDefault())
-                            .format(DATE_FORMATTER);
+
+                    String formattedDate = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                            .withZone(ZoneId.systemDefault())
+                            .format(attrs.lastModifiedTime().toInstant());
+
 
                     return new FileItemResponse(
                             String.valueOf(p.toAbsolutePath().hashCode()), // 简单的ID生成
