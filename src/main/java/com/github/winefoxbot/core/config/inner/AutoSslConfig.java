@@ -1,8 +1,10 @@
 package com.github.winefoxbot.core.config.inner;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.web.server.Ssl;
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
+import org.springframework.boot.web.server.autoconfigure.ServerProperties;
 import org.springframework.boot.web.server.servlet.ConfigurableServletWebServerFactory;
 import org.springframework.context.annotation.Configuration;
 
@@ -18,11 +20,13 @@ import java.util.stream.Stream;
  */
 @Configuration
 @Slf4j
+@RequiredArgsConstructor
 public class AutoSslConfig implements WebServerFactoryCustomizer<ConfigurableServletWebServerFactory> {
+
+    private final ServerProperties serverProperties;
 
     private static final String CERT_DIR = System.getProperty("cert.dir", "certs");
 
-    private static final String KEYSTORE_PASSWORD = System.getenv().getOrDefault("SSL_PWD", "changeit"); // 建议通过环境变量获取密码
 
     @Override
     public void customize(ConfigurableServletWebServerFactory factory) {
