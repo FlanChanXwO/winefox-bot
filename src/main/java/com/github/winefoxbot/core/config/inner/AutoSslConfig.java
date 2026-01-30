@@ -20,7 +20,7 @@ import java.util.stream.Stream;
 @Slf4j
 public class AutoSslConfig implements WebServerFactoryCustomizer<ConfigurableServletWebServerFactory> {
 
-    private static final String CERT_DIR = System.getProperty("cert.dir", "./certs");
+    private static final String CERT_DIR = System.getProperty("cert.dir", "certs");
 
     private static final String KEYSTORE_PASSWORD = System.getenv().getOrDefault("SSL_PWD", "changeit"); // 建议通过环境变量获取密码
 
