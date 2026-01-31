@@ -13,7 +13,7 @@ import lombok.EqualsAndHashCode;
  */
 @EqualsAndHashCode(callSuper = true)
 @Data
-@PluginConfig(prefix = "deerpipe", scopes = ConfigManager.Scope.GLOBAL)
+@PluginConfig(prefix = "deerpipe", scopes = {ConfigManager.Scope.GLOBAL,ConfigManager.Scope.GROUP, ConfigManager.Scope.USER})
 public class DeerPipePluginConfig extends BasePluginConfig {
     /**
      * 是否允许无限补签，默认不允许
