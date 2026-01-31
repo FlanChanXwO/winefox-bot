@@ -37,7 +37,6 @@ public class ConfigMetadataRegistrar {
         Map<String, Object> configBeans = applicationContext.getBeansWithAnnotation(PluginConfig.class);
 
         for (Object bean : configBeans.values()) {
-            // 【优化】使用 Spring 工具类获取原始类，处理 CGLIB 代理问题更稳健
             Class<?> clazz = AopUtils.getTargetClass(bean);
 
             PluginConfig pluginConfig = clazz.getAnnotation(PluginConfig.class);
@@ -47,11 +46,10 @@ public class ConfigMetadataRegistrar {
             }
 
             String prefix = pluginConfig.prefix();
-            String groupName = pluginConfig.name();
 
             prefixToConfigClassMap.put(prefix, clazz);
 
-            log.info("发现插件配置: [{}] prefix={}", groupName, prefix);
+            log.info("发现插件配置: [{}]", prefix);
 
             // 扫描字段
             for (Field field : clazz.getDeclaredFields()) {
@@ -59,13 +57,12 @@ public class ConfigMetadataRegistrar {
                     ConfigItem item = field.getAnnotation(ConfigItem.class);
                     String fullKey = prefix + "." + item.key();
 
-                    // 【修复】这里补上了第 5 个参数：field.getType()
                     initGlobalDefault(
                             fullKey,
                             item.defaultValue(),
                             item.description(),
-                            groupName,
-                            field.getType() // <--- 传入字段类型，用于转换
+                            prefix,
+                            field.getType()
                     );
                 }
             }

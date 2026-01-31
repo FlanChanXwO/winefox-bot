@@ -18,11 +18,12 @@ import lombok.EqualsAndHashCode;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@PluginConfig(prefix = "setu", name = "成人内容配置")
+@PluginConfig(prefix = "setu")
 public class AdultContentConfig extends BasePluginConfig implements SafeSendingConfigurable {
 
     @ConfigItem(
             key = "content.mode",
+            label = "福利内容模式",
             description = "福利内容模式。可选值：sfw (安全), r18 (仅成人), mix (混合)",
             defaultValue = "sfw"
     )
@@ -30,6 +31,7 @@ public class AdultContentConfig extends BasePluginConfig implements SafeSendingC
 
     @ConfigItem(
             key = "revoke.enabled", // 对应 setu.revoke.enabled
+            label = "自动撤回 R18",
             description = "是否开启 R18 内容自动撤回",
             defaultValue = "true"
     )
@@ -37,6 +39,7 @@ public class AdultContentConfig extends BasePluginConfig implements SafeSendingC
 
     @ConfigItem(
             key = "revoke.delay",   // 对应 setu.revoke.delay
+            label = "R18 撤回延迟时间",
             description = "R18 内容自动撤回延迟时间 (秒)",
             defaultValue = "30"
     )

@@ -55,16 +55,14 @@ public class PluginConfigInitializer {
                 continue;
             }
             
-            String groupName = configAnno.name();
             String prefix = configAnno.prefix();
-
             // 3. 扫描配置类中的字段
-            initializeFields(configClass, prefix, groupName);
+            initializeFields(configClass, prefix);
         }
         log.info("插件默认配置初始化完成。");
     }
 
-    private void initializeFields(Class<?> configClass, String prefix, String groupName) {
+    private void initializeFields(Class<?> configClass, String prefix) {
         // 递归处理父类字段 (比如 enabled 字段在父类 BasePluginConfig 中)
         if (configClass == null || configClass == Object.class) {
             return;
@@ -86,14 +84,14 @@ public class PluginConfigInitializer {
                     // 转换默认值类型
                     Object value = convertType(defaultValueStr, field.getType());
                     if (value != null) {
-                        configManager.set(ConfigManager.Scope.GLOBAL, "default", fullKey, value, description, groupName);
+                        configManager.set(ConfigManager.Scope.GLOBAL, "default", fullKey, value, description, prefix);
                         log.debug("已初始化配置项: {} = {}", fullKey, value);
                     }
                 }
             }
         }
         // 递归处理父类
-        initializeFields(configClass.getSuperclass(), prefix, groupName);
+        initializeFields(configClass.getSuperclass(), prefix);
     }
 
     /**

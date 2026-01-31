@@ -123,7 +123,7 @@ public class PluginService {
                 // 初始化 Builder
                 var dtoBuilder = PluginConfigSchemaResponse.ConfigField.builder()
                         .key(fullKey)
-                        .label(item.description().split("。")[0]) // 简单截取第一句做 label
+                        .label(item.label())
                         .description(item.description())
                         .defaultValue(item.defaultValue()); // 默认值暂存字符串
 

@@ -20,8 +20,6 @@ import java.lang.annotation.Target;
 public @interface PluginConfig {
     String prefix(); // 必须指定前缀，防止冲突
 
-    String name();   // 给人看的配置组名称，如 "酒狐日报配置"
-
     // 默认所有作用域都允许 (Global, Group, User)
     ConfigManager.Scope[] scopes() default {
             ConfigManager.Scope.GLOBAL,

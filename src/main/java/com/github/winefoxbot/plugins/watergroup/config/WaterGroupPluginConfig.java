@@ -12,9 +12,9 @@ import lombok.EqualsAndHashCode;
  */
 @EqualsAndHashCode(callSuper = true)
 @Data
-@PluginConfig(name = "水群统计配置", prefix = "water_group" ,scopes = ConfigManager.Scope.GLOBAL)
+@PluginConfig( prefix = "water_group" ,scopes = ConfigManager.Scope.GLOBAL)
 public class WaterGroupPluginConfig extends BasePluginConfig {
 
-    @ConfigItem(key = "limit", defaultValue = "10", description = "排名数量")
+    @ConfigItem(key = "limit", label = "渲染排名范围", defaultValue = "10", description = "在卡片中显示前多少名")
     private Integer limit;
 }

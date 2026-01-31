@@ -5,6 +5,7 @@ import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.github.winefoxbot.core.config.app.WineFoxBotRobotProperties;
 import com.github.winefoxbot.core.model.enums.common.Permission;
 import com.github.winefoxbot.core.utils.BotUtils;
+import com.github.winefoxbot.plugins.deerpipe.config.DeerPipePluginConfig;
 import com.github.winefoxbot.plugins.deerpipe.model.dto.BatchTarget;
 import com.github.winefoxbot.plugins.deerpipe.service.DeerService;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
@@ -30,7 +31,7 @@ import java.util.stream.Collectors;
 /**
  * @author FlanChan
  */
-@Plugin(name = "🦌管",description = "可以🦌", order = 4, permission = Permission.USER,  iconPath = "icon/鹿.png")
+@Plugin(name = "🦌管",description = "可以🦌", order = 4, permission = Permission.USER,  iconPath = "icon/鹿.png" ,config = DeerPipePluginConfig.class)
 @RequiredArgsConstructor
 @Slf4j
 public class DeerpipePlugin {

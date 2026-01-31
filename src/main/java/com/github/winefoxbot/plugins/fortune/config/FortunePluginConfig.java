@@ -13,16 +13,16 @@ import lombok.EqualsAndHashCode;
  */
 @EqualsAndHashCode(callSuper = true)
 @Data
-@PluginConfig(prefix = "fortune",name = "运势插件配置", scopes = ConfigManager.Scope.GLOBAL)
+@PluginConfig(prefix = "fortune", scopes = ConfigManager.Scope.GLOBAL)
 public class FortunePluginConfig extends BasePluginConfig {
     /**
      * 图片标签
      */
-    @ConfigItem(key = "tag", description = "用于生成运势图片的标签，默认标签为'碧蓝档案'", defaultValue = "ブルーアーカイブ")
+    @ConfigItem(key = "tag", label = "运势标签", description = "用于生成运势图片的标签，默认标签为'碧蓝档案'", defaultValue = "ブルーアーカイブ")
     private String tag;
     /**
      * 是否允许刷新运势
      */
-    @ConfigItem(key = "allow_refresh", description = "是否允许用户刷新运势，默认不允许", defaultValue = "false")
+    @ConfigItem(key = "allow_refresh", label = "刷新运势", description = "是否允许用户刷新运势，默认不允许", defaultValue = "false")
     private Boolean allowRefresh;
 }

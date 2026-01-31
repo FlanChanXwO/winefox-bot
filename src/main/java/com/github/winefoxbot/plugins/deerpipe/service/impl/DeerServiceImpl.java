@@ -4,7 +4,10 @@ import cn.hutool.core.util.RandomUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.github.winefoxbot.core.config.playwright.PlaywrightConfig;
+import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
+import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.utils.DynamicResourceLoader;
+import com.github.winefoxbot.plugins.deerpipe.config.DeerPipePluginConfig;
 import com.github.winefoxbot.plugins.deerpipe.mapper.DeerRecordMapper;
 import com.github.winefoxbot.plugins.deerpipe.mapper.DeerUserConfigMapper;
 import com.github.winefoxbot.plugins.deerpipe.model.dto.*;
@@ -21,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.apache.ibatis.plugin.PluginException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.thymeleaf.TemplateEngine;
@@ -53,9 +57,9 @@ public class DeerServiceImpl extends ServiceImpl<DeerRecordMapper, DeerRecord>
     private static final String IMG_CHECK_PATH = "templates/deerpipe/res/images/check.png";
     private static final String IMG_PIPE_PATH = "templates/deerpipe/res/images/deerpipe.png";
     private static final List<String> CHARCTER_PICTURE_PATHS = List.of(
-            "templates/deerpipe/res/images/character_1.png","templates/deerpipe/res/images/character_2.png",
-            "templates/deerpipe/res/images/character_3.png","templates/deerpipe/res/images/character_4.png",
-            "templates/deerpipe/res/images/character_5.png","templates/deerpipe/res/images/character_6.png",
+            "templates/deerpipe/res/images/character_1.png", "templates/deerpipe/res/images/character_2.png",
+            "templates/deerpipe/res/images/character_3.png", "templates/deerpipe/res/images/character_4.png",
+            "templates/deerpipe/res/images/character_5.png", "templates/deerpipe/res/images/character_6.png",
             "templates/deerpipe/res/images/character_7.png", "templates/deerpipe/res/images/character_8.png",
             "templates/deerpipe/res/images/character_9.png", "templates/deerpipe/res/images/character_10.png",
             "templates/deerpipe/res/images/character_11.png"
@@ -132,12 +136,17 @@ public class DeerServiceImpl extends ServiceImpl<DeerRecordMapper, DeerRecord>
             return new AttendanceResult(false, "不是合法的补鹿日期捏（只能补本月且早于今天的日期）", null);
         }
 
+        // 获取插件配置
+        DeerPipePluginConfig pluginConfig = (DeerPipePluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
+
         // 2. 检查是否今天已经使用过补签机会
         DeerUserConfig config = getOrCreateUserConfig(userId);
-        if (now.equals(config.getLastRetroDate())) {
-            // 为了用户体验，虽然失败了，还是返回日历图看一眼
-            byte[] img = generateCalendarImage(userId, now, avatarUrl);
-            return new AttendanceResult(false, "你今天已经补过一次鹿了，明天再来吧！", img);
+        if (!pluginConfig.getAllowReplenishNoLimit()) {
+            if (now.equals(config.getLastRetroDate())) {
+                // 为了用户体验，虽然失败了，还是返回日历图看一眼
+                byte[] img = generateCalendarImage(userId, now, avatarUrl);
+                return new AttendanceResult(false, "你今天已经补过一次鹿了，明天再来吧！", img);
+            }
         }
 
         // 3. 尝试补签
@@ -179,10 +188,15 @@ public class DeerServiceImpl extends ServiceImpl<DeerRecordMapper, DeerRecord>
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean setAllowHelpStatus(Long userId, boolean allow) {
+    public void setAllowHelpStatus(Long userId, boolean allow) {
         DeerUserConfig config = getOrCreateUserConfig(userId);
-        config.setAllowHelp(allow);
-        return userConfigMapper.updateById(config) > 0;
+        DeerPipePluginConfig pluginConfig = (DeerPipePluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
+        if (pluginConfig.getAllowShield()) {
+            config.setAllowHelp(allow);
+            userConfigMapper.updateById(config);
+        } else {
+            throw new PluginException("不允许设置被帮鹿状态！");
+        }
     }
 
     /**
@@ -190,6 +204,10 @@ public class DeerServiceImpl extends ServiceImpl<DeerRecordMapper, DeerRecord>
      */
     @Override
     public boolean isHelpAllowed(Long userId) {
+        DeerPipePluginConfig pluginConfig = (DeerPipePluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
+        if (!pluginConfig.getAllowShield()) {
+            return true;
+        }
         DeerUserConfig config = userConfigMapper.selectById(userId);
         return config == null || config.getAllowHelp();
     }
@@ -207,10 +225,17 @@ public class DeerServiceImpl extends ServiceImpl<DeerRecordMapper, DeerRecord>
 
     private Map<Long, Boolean> getUserAllowHelpMap(List<Long> userIds) {
         if (userIds.isEmpty()) return Map.of();
-        LambdaQueryWrapper<DeerUserConfig> query = new LambdaQueryWrapper<>();
-        query.in(DeerUserConfig::getUserId, userIds);
-        List<DeerUserConfig> configs = userConfigMapper.selectList(query);
-        return configs.stream().collect(Collectors.toMap(DeerUserConfig::getUserId, DeerUserConfig::getAllowHelp));
+        // 获取插件配置
+        DeerPipePluginConfig pluginConfig = (DeerPipePluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
+        if (!pluginConfig.getAllowShield()) {
+            // 如果不允许屏蔽，全部返回 true
+            return userIds.stream().collect(Collectors.toMap(id -> id, _ -> true));
+        } else {
+            LambdaQueryWrapper<DeerUserConfig> query = new LambdaQueryWrapper<>();
+            query.in(DeerUserConfig::getUserId, userIds);
+            List<DeerUserConfig> configs = userConfigMapper.selectList(query);
+            return configs.stream().collect(Collectors.toMap(DeerUserConfig::getUserId, DeerUserConfig::getAllowHelp));
+        }
     }
 
     private int saveOrUpdateRecordAndGetCount(Long userId, LocalDate date) {
@@ -385,11 +410,11 @@ public class DeerServiceImpl extends ServiceImpl<DeerRecordMapper, DeerRecord>
 
     private String getImagePathByCount(int count) {
         if (count >= 50) {
-            return CHARCTER_PICTURE_PATHS.get(RandomUtil.randomInt(8,10,true,true));
+            return CHARCTER_PICTURE_PATHS.get(RandomUtil.randomInt(8, 10, true, true));
         } else if (count >= 20) {
-            return CHARCTER_PICTURE_PATHS.get(RandomUtil.randomInt(4,7,true,true));
+            return CHARCTER_PICTURE_PATHS.get(RandomUtil.randomInt(4, 7, true, true));
         } else {
-            return CHARCTER_PICTURE_PATHS.get(RandomUtil.randomInt(0,3,true,true));
+            return CHARCTER_PICTURE_PATHS.get(RandomUtil.randomInt(0, 3, true, true));
         }
     }
 }
