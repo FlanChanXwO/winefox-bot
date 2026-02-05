@@ -235,21 +235,30 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
         saveRestartInfo(restartInfo);
         Thread restartThread = new Thread(() -> {
             try {
-                // 等待1秒，让当前请求（比如发送"正在重启"消息）有机会完成
-                Thread.sleep(1000);
-                // ==================【【【 最重要的诊断日志 】】】==================
-                log.info(">>>>>>>>> [DIAGNOSTIC] 使用 SpringApplication.exit() 重启模式 <<<<<<<<<");
-                // ====================================================================
-                log.info("应用即将以退出码 {} 关闭，以触发外部脚本重启...", RESTART_EXIT_CODE);
-                // 这会优雅地关闭 Spring 上下文，并返回退出码，而不会终止父 bat 脚本。
+                Thread.sleep(1000); // 给消息发送留出时间
+                log.info(">>>>>>>>> 触发重启流程 (Exit Code: {}) <<<<<<<<<", RESTART_EXIT_CODE);
+
+                // 1. 尝试优雅退出 Spring
                 int exitCode = SpringApplication.exit(context, () -> RESTART_EXIT_CODE);
+
+                // 2. 开启保底强制退出线程
+                Thread forceExitThread = new Thread(() -> {
+                    try {
+                        Thread.sleep(5000); // 如果 5 秒后还没退出
+                        Runtime.getRuntime().halt(RESTART_EXIT_CODE); // 强制硬退出 (不触发 Shutdown Hook)
+                    } catch (InterruptedException ignored) {}
+                });
+                forceExitThread.setDaemon(true);
+                forceExitThread.start();
+
+                // 3. 正常退出 JVM
                 System.exit(exitCode);
+
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.error("重启线程被中断", e);
             }
         });
-        // 确保这个线程不会因为主线程退出而中止
         restartThread.setDaemon(false);
         restartThread.start();
     }

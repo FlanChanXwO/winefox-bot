@@ -188,7 +188,6 @@ public class CorePlugin {
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(update|更新版本)" + COMMAND_SUFFIX_REGEX)
     public void updateVersion(Bot bot, AnyMessageEvent event) {
         try {
-            bot.sendMsg(event, "正在检查并执行更新，请稍候...", false);
             updateService.performUpdate(bot,event);
         } catch (Exception e) {
             log.error("更新失败", e);

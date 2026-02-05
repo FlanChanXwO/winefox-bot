@@ -44,6 +44,8 @@ while true; do
     java $JAVA_OPTS -jar "$JAR_PATH"
     EXIT_CODE=$?
 
+    sync
+
     echo
     echo "======================================================="
     echo "Application exited with code: $EXIT_CODE"
