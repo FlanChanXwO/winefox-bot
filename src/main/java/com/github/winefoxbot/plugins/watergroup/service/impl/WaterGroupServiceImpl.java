@@ -67,7 +67,7 @@ public class WaterGroupServiceImpl implements WaterGroupService {
                 .eq(WaterGroupMessageStat::getDate, LocalDate.now()) // 只查询今天的数据
                 .gt(WaterGroupMessageStat::getMsgCount, 0) // 只看发言过的
                 .orderByDesc(WaterGroupMessageStat::getMsgCount)
-                .last("LIMIT %s".formatted(config.getLimit())));
+                .last("LIMIT %d".formatted(config.getLimit())));
     }
 
 

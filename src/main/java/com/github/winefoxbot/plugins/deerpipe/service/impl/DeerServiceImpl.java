@@ -150,7 +150,7 @@ public class DeerServiceImpl extends ServiceImpl<DeerRecordMapper, DeerRecord>
 
         // 3. 尝试补签
         LocalDate targetDate = LocalDate.of(now.getYear(), now.getMonth(), day);
-        boolean success = saveOrUpdateRecord(userId, targetDate, true);
+        boolean success = saveOrUpdateRecord(userId, targetDate);
 
         if (success) {
             // 4. 更新补签时间
@@ -238,56 +238,49 @@ public class DeerServiceImpl extends ServiceImpl<DeerRecordMapper, DeerRecord>
     }
 
     private int saveOrUpdateRecordAndGetCount(Long userId, LocalDate date) {
-        LambdaQueryWrapper<DeerRecord> query = new LambdaQueryWrapper<>();
-        query.eq(DeerRecord::getUserId, userId)
-                .eq(DeerRecord::getYear, date.getYear())
-                .eq(DeerRecord::getMonth, date.getMonthValue())
-                .eq(DeerRecord::getDay, date.getDayOfMonth());
-
-        DeerRecord record = this.getOne(query);
+        DeerRecord record = this.getOne(buildRecordQuery(userId, date));
 
         if (record != null) {
             record.setCount(record.getCount() + 1);
             this.updateById(record);
             return record.getCount();
         } else {
-            DeerRecord newRecord = DeerRecord.builder()
-                    .userId(userId)
-                    .year(date.getYear())
-                    .month(date.getMonthValue())
-                    .day(date.getDayOfMonth())
-                    .count(1)
-                    .build();
+            DeerRecord newRecord = createNewRecord(userId, date);
             this.save(newRecord);
             return 1;
         }
     }
 
     // 补签专用的 save，如果是 past 且 record 存在则返回 false
-    private boolean saveOrUpdateRecord(Long userId, LocalDate date, boolean isPast) {
+    private boolean saveOrUpdateRecord(Long userId, LocalDate date) {
+        DeerRecord record = this.getOne(buildRecordQuery(userId, date));
+
+        if (record != null) {
+            // 如果是补签模式，且记录已存在，说明已经签过了，不能再补
+            return false;
+        } else {
+            DeerRecord newRecord = createNewRecord(userId, date);
+            return this.save(newRecord);
+        }
+    }
+
+    private LambdaQueryWrapper<DeerRecord> buildRecordQuery(Long userId, LocalDate date) {
         LambdaQueryWrapper<DeerRecord> query = new LambdaQueryWrapper<>();
         query.eq(DeerRecord::getUserId, userId)
                 .eq(DeerRecord::getYear, date.getYear())
                 .eq(DeerRecord::getMonth, date.getMonthValue())
                 .eq(DeerRecord::getDay, date.getDayOfMonth());
+        return query;
+    }
 
-        DeerRecord record = this.getOne(query);
-
-        if (record != null) {
-            // 如果是补签模式，且记录已存在，说明已经签过了，不能再补
-            if (isPast) return false;
-            record.setCount(record.getCount() + 1);
-            return this.updateById(record);
-        } else {
-            DeerRecord newRecord = DeerRecord.builder()
-                    .userId(userId)
-                    .year(date.getYear())
-                    .month(date.getMonthValue())
-                    .day(date.getDayOfMonth())
-                    .count(1)
-                    .build();
-            return this.save(newRecord);
-        }
+    private DeerRecord createNewRecord(Long userId, LocalDate date) {
+        return DeerRecord.builder()
+                .userId(userId)
+                .year(date.getYear())
+                .month(date.getMonthValue())
+                .day(date.getDayOfMonth())
+                .count(1)
+                .build();
     }
 
     private byte[] generateBatchReportImage(List<AttendResult> results) {

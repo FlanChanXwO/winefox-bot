@@ -59,7 +59,7 @@ public class DeerpipePlugin {
 
     @PluginFunction(name = "管理设置被帮状态", description = "在群里管理员设置他人状态，例如：/设置被鹿 开 @111 @333", permission = Permission.ADMIN, commands = "/设置被鹿|设置被🦌 [开/关] @某人 ")
     @GroupMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.at, cmd = "^(/?/设置被[鹿🦌].*\\s(开|关|on|off))(.*?)|(\\[CQ:.*\\])")
+    @MessageHandlerFilter(types = MsgTypeEnum.at, cmd = "^(?:/?设置被[鹿🦌])\\s+(开|关|on|off)\\s*(?:\\[CQ:at,.*?\\]\\s*)+$")
     public void setOtherHelpStatus(Bot bot, GroupMessageEvent event, Matcher matcher) {
         List<Long> atList = ShiroUtils.getAtList(event.getArrayMsg());
         if (atList.isEmpty()) return;
@@ -89,10 +89,9 @@ public class DeerpipePlugin {
 
     @PluginFunction(name = "帮鹿", description = "在群里帮别人签到", commands = {"鹿|🦌 @某人", "/鹿|/🦌 @某人", "鹿|🦌 @全体成员", "/鹿|/🦌 @全体成员"})
     @GroupMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.at,cmd = "^(/?[鹿🦌])(.*?)")
+    @MessageHandlerFilter(types = MsgTypeEnum.at, cmd = "^/?[鹿🦌]\\s*(?:\\[CQ:at,.*?\\]\\s*)+$")
     public void deerOther(Bot bot, GroupMessageEvent event) {
         List<Long> atList = ShiroUtils.getAtList(event.getArrayMsg());
-        System.out.println(event.getRawMessage());
         boolean atAll = ShiroUtils.isAtAll(event.getArrayMsg());
 
         // 目标列表
