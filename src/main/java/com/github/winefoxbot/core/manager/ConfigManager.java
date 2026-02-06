@@ -1,6 +1,5 @@
 package com.github.winefoxbot.core.manager;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.github.winefoxbot.core.model.entity.WinefoxBotPluginConfig;
 import com.github.winefoxbot.core.service.plugin.WinefoxBotPluginConfigService;
@@ -85,13 +84,13 @@ public class ConfigManager {
             Optional<T> groupConfig = getConfigObject("group", String.valueOf(groupId), key, type);
             if (groupConfig.isPresent()) {
                 return groupConfig;
-            } else { // 群组配置不存在时，继续查询全局配置
-                return getConfigObject("global", GLOBAL_SCOPE_ID, key, type);
             }
         }
 
         // 优先级 2: 查询用户配置
-        if (userId != null) {
+        // 逻辑保持：在群组消息中(groupId != null)，通常遵循 群组 > 全局 的规则，忽略用户个人配置
+        // 只有在非群组环境（如私聊）才应用用户配置
+        if (userId != null && groupId == null) {
             Optional<T> userConfig = getConfigObject("user", String.valueOf(userId), key, type);
             if (userConfig.isPresent()) {
                 return userConfig;

@@ -34,7 +34,6 @@ import static com.github.winefoxbot.core.model.enums.common.PluginType.PASSIVE;
         description = "提供群成员变动欢迎、离开提示以及管理员变更提示等功能。",
         type = PASSIVE, // 标记为被动插件
         builtIn = true,
-        hidden = true,
         order = 100
 )
 @Slf4j
