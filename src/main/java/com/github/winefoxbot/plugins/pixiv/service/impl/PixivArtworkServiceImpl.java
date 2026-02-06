@@ -14,6 +14,7 @@ import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.action.common.ActionData;
 import com.mikuac.shiro.dto.action.common.MsgId;
+import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import com.mikuac.shiro.dto.event.message.MessageEvent;
 import lombok.RequiredArgsConstructor;
@@ -54,7 +55,7 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
     @Override
     public void sendArtwork(PixivArtworkInfo info, List<File> files, String additionalText) {
         Bot bot = BotContext.CURRENT_BOT.get();
-        MessageEvent event = BotContext.CURRENT_MESSAGE_EVENT.get();
+        AnyMessageEvent event = (AnyMessageEvent) BotContext.CURRENT_MESSAGE_EVENT.get();
         PixivPluginConfig config = (PixivPluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
 
         if (files == null || files.isEmpty()) {
@@ -62,6 +63,7 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
             SendMsgUtil.sendMsgByEvent(bot, event, "未能获取到 PID: " + info.getPid() + " 的图片文件！", false);
             return;
         }
+
 
         try {
             if (info.getIsR18()) {
@@ -79,7 +81,7 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
     /**
      * 处理非R18作品：根据配置选择发送方式
      */
-    private void handleNormalArtwork(PixivArtworkInfo info, List<File> files, String additionalText, PixivPluginConfig config, Bot bot, MessageEvent event) {
+    private void handleNormalArtwork(PixivArtworkInfo info, List<File> files, String additionalText, PixivPluginConfig config, Bot bot, AnyMessageEvent event) {
         List<Path> filePaths = files.stream().map(File::toPath).toList();
         ContentSendMode sendMode = (config != null && config.getSendMode() != null) 
                 ? config.getSendMode() 
@@ -92,7 +94,7 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
         }
     }
 
-    private void sendImageMessage(PixivArtworkInfo info, List<Path> filePaths, String additionalText, Bot bot, MessageEvent event) {
+    private void sendImageMessage(PixivArtworkInfo info, List<Path> filePaths, String additionalText, Bot bot, AnyMessageEvent event) {
         // 1. 构建文本
         String text = buildArtworkText(info, false);
         if (StrUtil.isNotBlank(additionalText)) {
@@ -137,18 +139,12 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
                 }
             } catch (Exception e) {
                 log.error("Pixiv 混淆重发异常", e);
-                throw (RuntimeException) e;
+                throw new BusinessException("混淆发送失败: " + e.getMessage());
             }
         }
     }
 
-    private void sendForwardMessage(PixivArtworkInfo info, List<Path> filePaths, String additionalText, Bot bot, MessageEvent event) {
-        Long groupId = (event instanceof GroupMessageEvent ge) ? ge.getGroupId() : null;
-        if (groupId == null) {
-            sendImageMessage(info, filePaths, additionalText, bot, event);
-            return;
-        }
-
+    private void sendForwardMessage(PixivArtworkInfo info, List<Path> filePaths, String additionalText, Bot bot, AnyMessageEvent event) {
         try {
             List<String> msgList = new ArrayList<>();
             // 节点1: 信息
@@ -160,19 +156,47 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
 
             // 节点2+: 图片
             for (Path path : filePaths) {
-                String imgUrl = FileUtil.getFileUrlPrefix() + path.toAbsolutePath();
+                String imgUrl = path.toUri().toString();
                 msgList.add(MsgUtils.builder().img(imgUrl).build());
             }
 
             List<Map<String, Object>> forwardNodes = ShiroUtils.generateForwardMsg(bot, msgList);
-            ActionData<MsgId> result = bot.sendGroupForwardMsg(groupId, forwardNodes);
+            ActionData<MsgId> result = bot.sendForwardMsg(event, forwardNodes);
             if (result.getRetCode() != 0) {
-                 throw new RuntimeException("合并转发发送失败");
+                 throw new RuntimeException("合并转发发送失败，RetCode=" + result.getRetCode());
             }
             log.info("Pixiv 合并转发成功: PID={}", info.getPid());
         } catch (Exception e) {
-            log.error("合并转发异常，降级发送", e);
-            sendImageMessage(info, filePaths, additionalText, bot, event);
+            log.warn("合并转发发送异常，尝试混淆后重发", e);
+            try {
+                // 混淆并重试转发
+                List<Path> obfuscatedPaths = imageObfuscator.wrap(filePaths);
+                if (obfuscatedPaths.isEmpty()) throw new RuntimeException("混淆失败");
+
+                List<String> retryMsgList = new ArrayList<>();
+                // 节点1: 信息 (保持不变)
+                String infoText = buildArtworkText(info, true);
+                if (StrUtil.isNotBlank(additionalText)) {
+                    infoText += "\n" + additionalText;
+                }
+                retryMsgList.add(infoText);
+
+                // 节点2+: 混淆后的图片
+                for (Path path : obfuscatedPaths) {
+                    retryMsgList.add(MsgUtils.builder().img(path.toUri().toString()).build());
+                }
+
+                List<Map<String, Object>> retryNodes = ShiroUtils.generateForwardMsg(bot, retryMsgList);
+                ActionData<MsgId> retryResult = bot.sendForwardMsg(event, retryNodes);
+                if (retryResult.getRetCode() != 0) {
+                    throw new RuntimeException("混淆后合并转发依然失败，RetCode=" + retryResult.getRetCode());
+                }
+                log.info("Pixiv 混淆合并转发发送成功");
+
+            } catch (Exception ex) {
+                log.error("混淆合并转发终极失败", ex);
+                throw new BusinessException("合并转发发送失败: " + e.getMessage());
+            }
         }
     }
 
@@ -190,7 +214,8 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
                             log.error("Pixiv PDF 发送失败", throwable);
                             SendMsgUtil.sendMsgByEvent(bot, event, "PDF文件发送失败: " + throwable.getMessage(), false);
                         } else {
-                            log.info("Pixiv PDF 发送成功: PID={}", info.getPid());
+                            String status = result != null ? result.getStatus() : "unknown";
+                            log.info("Pixiv PDF 发送成功: PID={}, status={}", info.getPid(), status);
                             tryRevokeGroupFile(bot, event, fileName, config);
                         }
                     } finally {
@@ -227,11 +252,14 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
                     try {
                         if (throwable != null) {
                             log.error("Pixiv R18 文件上传异常", throwable);
+                            // 上传失败尝试降级混淆发送
+                            sendObfuscatedImageMessage(info, filePaths, "R18文件上传失败，尝试混淆图片发送", bot, event);
                         } else if (result != null && result.isSuccess()) {
                             log.info("Pixiv R18 文件发送成功: PID={}", info.getPid());
                             tryRevokeGroupFile(bot, event, fileName, config);
                         } else {
                              log.warn("Pixiv R18 文件上传失败: {}", result);
+                             sendObfuscatedImageMessage(info, filePaths, "R18文件上传未成功，尝试混淆图片发送", bot, event);
                         }
                     } finally {
                         FileUtil.deleteFileWithRetry(packedFilePath.toAbsolutePath().toString());
@@ -239,7 +267,33 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
                     return null;
                 });
         } catch (Exception e) {
-             throw new RuntimeException("R18 文件发送流程失败", e);
+            log.error("R18 文件发送流程失败", e);
+            // 尝试混淆发送
+            try {
+                sendObfuscatedImageMessage(info, filePaths, "R18打包发送失败，尝试混淆图片发送", bot, event);
+            } catch (Exception ex) {
+                log.error("R18 混淆补发也失败了", ex);
+                throw new BusinessException("真正的瑟图被吞了...");
+            }
+        }
+    }
+
+    private void sendObfuscatedImageMessage(PixivArtworkInfo info, List<Path> originalPaths, String text, Bot bot, MessageEvent event) {
+        try {
+            List<Path> obfuscatedPaths = imageObfuscator.wrap(originalPaths);
+            if (obfuscatedPaths.isEmpty()) return;
+
+            String fullText = buildArtworkText(info, false) + "\n" + text;
+
+            MsgUtils builder = MsgUtils.builder().text(fullText);
+
+            for (Path p : obfuscatedPaths) {
+                builder.img(p.toUri().toString());
+            }
+
+            SendMsgUtil.sendMsgByEvent(bot, event, builder.build(), false);
+        } catch (Exception e) {
+            log.error("混淆发送工具方法异常", e);
         }
     }
 

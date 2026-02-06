@@ -16,6 +16,7 @@ import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.action.common.ActionData;
 import com.mikuac.shiro.dto.action.common.MsgId;
+import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
 import com.github.winefoxbot.plugins.setu.model.dto.SetuProviderRequest;
@@ -317,12 +318,15 @@ public class SetuServiceImpl implements SetuService {
                         try {
                             if (throwable != null) {
                                 log.error("R18 文件上传异常: {}", fileName, throwable);
+                                // 上传失败尝试降级混淆发送
+                                sendObfuscatedImageMessage(downloadedPaths, "R18文件上传失败，尝试混淆图片发送");
                             } else if (result != null && result.isSuccess()) {
                                 log.info("R18 文件发送成功: {}", result.getStatus());
                                 // 触发撤回逻辑
                                 tryRevokeGroupFile(bot, event, fileName, config);
                             } else {
                                 log.warn("R18 文件上传未成功: {}", result);
+                                sendObfuscatedImageMessage(downloadedPaths, "R18文件上传未成功，尝试混淆图片发送");
                             }
                         } finally {
                             FileUtil.deleteFileWithRetry(packedFilePath.toAbsolutePath().toString());
@@ -331,7 +335,13 @@ public class SetuServiceImpl implements SetuService {
                     });
         } catch (Exception e) {
             log.error("R18 文件发送流程失败", e);
-            throw new BusinessException("真正的瑟图被吞了...");
+            // 尝试混淆发送
+            try {
+                sendObfuscatedImageMessage(downloadedPaths, "R18打包发送失败，尝试混淆图片发送");
+            } catch (Exception ex) {
+                log.error("R18 混淆补发也失败了", ex);
+                throw new BusinessException("真正的瑟图被吞了...");
+            }
         }
     }
 
@@ -383,15 +393,7 @@ public class SetuServiceImpl implements SetuService {
 
     private void sendForwardMessage(List<Path> downloadedPaths) {
         Bot bot = BotContext.CURRENT_BOT.get();
-        MessageEvent event = BotContext.CURRENT_MESSAGE_EVENT.get();
-        Long groupId = (event instanceof GroupMessageEvent ge) ? ge.getGroupId() : null;
-
-        if (groupId == null) {
-            // 私聊不支持合并转发（或支持受限），降级为图片发送
-            sendImageMessage(downloadedPaths);
-            return;
-        }
-
+        AnyMessageEvent event = (AnyMessageEvent) BotContext.CURRENT_MESSAGE_EVENT.get();
         try {
             List<String> msgList = new ArrayList<>();
             // 构造每一个节点的消息
@@ -405,26 +407,65 @@ public class SetuServiceImpl implements SetuService {
 
             // 生成转发消息节点
             List<Map<String, Object>> forwardNodes = ShiroUtils.generateForwardMsg(bot, msgList);
-
             // 发送
-            ActionData<MsgId> result = bot.sendGroupForwardMsg(groupId, forwardNodes);
+            ActionData<MsgId> result = bot.sendForwardMsg(event, forwardNodes);
             if (result.getRetCode() != 0) {
                  throw new RuntimeException("合并转发发送失败，RetCode=" + result.getRetCode());
             }
             log.info("SFW 合并转发发送成功");
 
         } catch (Exception e) {
-            log.error("合并转发发送异常，尝试降级为普通图片发送", e);
-            sendImageMessage(downloadedPaths);
+            log.warn("合并转发发送异常，尝试混淆后重发", e);
+            try {
+                // 混淆并重试转发
+                List<Path> obfuscatedPaths = imageObfuscator.wrap(downloadedPaths);
+                if (obfuscatedPaths.isEmpty()) throw new RuntimeException("混淆失败");
+
+                List<String> retryMsgList = new ArrayList<>();
+                for (Path path : obfuscatedPaths) {
+                    retryMsgList.add(MsgUtils.builder().img(path.toUri().toString()).build());
+                }
+                List<Map<String, Object>> retryNodes = ShiroUtils.generateForwardMsg(bot, retryMsgList);
+                ActionData<MsgId> retryResult = bot.sendForwardMsg(event, retryNodes);
+                if (retryResult.getRetCode() != 0) {
+                    throw new RuntimeException("混淆后合并转发依然失败，RetCode=" + retryResult.getRetCode());
+                }
+                log.info("SFW 混淆合并转发发送成功");
+
+            } catch (Exception ex) {
+                log.error("混淆合并转发终极失败", ex);
+                throw new BusinessException("合并转发发送失败: " + e.getMessage());
+            }
         }
     }
 
     private void sendImageMessage(List<Path> downloadedPaths) {
-        List<String> localUrlList = downloadedPaths.stream()
+        // 先尝试正常发送
+        if (doSendImageMessage(downloadedPaths, false)) {
+            return;
+        }
+
+        // 失败则混淆重试
+        log.warn("SFW 直发失败，尝试混淆后重发");
+        try {
+            List<Path> obfuscatedPaths = imageObfuscator.wrap(downloadedPaths);
+            if (!doSendImageMessage(obfuscatedPaths, true)) {
+                 throw new BusinessException("瑟图被严格审核拦截了，混淆也发不出来...");
+            }
+            log.info("混淆图片补发成功");
+        } catch (Exception e) {
+            log.error("执行混淆重发流程异常", e);
+            throw new BusinessException("发送失败: " + e.getMessage());
+        }
+    }
+
+    private boolean doSendImageMessage(List<Path> paths, boolean isRetry) {
+        if (paths == null || paths.isEmpty()) return false;
+
+        List<String> urlList = paths.stream()
                 .map(path -> path.toUri().toString())
                 .toList();
 
-        // 构建回复消息
         MessageEvent messageEvent = BotContext.CURRENT_MESSAGE_EVENT.get();
         Bot bot = BotContext.CURRENT_BOT.get();
 
@@ -433,15 +474,19 @@ public class SetuServiceImpl implements SetuService {
             case PrivateMessageEvent e -> e.getMessageId();
             default -> null;
         };
+
         MsgUtils builder = MsgUtils.builder();
         if (msgId != null) {
             builder.reply(msgId);
         }
-        String msgContent = StringUtils.SPACE + "找到 " + localUrlList.size() + " 张符合要求的图片~";
+
+        String msgContent = isRetry
+                ? " (混淆重发)" + StringUtils.SPACE + "找到 " + urlList.size() + " 张符合要求的图片~"
+                : StringUtils.SPACE + "找到 " + urlList.size() + " 张符合要求的图片~";
+
         builder.at(messageEvent.getUserId()).text(msgContent);
 
-        // 添加图片
-        for (String url : localUrlList) {
+        for (String url : urlList) {
             builder.img(url);
         }
 
@@ -449,44 +494,42 @@ public class SetuServiceImpl implements SetuService {
             SendMsgResult result = SendMsgUtil.sendMsgByEvent(bot, messageEvent, builder.build(), false);
             if (result.isSuccess()) {
                 log.info("SFW 图片发送成功: {}", result.getStatus());
+                return true;
             } else {
-                throw new RuntimeException("发送失败: " + result.getStatus());
+                log.warn("发送失败: {}", result.getStatus());
+                return false;
             }
         } catch (Exception ex) {
-            log.warn("SFW 直发失败，尝试混淆后重发: {}", ex.getMessage());
-            // === 混淆重试逻辑 ===
-            try {
-                // 1. 使用工具类包装图片
-                List<Path> obfuscatedPaths = imageObfuscator.wrap(downloadedPaths);
+            log.warn("SFW 图片发送异常", ex);
+            return false;
+        }
+    }
 
-                if (obfuscatedPaths.isEmpty()) {
-                    throw new BusinessException("图片混淆失败，无法重试");
-                }
+    private void sendObfuscatedImageMessage(List<Path> originalPaths, String text) {
+        try {
+            List<Path> obfuscatedPaths = imageObfuscator.wrap(originalPaths);
+            if (obfuscatedPaths.isEmpty()) return;
 
-                List<String> newUrlList = obfuscatedPaths.stream()
-                        .map(path -> path.toUri().toString())
-                        .toList();
+            MessageEvent messageEvent = BotContext.CURRENT_MESSAGE_EVENT.get();
+            Bot bot = BotContext.CURRENT_BOT.get();
 
-                MsgUtils retryBuilder = MsgUtils.builder();
-                if (msgId != null) {
-                    retryBuilder.reply(msgId);
-                }
-                retryBuilder.at(messageEvent.getUserId()).text(msgContent);
-                for (String url : newUrlList) {
-                    retryBuilder.img(url);
-                }
+            Integer msgId = switch (messageEvent) {
+                case GroupMessageEvent e -> e.getMessageId();
+                case PrivateMessageEvent e -> e.getMessageId();
+                default -> null;
+            };
 
-                SendMsgResult retryResult = SendMsgUtil.sendMsgByEvent(bot, messageEvent, retryBuilder.build(), false);
-                if (retryResult.isSuccess()) {
-                    log.info("混淆图片补发成功");
-                } else {
-                    throw new BusinessException("瑟图被严格审核拦截了，发不出来...");
-                }
+            MsgUtils builder = MsgUtils.builder();
+            if (msgId != null) builder.reply(msgId);
+            builder.text(text);
 
-            } catch (Exception e) {
-                log.error("执行混淆重发流程异常", e);
-                throw (RuntimeException) e;
+            for (Path p : obfuscatedPaths) {
+                builder.img(p.toUri().toString());
             }
+
+            SendMsgUtil.sendMsgByEvent(bot, messageEvent, builder.build(), false);
+        } catch (Exception e) {
+            log.error("混淆发送工具方法异常", e);
         }
     }
 
