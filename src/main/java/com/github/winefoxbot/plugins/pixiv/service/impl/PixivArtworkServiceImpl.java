@@ -88,17 +88,17 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
                 : ContentSendMode.IMAGE;
 
         switch (sendMode) {
-            case FORWARD -> sendForwardMessage(info, filePaths, additionalText, bot, event);
+            case FORWARD -> sendForwardMessage(info, filePaths, additionalText, bot, event, config);
             case PDF -> sendPdfInternal(info, filePaths, bot, event, config);
-            default -> sendImageMessage(info, filePaths, additionalText, bot, event);
+            default -> sendImageMessage(info, filePaths, additionalText, bot, event, config);
         }
     }
 
-    private void sendImageMessage(PixivArtworkInfo info, List<Path> filePaths, String additionalText, Bot bot, AnyMessageEvent event) {
+    private void sendImageMessage(PixivArtworkInfo info, List<Path> filePaths, String additionalText, Bot bot, AnyMessageEvent event, PixivPluginConfig config) {
         // 1. 构建文本
-        String text = buildArtworkText(info, false);
+        String text = (config != null && config.isSendArtworkInfo()) ? buildArtworkText(info, false) : "";
         if (StrUtil.isNotBlank(additionalText)) {
-            text += "\n" + additionalText;
+            text = StrUtil.isBlank(text) ? additionalText : text + "\n" + additionalText;
         }
 
         // 2. 转换文件路径为 URL
@@ -144,15 +144,17 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
         }
     }
 
-    private void sendForwardMessage(PixivArtworkInfo info, List<Path> filePaths, String additionalText, Bot bot, AnyMessageEvent event) {
+    private void sendForwardMessage(PixivArtworkInfo info, List<Path> filePaths, String additionalText, Bot bot, AnyMessageEvent event, PixivPluginConfig config) {
         try {
             List<String> msgList = new ArrayList<>();
             // 节点1: 信息
-            String infoText = buildArtworkText(info, true);
+            String infoText = (config != null && config.isSendArtworkInfo()) ? buildArtworkText(info, true) : "";
              if (StrUtil.isNotBlank(additionalText)) {
-                infoText += "\n" + additionalText;
+                infoText = StrUtil.isBlank(infoText) ? additionalText : infoText + "\n" + additionalText;
             }
-            msgList.add(infoText);
+            if (StrUtil.isNotBlank(infoText)) {
+                msgList.add(infoText);
+            }
 
             // 节点2+: 图片
             for (Path path : filePaths) {
@@ -175,11 +177,13 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
 
                 List<String> retryMsgList = new ArrayList<>();
                 // 节点1: 信息 (保持不变)
-                String infoText = buildArtworkText(info, true);
+                String infoText = (config != null && config.isSendArtworkInfo()) ? buildArtworkText(info, true) : "";
                 if (StrUtil.isNotBlank(additionalText)) {
-                    infoText += "\n" + additionalText;
+                    infoText = StrUtil.isBlank(infoText) ? additionalText : infoText + "\n" + additionalText;
                 }
-                retryMsgList.add(infoText);
+                if (StrUtil.isNotBlank(infoText)) {
+                    retryMsgList.add(infoText);
+                }
 
                 // 节点2+: 混淆后的图片
                 for (Path path : obfuscatedPaths) {
@@ -235,8 +239,10 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
      */
     private void handleR18Artwork(PixivArtworkInfo info, List<File> files, PixivPluginConfig config, Bot bot, MessageEvent event) {
         // 1. 发送基本信息
-        String text = buildArtworkText(info, true);
-        SendMsgUtil.sendMsgByEvent(bot, event, text, false);
+        if (config != null && config.isSendArtworkInfo()) {
+            String text = buildArtworkText(info, true);
+            SendMsgUtil.sendMsgByEvent(bot, event, text, false);
+        }
 
         // 2. 发送文件
         List<Path> filePaths = files.stream().map(File::toPath).toList();
@@ -253,13 +259,13 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
                         if (throwable != null) {
                             log.error("Pixiv R18 文件上传异常", throwable);
                             // 上传失败尝试降级混淆发送
-                            sendObfuscatedImageMessage(info, filePaths, "R18文件上传失败，尝试混淆图片发送", bot, event);
+                            sendObfuscatedImageMessage(info, filePaths, "R18文件上传失败，尝试混淆图片发送", bot, event, config);
                         } else if (result != null && result.isSuccess()) {
                             log.info("Pixiv R18 文件发送成功: PID={}", info.getPid());
                             tryRevokeGroupFile(bot, event, fileName, config);
                         } else {
                              log.warn("Pixiv R18 文件上传失败: {}", result);
-                             sendObfuscatedImageMessage(info, filePaths, "R18文件上传未成功，尝试混淆图片发送", bot, event);
+                             sendObfuscatedImageMessage(info, filePaths, "R18文件上传未成功，尝试混淆图片发送", bot, event, config);
                         }
                     } finally {
                         FileUtil.deleteFileWithRetry(packedFilePath.toAbsolutePath().toString());
@@ -270,7 +276,7 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
             log.error("R18 文件发送流程失败", e);
             // 尝试混淆发送
             try {
-                sendObfuscatedImageMessage(info, filePaths, "R18打包发送失败，尝试混淆图片发送", bot, event);
+                sendObfuscatedImageMessage(info, filePaths, "R18打包发送失败，尝试混淆图片发送", bot, event, config);
             } catch (Exception ex) {
                 log.error("R18 混淆补发也失败了", ex);
                 throw new BusinessException("真正的瑟图被吞了...");
@@ -278,12 +284,13 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
         }
     }
 
-    private void sendObfuscatedImageMessage(PixivArtworkInfo info, List<Path> originalPaths, String text, Bot bot, MessageEvent event) {
+    private void sendObfuscatedImageMessage(PixivArtworkInfo info, List<Path> originalPaths, String text, Bot bot, MessageEvent event, PixivPluginConfig config) {
         try {
             List<Path> obfuscatedPaths = imageObfuscator.wrap(originalPaths);
             if (obfuscatedPaths.isEmpty()) return;
 
-            String fullText = buildArtworkText(info, false) + "\n" + text;
+            String artworkInfo = (config != null && config.isSendArtworkInfo()) ? buildArtworkText(info, false) : "";
+            String fullText = StrUtil.isBlank(artworkInfo) ? text : artworkInfo + "\n" + text;
 
             MsgUtils builder = MsgUtils.builder().text(fullText);
 
