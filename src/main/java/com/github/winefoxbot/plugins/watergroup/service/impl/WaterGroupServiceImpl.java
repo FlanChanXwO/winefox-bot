@@ -3,7 +3,7 @@ package com.github.winefoxbot.plugins.watergroup.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.github.winefoxbot.core.annotation.common.RedissonLock;
-import com.github.winefoxbot.core.context.BotContext;
+
 import com.github.winefoxbot.plugins.watergroup.config.WaterGroupPluginConfig;
 import com.github.winefoxbot.plugins.watergroup.mapper.WaterGroupMessageStatMapper;
 import com.github.winefoxbot.plugins.watergroup.model.entity.WaterGroupMessageStat;
@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -22,6 +23,7 @@ import java.util.List;
 public class WaterGroupServiceImpl implements WaterGroupService {
 
     private final WaterGroupMessageStatMapper dayMapper;
+    private final WaterGroupPluginConfig pluginConfig;
 
     /**
      * 增加用户发言次数
@@ -61,13 +63,13 @@ public class WaterGroupServiceImpl implements WaterGroupService {
      */
     @Override
     public List<WaterGroupMessageStat> getDailyRanking(long groupId) {
-        WaterGroupPluginConfig config = (WaterGroupPluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
+        Integer limit = Optional.ofNullable(pluginConfig.getLimit()).orElse(10);
         return dayMapper.selectList(new LambdaQueryWrapper<WaterGroupMessageStat>()
                 .eq(WaterGroupMessageStat::getGroupId, groupId)
                 .eq(WaterGroupMessageStat::getDate, LocalDate.now()) // 只查询今天的数据
                 .gt(WaterGroupMessageStat::getMsgCount, 0) // 只看发言过的
                 .orderByDesc(WaterGroupMessageStat::getMsgCount)
-                .last("LIMIT %d".formatted(config.getLimit())));
+                .last("LIMIT %d".formatted(limit)));
     }
 
 

@@ -1,5 +1,6 @@
 package com.github.winefoxbot.core.model.vo.webui.resp;
 
+import com.github.winefoxbot.core.model.enums.common.PluginType;
 import lombok.Builder;
 
 @Builder
@@ -9,7 +10,7 @@ public record PluginListItemResponse (
     String description,  // 描述
     String version,      // 版本
     String author,       // 作者
-    String iconPath,     // 图标
+    PluginType type,
     boolean enabled,     // 是否已开启
     boolean builtIn,     // 是否内置 (决定删除按钮是否禁用)
     boolean hasConfig,  // 是否有配置项 (决定配置按钮是否显示)

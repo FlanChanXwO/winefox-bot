@@ -2,6 +2,7 @@ package com.github.winefoxbot.core.annotation.plugin;
 
 import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
 import com.github.winefoxbot.core.model.enums.common.Permission;
+import com.github.winefoxbot.core.model.enums.common.PluginType;
 import com.mikuac.shiro.annotation.common.Shiro;
 import org.springframework.stereotype.Component;
 
@@ -29,6 +30,10 @@ public @interface Plugin {
      * @return 功能组的排序值，数值越小越靠前显示
      */
     int order() default Integer.MAX_VALUE;
+    /**
+     * 插件类型，默认为主动插件
+     */
+    PluginType type() default PluginType.ACTIVE;
 
     String description() default "暂无描述";
 

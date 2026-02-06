@@ -34,6 +34,39 @@ public class ConfigManager {
         USER
     }
 
+    /**
+     * 通用配置获取，带自动回退逻辑。
+     * 逻辑：先查指定 Scope/ScopeId，如果没有，则回退查 GLOBAL/default。
+     * 用于 PluginService 判断插件在当前上下文是否开启。
+     *
+     * @param key     配置键
+     * @param scope   作用域
+     * @param scopeId 作用域ID
+     * @param type    类型
+     * @return 配置值 (Optional)
+     */
+    public <T> Optional<T> get(String key, Scope scope, String scopeId, Class<T> type) {
+        // 1. 尝试获取指定作用域的配置
+        String scopeStr = convertScopeEnumToStringValue(scope);
+        // 如果 scopeId 为 null，对于 Global 默认为 default，其他则无法查询
+        String finalScopeId = (scopeId == null && scope == Scope.GLOBAL) ? GLOBAL_SCOPE_ID : scopeId;
+
+        if (finalScopeId != null) {
+            Optional<T> specificConfig = getConfigObject(scopeStr, finalScopeId, key, type);
+            if (specificConfig.isPresent()) {
+                return specificConfig;
+            }
+        }
+
+        // 2. 如果指定作用域不是 GLOBAL，且没查到值，则回退查询 GLOBAL
+        if (scope != Scope.GLOBAL) {
+            return getConfigObject(convertScopeEnumToStringValue(Scope.GLOBAL), GLOBAL_SCOPE_ID, key, type);
+        }
+
+        return Optional.empty();
+    }
+
+
 
     /**
      * 获取指定范围的配置项，并提供类型转换。

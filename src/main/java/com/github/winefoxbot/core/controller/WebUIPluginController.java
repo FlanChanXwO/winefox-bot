@@ -35,8 +35,24 @@ public class WebUIPluginController {
      * @param keyword 搜索关键词 (可选)
      */
     @GetMapping("/list")
-    public Result<List<PluginListItemResponse>> getPlugins(@RequestParam(required = false) String keyword) {
-        return Result.ok(pluginService.getPluginList(keyword));
+    public Result<List<PluginListItemResponse>> getPlugins(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false, defaultValue = "GLOBAL") String scope,
+            @RequestParam(required = false) String scopeId
+    ) {
+        return Result.ok(pluginService.getPluginList(keyword, scope, scopeId));
+    }
+
+    /**
+     * 获取当前上下文生效的“被动插件”
+     * 适用于 WebUI 聊天窗口侧边栏展示
+     */
+    @GetMapping("/passive/active")
+    public Result<List<PluginListItemResponse>> getActivePassivePlugins(
+            @RequestParam(required = false, defaultValue = "GLOBAL") String scope,
+            @RequestParam(required = false) String scopeId
+    ) {
+        return Result.ok(pluginService.getActivePassivePlugins(scope, scopeId));
     }
 
     /**
@@ -45,9 +61,11 @@ public class WebUIPluginController {
     @PostMapping("/{pluginId}/toggle")
     public Result<Void> togglePlugin(
             @PathVariable String pluginId,
-            @RequestParam boolean enable) {
-        
-        pluginService.togglePlugin(pluginId, enable);
+            @RequestParam boolean enable,
+            @RequestParam(required = false, defaultValue = "GLOBAL") String scope,
+            @RequestParam(required = false, defaultValue = "default") String scopeId
+    ) {
+        pluginService.togglePlugin(pluginId, enable, scope, scopeId);
         return Result.ok();
     }
 

@@ -6,15 +6,15 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.core.constants.CacheConstants;
+import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.exception.common.BusinessException;
-import com.github.winefoxbot.core.manager.ConfigManager;
-import com.github.winefoxbot.core.plugins.adultmanage.config.AdultContentConfig;
-import com.github.winefoxbot.core.utils.ConfigReflectionUtil;
+import com.github.winefoxbot.plugins.pixiv.config.PixivPluginConfig;
 import com.github.winefoxbot.plugins.pixiv.config.PixivProperties;
 import com.github.winefoxbot.plugins.pixiv.mapper.PixivBookmarkMapper;
 import com.github.winefoxbot.plugins.pixiv.model.dto.bookmark.PixivApiBody;
 import com.github.winefoxbot.plugins.pixiv.model.dto.bookmark.PixivArtwork;
 import com.github.winefoxbot.plugins.pixiv.model.entity.PixivBookmark;
+import com.github.winefoxbot.plugins.pixiv.model.enums.AdultContentMode;
 import com.github.winefoxbot.plugins.pixiv.model.enums.PixivRatingLevel;
 import com.github.winefoxbot.plugins.pixiv.service.PixivBookmarkService;
 import jakarta.annotation.PostConstruct;
@@ -54,7 +54,6 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
     private final ObjectMapper objectMapper;
     private final PixivProperties pixivProperties;
     private final RedisTemplate<String, String> redisTemplate;
-    private final ConfigManager configManager;
     private PixivBookmarkService self;
 
     private final AtomicBoolean isSyncInProgress = new AtomicBoolean(false);
@@ -63,15 +62,6 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
     private final Random random = new Random();
     private static final double INITIAL_WEIGHT = 100.0;
     private static final double WEIGHT_RESET_THRESHOLD = 20.0; // 平均权重低于20时重置权重保证随机性
-    // --- 1. 动态获取配置 Key ---
-    // 假设 AdultContentConfig 类中有一个字段叫 contentMode (对应 setu.content.mode 或类似)
-    // 如果字段名是 mode，请改为 "mode"
-    private static final String KEY_CONTENT_MODE = ConfigReflectionUtil.getFullKey(AdultContentConfig.class, "contentMode");
-
-    // --- 2. 定义值常量 (解耦 ConfigConstants) ---
-    private static final String MODE_SFW = "sfw";
-    private static final String MODE_R18 = "r18";
-    private static final String MODE_MIX = "mix";
 
     @Autowired
     @Lazy
@@ -566,23 +556,20 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
      */
     @Override
     public Optional<PixivBookmark> getRandomBookmark(Long userId, Long groupId) {
-        // 使用反射获取到的 KEY 进行查询
-        String contentMode = configManager.getString(KEY_CONTENT_MODE, userId, groupId, MODE_SFW);
-
+        PixivPluginConfig config = (PixivPluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
+        AdultContentMode contentMode = config.getContentMode();
         String zsetKey = "";
-
         // 根据模式选择 Redis Key
         switch (contentMode) {
-            case MODE_MIX -> {
+            case MIX -> {
                 zsetKey = CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_MIX;
                 log.debug("Content mode is MIX, using ZSET: {}", zsetKey);
             }
-            case MODE_R18 -> {
+            case R18 -> {
                 zsetKey = CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_R18;
                 log.debug("Content mode is R18, using ZSET: {}", zsetKey);
             }
-            // 默认为 SFW
-            case MODE_SFW -> {
+            case SFW -> {
                 zsetKey = CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_SFW;
                 log.debug("Content mode is SFW (or default), using ZSET: {}", zsetKey);
             }

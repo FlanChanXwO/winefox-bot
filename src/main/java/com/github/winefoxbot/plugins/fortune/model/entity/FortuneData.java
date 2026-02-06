@@ -22,6 +22,7 @@ public class FortuneData implements Serializable {
     private Long userId;
     private Integer starNum;
     private LocalDate fortuneDate;
+    private String imgUrl;
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;
 }

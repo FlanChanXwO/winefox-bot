@@ -8,6 +8,7 @@ import com.github.winefoxbot.core.annotation.plugin.PluginConfig;
 import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
 import com.github.winefoxbot.core.manager.ConfigManager;
 import com.github.winefoxbot.core.model.entity.WinefoxBotPluginConfig;
+import com.github.winefoxbot.core.model.enums.common.PluginType;
 import com.github.winefoxbot.core.model.type.BaseEnum;
 import com.github.winefoxbot.core.model.vo.webui.resp.PluginConfigSchemaResponse;
 import com.github.winefoxbot.core.model.vo.webui.resp.PluginListItemResponse;
@@ -35,9 +36,13 @@ public class PluginService {
     /**
      * 获取插件列表 (保持不变)
      */
-    public List<PluginListItemResponse> getPluginList(String keyword) {
+    public List<PluginListItemResponse> getPluginList(String keyword, String scopeStr, String scopeId) {
         Map<String, Object> pluginBeans = applicationContext.getBeansWithAnnotation(Plugin.class);
         List<PluginListItemResponse> list = new ArrayList<>();
+
+        // 解析 Scope，默认为 GLOBAL
+        ConfigManager.Scope scope = parseScope(scopeStr);
+        String finalScopeId = (scopeId == null || scopeId.isBlank()) ? "default" : scopeId;
 
         for (Object bean : pluginBeans.values()) {
             Class<?> clazz = AopUtils.getTargetClass(bean);
@@ -52,41 +57,86 @@ public class PluginService {
             }
 
             boolean hasConfig = pluginAnn.config() != null && pluginAnn.config() != BasePluginConfig.None.class;
-            boolean isEnabled = isPluginEnabled(clazz.getSimpleName());
+
+            boolean isEnabled = isPluginEnabled(clazz.getSimpleName(), scope, finalScopeId);
 
             list.add(PluginListItemResponse.builder()
                     .id(clazz.getSimpleName())
                     .name(pluginAnn.name())
+                    .type(pluginAnn.type())
                     .canDisable(pluginAnn.canDisable())
                     .description(pluginAnn.description())
                     .version(pluginAnn.version())
                     .author(pluginAnn.author())
-                    .iconPath(pluginAnn.iconPath())
                     .builtIn(pluginAnn.builtIn())
                     .hasConfig(hasConfig)
                     .enabled(isEnabled)
                     .build());
         }
+
+        list.sort(Comparator.comparing(PluginListItemResponse::type) // ACTIVE 在前 (Enum ordinal)
+                .thenComparingInt(p -> getPluginOrder(p.id())));
+
         return list;
+    }
+
+    /**
+     * 用于 WebUI 展示“当前群组生效的被动功能”
+     */
+    public List<PluginListItemResponse> getActivePassivePlugins(String scopeStr, String scopeId) {
+        // 复用 getPluginList 逻辑，但进行过滤
+        List<PluginListItemResponse> allPlugins = getPluginList(null, scopeStr, scopeId);
+        return allPlugins.stream()
+                .filter(p -> p.type() == PluginType.PASSIVE) // 只取被动插件
+                .filter(PluginListItemResponse::enabled)     // 只取已启用的
+                .toList();
     }
 
     /**
      * 切换插件开启/关闭 (保持不变)
      */
-    public void togglePlugin(String pluginId, boolean enable) {
+    public void togglePlugin(String pluginId, boolean enable, String scopeStr, String scopeId) {
+        ConfigManager.Scope scope = parseScope(scopeStr);
+        String finalScopeId = (scopeId == null || scopeId.isBlank()) ? "default" : scopeId;
+
         configManager.set(
-                ConfigManager.Scope.GLOBAL,
-                "default",
+                scope,
+                finalScopeId,
                 PLUGIN_STATUS_PREFIX + pluginId,
                 enable,
                 "插件启用状态: " + pluginId,
                 "system_internal"
         );
-        log.info("插件 {} 状态更新为: {}", pluginId, enable);
+        log.info("插件 {} 在 {}:{} 状态更新为: {}", pluginId, scope, finalScopeId, enable);
     }
 
+    public boolean isPluginEnabled(String pluginId, ConfigManager.Scope scope, String scopeId) {
+        // 假设 ConfigManager.get 支持传入 scope 进行层级查找
+        // 如果 ConfigManager.get(key, scope, scopeId, type) 已经实现了 fallback 逻辑，则直接调用
+        // 如果没有实现，这里需要手动模拟 fallback:
+
+        // 1. 如果指定了具体 Scope (如 GROUP)，先查该 Scope
+        if (scope != ConfigManager.Scope.GLOBAL) {
+            Optional<Boolean> specificConfig = configManager.get(
+                    PLUGIN_STATUS_PREFIX + pluginId,
+                    scope,
+                    scopeId,
+                    Boolean.class
+            );
+            if (specificConfig.isPresent()) {
+                return specificConfig.get();
+            }
+            // 如果当前 Scope 没配置，是否回退到 GLOBAL? 通常是是的。
+        }
+
+        // 2. 查 GLOBAL 默认值
+        return configManager.get(PLUGIN_STATUS_PREFIX + pluginId, Boolean.class)
+                .orElse(true); // 默认所有插件开启
+    }
+
+    // 重载旧方法，保持兼容 (默认为 Global)
     public boolean getPluginEnabledStatus(String pluginId) {
-        return isPluginEnabled(pluginId);
+        return isPluginEnabled(pluginId, ConfigManager.Scope.GLOBAL, "default");
     }
 
     /**
@@ -147,7 +197,7 @@ public class PluginService {
 
                     // 获取当前值：ConfigManager 存的是字符串 (JSON数组或逗号分隔)
                     // 使用 Hutool 将其转回 List 给前端
-                    String rawStr = configManager.get(fullKey, null, null, String.class)
+                    String rawStr = configManager.get(fullKey,  String.class)
                             .orElse(item.defaultValue());
 
                     // 如果是 JSON 数组字符串，转为 List；如果是空，转为空 List
@@ -188,7 +238,7 @@ public class PluginService {
                     dtoBuilder.options(options);
 
                     // 设置当前值 (String)
-                    dtoBuilder.value(configManager.get(fullKey, null, null, String.class)
+                    dtoBuilder.value(configManager.get(fullKey, String.class)
                             .orElse(item.defaultValue()));
                 }
 
@@ -220,7 +270,7 @@ public class PluginService {
 
                     // 1. 获取 rawStr: 从 ConfigManager 获取，如果没有就用 ConfigItem 的默认值
                     // 注意：默认值 defaultValue() 可能是 null，或者是一个 JSON 字符串 "{}"
-                    String rawStr = configManager.get(fullKey, null, null, String.class)
+                    String rawStr = configManager.get(fullKey,  String.class)
                             .orElse(item.defaultValue()); // 如果 ConfigManager 没值，取注解上的默认值
 
                     // 2. 防御性处理: 如果 rawStr 还是 null 或者空字符串，给一个合法的空 JSON
@@ -245,7 +295,7 @@ public class PluginService {
                 else {
                     dtoBuilder.type(determineFieldType(fieldType));
                     // 设置当前值
-                    String rawStr = configManager.get(fullKey, null, null, String.class)
+                    String rawStr = configManager.get(fullKey,String.class)
                             .orElse(item.defaultValue());
 
                     // 最好根据类型转回对应的 JSON 原始类型 (bool/number) 否则前端可能收到 "true" 字符串而不是 true 布尔值
@@ -356,7 +406,7 @@ public class PluginService {
     // --- 辅助方法 ---
 
     private boolean isPluginEnabled(String pluginId) {
-        return configManager.get(PLUGIN_STATUS_PREFIX + pluginId , Boolean.class)
+        return configManager.get(PLUGIN_STATUS_PREFIX + pluginId, Boolean.class)
                 .orElse(true);
     }
 
@@ -374,5 +424,21 @@ public class PluginService {
         if (type == Boolean.class || type == boolean.class) return "bool";
         if (Number.class.isAssignableFrom(type) || type == int.class || type == long.class) return "number";
         return "string";
+    }
+
+    private ConfigManager.Scope parseScope(String scopeStr) {
+        try {
+            return (scopeStr != null)
+                    ? ConfigManager.Scope.valueOf(scopeStr.toUpperCase())
+                    : ConfigManager.Scope.GLOBAL;
+        } catch (Exception e) {
+            return ConfigManager.Scope.GLOBAL;
+        }
+    }
+
+    private int getPluginOrder(String simpleName) {
+        Object bean = findPluginBeanBySimpleName(simpleName);
+        if (bean == null) return Integer.MAX_VALUE;
+        return AopUtils.getTargetClass(bean).getAnnotation(Plugin.class).order();
     }
 }

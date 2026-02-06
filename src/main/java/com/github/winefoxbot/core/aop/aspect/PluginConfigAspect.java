@@ -45,10 +45,8 @@ public class PluginConfigAspect {
         // 获取插件 ID (即类名，与 PluginConfigService 中保持一致)
         String pluginId = targetClass.getSimpleName();
 
-        // 优先检查全局开关 (对应数据库中的 system.plugin.status.XXX)
         // 如果这里返回 false，直接拦截，不再进行后续的 Config 实例化
         if (!pluginService.getPluginEnabledStatus(pluginId)) {
-            // log.debug 避免日志刷屏，但在调试时很有用
             log.debug("插件 [{}] (ID: {}) 全局开关已关闭，拦截执行", pluginAnno.name(), pluginId);
             return null;
         }

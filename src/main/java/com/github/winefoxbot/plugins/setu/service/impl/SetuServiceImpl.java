@@ -5,10 +5,19 @@ import cn.hutool.http.HttpStatus;
 import com.github.winefoxbot.core.config.file.FileStorageProperties;
 import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.exception.common.BusinessException;
-import com.github.winefoxbot.core.manager.ConfigManager;
 import com.github.winefoxbot.core.service.file.FileStorageService;
-import com.github.winefoxbot.core.service.shiro.ShiroSafeSendMessageService;
 import com.github.winefoxbot.core.utils.ImageObfuscator;
+import com.github.winefoxbot.core.model.dto.SendMsgResult;
+import com.github.winefoxbot.core.utils.*;
+import com.github.winefoxbot.plugins.setu.config.SetuPluginConfig;
+import com.github.winefoxbot.plugins.setu.enums.AdultContentMode;
+import com.github.winefoxbot.plugins.setu.enums.ContentSendMode;
+import com.mikuac.shiro.common.utils.ShiroUtils;
+import com.mikuac.shiro.core.Bot;
+import com.mikuac.shiro.dto.action.common.ActionData;
+import com.mikuac.shiro.dto.action.common.MsgId;
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
 import com.github.winefoxbot.plugins.setu.model.dto.SetuProviderRequest;
 import com.github.winefoxbot.plugins.setu.model.enums.SetuApiType;
 import com.github.winefoxbot.plugins.setu.service.SetuImageProvider;
@@ -28,16 +37,19 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 /**
@@ -54,22 +66,16 @@ public class SetuServiceImpl implements SetuService {
     private final Map<String, SetuImageProvider> providerMap;
     private final FileStorageService fileStorageService;
     private final FileStorageProperties fileStorageProperties;
-    private final ConfigManager configManager;
-    private final ShiroSafeSendMessageService safeSendMessageService;
     private final ImageObfuscator imageObfuscator;
 
     private final Striped<Lock> IMAGE_CACHE_LOCK = Striped.lock(64);
 
     private static final Duration IMAGE_CACHE_DURATION = Duration.ofHours(1);
 
-    private static final String KEY_SETU_MODE = "setu.content.mode";
-
-    private static final String MODE_SFW = "sfw";
-    private static final String MODE_R18 = "r18";
-    private static final String MODE_MIX = "mix";
-
     // 最大补货轮次
     private static final int MAX_REPLENISH_ROUNDS = 3;
+
+    private static final long ZIP_THRESHOLD = 100 * 1024 * 1024;
 
     @Override
     public void handleSetuRequest(int num, List<String> tags) {
@@ -85,15 +91,12 @@ public class SetuServiceImpl implements SetuService {
      * 内部核心处理逻辑
      */
     private void processInternal(int targetNum, List<String> tags, Map<String, Object> extraParams, SetuApiType apiType) {
-        MessageEvent messageEvent = BotContext.CURRENT_MESSAGE_EVENT.get();
-        Long userId = messageEvent.getUserId();
-        Long groupId = null;
-        if (messageEvent instanceof GroupMessageEvent e) {
-            groupId = e.getGroupId();
-        }
+        SetuPluginConfig setuConfig = (SetuPluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
 
         // 1. 获取内容模式配置
-        String contentMode = configManager.getString(KEY_SETU_MODE, userId, groupId, MODE_SFW);
+        AdultContentMode contentMode = setuConfig.getContentMode(); // 默认为SFW，由Config注入保证
+        if (contentMode == null) contentMode = AdultContentMode.SFW;
+
         // 解析是否需要 R18
         boolean isR18 = determineR18Flag(contentMode);
 
@@ -140,9 +143,9 @@ public class SetuServiceImpl implements SetuService {
         // ================= 阶段三：发送逻辑 =================
         // 注意：这里简单假设只要开启了R18模式或者请求的是R18，就走撤回逻辑
         if (isR18) {
-            sendR18Files(validPaths);
+            sendR18Files(validPaths, setuConfig);
         } else {
-            sendSfwImages(validPaths);
+            sendSfwImages(validPaths, setuConfig);
         }
     }
 
@@ -151,13 +154,9 @@ public class SetuServiceImpl implements SetuService {
      */
     private SetuImageProvider selectProvider(SetuApiType apiType) {
         String beanName;
-        if (apiType != null) {
-            // 1. 如果代码明确指定了 API 类型，优先使用
-            beanName = apiType.getValue();
-        } else {
-            // 2. 否则使用配置的默认 API 类型
-            beanName = SetuApiType.LOLICON.getValue();
-        }
+        // 1. 如果代码明确指定了 API 类型，优先使用
+        // 2. 否则使用配置的默认 API 类型
+        beanName = Objects.requireNonNullElse(apiType, SetuApiType.LOLICON).getValue();
 
         SetuImageProvider provider = providerMap.get(beanName);
         if (provider == null) {
@@ -171,10 +170,10 @@ public class SetuServiceImpl implements SetuService {
     /**
      * 根据模式字符串决定是否请求 R18
      */
-    private boolean determineR18Flag(String contentMode) {
+    private boolean determineR18Flag(AdultContentMode contentMode) {
         return switch (contentMode) {
-            case MODE_R18 -> true;
-            case MODE_MIX -> Math.random() > 0.5;
+            case R18 -> true;
+            case MIX -> Math.random() > 0.5;
             default -> false;
         };
     }
@@ -299,31 +298,136 @@ public class SetuServiceImpl implements SetuService {
     }
 
 
-    private void sendR18Files(List<Path> downloadedPaths) {
+    private void sendR18Files(List<Path> downloadedPaths, SetuPluginConfig config) {
         String outputDir = fileStorageProperties.getLocal().getBasePath() + File.separator + "setu_tmp";
         String baseName = "Setu_" + System.currentTimeMillis();
 
-        safeSendMessageService.sendSafeFiles(
-                downloadedPaths,
-                outputDir,
-                baseName,
-                result -> log.info("R18 文件发送成功: {}", result.getStatus()),
-                (ex, path) -> {
-                    log.error("R18 文件发送失败", ex);
-                    if (ex instanceof RuntimeException re) throw re;
-                    throw new BusinessException("真正的瑟图被吞了...");
-                }
-        );
+        Bot bot = BotContext.CURRENT_BOT.get();
+        MessageEvent event = BotContext.CURRENT_MESSAGE_EVENT.get();
+
+        try {
+            Path packedFilePath = packFiles(downloadedPaths, outputDir, baseName, true); // force zip/pdf logic for R18
+            if (packedFilePath == null) {
+                throw new BusinessException("文件打包失败");
+            }
+            String fileName = packedFilePath.getFileName().toString();
+
+            FileUploadUtil.uploadFileAsync(bot, event, packedFilePath, fileName)
+                    .handle((result, throwable) -> {
+                        try {
+                            if (throwable != null) {
+                                log.error("R18 文件上传异常: {}", fileName, throwable);
+                            } else if (result != null && result.isSuccess()) {
+                                log.info("R18 文件发送成功: {}", result.getStatus());
+                                // 触发撤回逻辑
+                                tryRevokeGroupFile(bot, event, fileName, config);
+                            } else {
+                                log.warn("R18 文件上传未成功: {}", result);
+                            }
+                        } finally {
+                            FileUtil.deleteFileWithRetry(packedFilePath.toAbsolutePath().toString());
+                        }
+                        return null;
+                    });
+        } catch (Exception e) {
+            log.error("R18 文件发送流程失败", e);
+            throw new BusinessException("真正的瑟图被吞了...");
+        }
     }
 
 
-    private void sendSfwImages(List<Path> downloadedPaths) {
+    private void sendSfwImages(List<Path> downloadedPaths, SetuPluginConfig config) {
+        ContentSendMode sendMode = (config != null && config.getSendMode() != null)
+                ? config.getSendMode()
+                : ContentSendMode.IMAGE;
+
+        // 根据配置选择发送方式
+        switch (sendMode) {
+            case FORWARD -> sendForwardMessage(downloadedPaths);
+            case PDF -> sendPdfInternal(downloadedPaths, config);
+            default -> sendImageMessage(downloadedPaths);
+        }
+    }
+
+    private void sendPdfInternal(List<Path> downloadedPaths, SetuPluginConfig config) {
+        String outputDir = fileStorageProperties.getLocal().getBasePath() + File.separator + "setu_tmp";
+        String baseName = "Setu_SFW_" + System.currentTimeMillis();
+        Bot bot = BotContext.CURRENT_BOT.get();
+        MessageEvent event = BotContext.CURRENT_MESSAGE_EVENT.get();
+
+        try {
+            Path packedFilePath = packFiles(downloadedPaths, outputDir, baseName, false);
+            if (packedFilePath == null) throw new BusinessException("文件打包失败");
+
+            String fileName = packedFilePath.getFileName().toString();
+            // 上传文件
+            FileUploadUtil.uploadFileAsync(bot, event, packedFilePath, fileName)
+                    .handle((result, throwable) -> {
+                        try {
+                            if (throwable != null) {
+                                log.error("SFW PDF发送失败", throwable);
+                            } else {
+                                log.info("SFW PDF发送成功: {}", result != null ? result.getStatus() : "unknown");
+                                tryRevokeGroupFile(bot, event, fileName, config);
+                            }
+                        } finally {
+                            FileUtil.deleteFileWithRetry(packedFilePath.toAbsolutePath().toString());
+                        }
+                        return null;
+                    });
+        } catch (Exception e) {
+            log.error("SFW PDF 发送异常", e);
+            throw new BusinessException("PDF 发送失败: " + e.getMessage());
+        }
+    }
+
+    private void sendForwardMessage(List<Path> downloadedPaths) {
+        Bot bot = BotContext.CURRENT_BOT.get();
+        MessageEvent event = BotContext.CURRENT_MESSAGE_EVENT.get();
+        Long groupId = (event instanceof GroupMessageEvent ge) ? ge.getGroupId() : null;
+
+        if (groupId == null) {
+            // 私聊不支持合并转发（或支持受限），降级为图片发送
+            sendImageMessage(downloadedPaths);
+            return;
+        }
+
+        try {
+            List<String> msgList = new ArrayList<>();
+            // 构造每一个节点的消息
+            for (Path path : downloadedPaths) {
+                 String fileUrl = path.toUri().toString();
+                 String nodeMsg = MsgUtils.builder()
+                         .img(fileUrl)
+                         .build();
+                 msgList.add(nodeMsg);
+            }
+
+            // 生成转发消息节点
+            List<Map<String, Object>> forwardNodes = ShiroUtils.generateForwardMsg(bot, msgList);
+
+            // 发送
+            ActionData<MsgId> result = bot.sendGroupForwardMsg(groupId, forwardNodes);
+            if (result.getRetCode() != 0) {
+                 throw new RuntimeException("合并转发发送失败，RetCode=" + result.getRetCode());
+            }
+            log.info("SFW 合并转发发送成功");
+
+        } catch (Exception e) {
+            log.error("合并转发发送异常，尝试降级为普通图片发送", e);
+            sendImageMessage(downloadedPaths);
+        }
+    }
+
+    private void sendImageMessage(List<Path> downloadedPaths) {
         List<String> localUrlList = downloadedPaths.stream()
                 .map(path -> path.toUri().toString())
                 .toList();
 
         // 构建回复消息
         MessageEvent messageEvent = BotContext.CURRENT_MESSAGE_EVENT.get();
+        Bot bot = BotContext.CURRENT_BOT.get();
+
         Integer msgId = switch (messageEvent) {
             case GroupMessageEvent e -> e.getMessageId();
             case PrivateMessageEvent e -> e.getMessageId();
@@ -333,48 +437,125 @@ public class SetuServiceImpl implements SetuService {
         if (msgId != null) {
             builder.reply(msgId);
         }
-        String msg = builder.at(messageEvent.getUserId())
-                .text(StringUtils.SPACE + "找到 " + localUrlList.size() + " 张符合要求的图片~")
-                .build();
+        String msgContent = StringUtils.SPACE + "找到 " + localUrlList.size() + " 张符合要求的图片~";
+        builder.at(messageEvent.getUserId()).text(msgContent);
 
-        safeSendMessageService.sendMessage(
-                msg,
-                localUrlList,
-                result -> log.info("SFW 图片发送成功: {}", result.getStatus()),
-                ex -> {
-                    log.warn("SFW 直发失败，尝试混淆后重发: {}", ex.getMessage());
+        // 添加图片
+        for (String url : localUrlList) {
+            builder.img(url);
+        }
 
-                    // === 新增：混淆重试逻辑 ===
-                    try {
-                        // 1. 使用工具类包装图片
-                        List<Path> obfuscatedPaths = imageObfuscator.wrap(downloadedPaths);
+        try {
+            SendMsgResult result = SendMsgUtil.sendMsgByEvent(bot, messageEvent, builder.build(), false);
+            if (result.isSuccess()) {
+                log.info("SFW 图片发送成功: {}", result.getStatus());
+            } else {
+                throw new RuntimeException("发送失败: " + result.getStatus());
+            }
+        } catch (Exception ex) {
+            log.warn("SFW 直发失败，尝试混淆后重发: {}", ex.getMessage());
+            // === 混淆重试逻辑 ===
+            try {
+                // 1. 使用工具类包装图片
+                List<Path> obfuscatedPaths = imageObfuscator.wrap(downloadedPaths);
 
-                        if (obfuscatedPaths.isEmpty()) {
-                            throw new BusinessException("图片混淆失败，无法重试");
-                        }
-
-                        List<String> newUrlList = obfuscatedPaths.stream()
-                                .map(path -> path.toUri().toString())
-                                .toList();
-
-                        // 2. 尝试再次发送
-                        safeSendMessageService.sendMessage(
-                                msg ,
-                                newUrlList,
-                                res -> log.info("混淆图片补发成功"),
-                                retryEx -> {
-                                    log.error("混淆图片补发依然失败", retryEx);
-                                    // 只有这里才抛出最终异常
-                                    throw new BusinessException("瑟图被严格审核拦截了，发不出来...");
-                                }
-                        );
-
-                    } catch (Exception e) {
-                        log.error("执行混淆重发流程异常", e);
-                        if (e instanceof RuntimeException re) throw re;
-                    }
+                if (obfuscatedPaths.isEmpty()) {
+                    throw new BusinessException("图片混淆失败，无法重试");
                 }
-        );
+
+                List<String> newUrlList = obfuscatedPaths.stream()
+                        .map(path -> path.toUri().toString())
+                        .toList();
+
+                MsgUtils retryBuilder = MsgUtils.builder();
+                if (msgId != null) {
+                    retryBuilder.reply(msgId);
+                }
+                retryBuilder.at(messageEvent.getUserId()).text(msgContent);
+                for (String url : newUrlList) {
+                    retryBuilder.img(url);
+                }
+
+                SendMsgResult retryResult = SendMsgUtil.sendMsgByEvent(bot, messageEvent, retryBuilder.build(), false);
+                if (retryResult.isSuccess()) {
+                    log.info("混淆图片补发成功");
+                } else {
+                    throw new BusinessException("瑟图被严格审核拦截了，发不出来...");
+                }
+
+            } catch (Exception e) {
+                log.error("执行混淆重发流程异常", e);
+                throw (RuntimeException) e;
+            }
+        }
+    }
+
+    private Path packFiles(List<Path> filePaths, String outputDir, String baseName, boolean isR18) throws IOException { // Added 'isR18' param just in case logic differs
+        long totalSize = filePaths.stream().mapToLong(p -> p.toFile().length()).sum();
+        File dir = new File(outputDir);
+        if (!dir.exists()) {
+            if (!dir.mkdirs()) {
+                throw new IOException("Unable to create directory: " + dir.getAbsolutePath());
+            }
+        }
+
+        if (totalSize >= ZIP_THRESHOLD) {
+            String zipName = baseName + "_" + UUID.randomUUID().toString().substring(0, 8) + ".zip";
+            Path zipPath = Paths.get(outputDir, zipName);
+            createZip(filePaths, zipPath);
+            return zipPath;
+        } else {
+            return PdfUtil.wrapImageIntoPdf(filePaths, outputDir + File.separator + baseName);
+        }
+    }
+
+    private void createZip(List<Path> files, Path zipFilePath) throws IOException {
+        try (FileOutputStream fos = new FileOutputStream(zipFilePath.toFile());
+             ZipArchiveOutputStream zaos = new ZipArchiveOutputStream(fos)) {
+            for (Path path : files) {
+                File file = path.toFile();
+                if (file.exists() && file.isFile()) {
+                    ZipArchiveEntry entry = new ZipArchiveEntry(file.getName());
+                    zaos.putArchiveEntry(entry);
+                    try (FileInputStream fis = new FileInputStream(file)) {
+                        fis.transferTo(zaos);
+                    }
+                    zaos.closeArchiveEntry();
+                }
+            }
+        }
+    }
+
+    private void tryRevokeGroupFile(Bot bot, MessageEvent event, String fileName, SetuPluginConfig config) {
+        Long groupId = null;
+        if (event instanceof GroupMessageEvent ge) {
+            groupId = ge.getGroupId();
+        }
+
+        if (groupId == null) {
+            return;
+        }
+
+        boolean shouldRevoke = config.isRevokeEnabled();
+
+        if (!shouldRevoke) {
+            return;
+        }
+
+        int delay = config.getRevokeDelay();
+
+        log.info("将在 {} 秒后撤回群组 {} 的文件: {}", delay, groupId, fileName);
+
+        Long finalGroupId = groupId;
+        CompletableFuture.delayedExecutor(delay, TimeUnit.SECONDS).execute(() -> {
+            try {
+                GroupMessageEvent ge = (GroupMessageEvent) event;
+                FileUploadUtil.deleteGroupFile(bot, ge, fileName);
+                log.info("群组 {} 已撤回文件: {}", finalGroupId, fileName);
+            } catch (Exception e) {
+                log.error("自动撤回群文件失败: {}", fileName, e);
+            }
+        });
     }
 
     private String generateCacheKeyFromUrl(String imageUrl) {

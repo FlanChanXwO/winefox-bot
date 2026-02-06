@@ -3,9 +3,13 @@ package com.github.winefoxbot.plugins.setu.aitools;
 import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.model.enums.common.MessageType;
 import com.github.winefoxbot.core.service.common.SmartTagService;
+import com.github.winefoxbot.core.utils.PluginConfigBinder;
+import com.github.winefoxbot.plugins.fortune.config.FortunePluginConfig;
+import com.github.winefoxbot.plugins.setu.config.SetuPluginConfig;
 import com.github.winefoxbot.plugins.setu.service.SetuService;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.BotContainer;
+import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -29,6 +33,7 @@ public class SetuRandomImageTool {
 
     private final SetuService setuService;
     private final SmartTagService tagService;
+    private final PluginConfigBinder configBinder;
 
     public record SetuRequest(
             @ToolParam(required = false, description = "图片标签或关键词，例如'白丝'、'黑丝'、'碧蓝档案'等。如果用户没有指定，则为空。")
@@ -55,8 +60,14 @@ public class SetuRandomImageTool {
                 if (request.num <= 0 || request.num > 10) {
                     return new SetuResponse(false, "请求图片数量必须在1到10之间");
                 }
-                List<String> searchTags = tagService.getSearchTags(request.keyword());
-                setuService.handleSetuRequest(request.num, searchTags);
+                Bot bot = BotContext.CURRENT_BOT.get();
+                AnyMessageEvent messageEvent = (AnyMessageEvent) BotContext.CURRENT_MESSAGE_EVENT.get();
+                SetuPluginConfig config = SetuPluginConfig.class.getDeclaredConstructor().newInstance();
+                configBinder.bind(config, messageEvent.getGroupId(), messageEvent.getUserId());
+                BotContext.runWithContext(bot,messageEvent,config, () -> {
+                    List<String> searchTags = tagService.getSearchTags(request.keyword());
+                    setuService.handleSetuRequest(request.num, searchTags);
+                });
                 return new SetuResponse(true, "已成功触发图片发送请求");
             } catch (Exception e) {
                 log.error("AI工具调用SetuService失败", e);

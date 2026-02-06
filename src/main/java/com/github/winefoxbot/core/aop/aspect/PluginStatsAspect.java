@@ -2,6 +2,7 @@ package com.github.winefoxbot.core.aop.aspect;
 
 import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.event.PluginCalledEvent;
+import com.github.winefoxbot.core.model.enums.common.PluginType;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +48,12 @@ public class PluginStatsAspect {
             shouldRecord = false;
         }
 
+        // 3. 额外过滤插件配置中禁止统计的插件
+        if (pluginAnno.type().equals(PluginType.PASSIVE)) {
+            shouldRecord = false;
+        }
+
+        // 4. 发布插件调用事件
         if (shouldRecord) {
             try {
                 String className = joinPoint.getTarget().getClass().getName();

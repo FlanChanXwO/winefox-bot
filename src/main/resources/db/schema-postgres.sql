@@ -266,9 +266,9 @@ CREATE TABLE IF NOT EXISTS fortune_data
 (
     user_id      BIGINT NOT NULL PRIMARY KEY, -- 用户QQ号/ID
     star_num     INT    NOT NULL DEFAULT 0,   -- 运势星级 (0-7)
-    fortune_date DATE   NOT NULL              -- 运势日期 (yyyy-MM-dd)
+    fortune_date DATE   NOT NULL,             -- 运势日期 (yyyy-MM-dd)
+    img_url      TEXT                         -- 运势图片链接
 );
-
 
 
 CREATE TABLE IF NOT EXISTS winefox_bot_connection_logs

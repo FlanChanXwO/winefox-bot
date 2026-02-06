@@ -2,7 +2,9 @@ package com.github.winefoxbot.plugins.repeater;
 
 import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
+import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.model.enums.common.Permission;
+import com.github.winefoxbot.plugins.repeater.config.RepeaterPluginConfig;
 import com.mikuac.shiro.annotation.GroupMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Order;
@@ -13,6 +15,7 @@ import com.mikuac.shiro.enums.MsgTypeEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,15 +35,18 @@ import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
         permission = Permission.USER,
         iconPath = "icon/娱乐功能.png",
         order = 7,
-        description = "提供复读跟随功能和群消息复读功能。"
+        description = "提供复读跟随功能和群消息复读功能。",
+        config = RepeaterPluginConfig.class
 )
 @Slf4j
 public class RepeaterPlugin {
 
     private final Map<Long, Set<Long>> repeaterFollowers = new ConcurrentHashMap<>();
+    private final Map<Long, String> lastMessage = new ConcurrentHashMap<>();
+    private final Map<Long, Integer> messageTimes = new ConcurrentHashMap<>();
+    private final Map<Long, Long> lastSenderId = new ConcurrentHashMap<>();
 
-    private static final int MAX_FOLLOWERS_PER_GROUP = 10;
-
+    private static final Pattern IMAGE_PATTERN = Pattern.compile("\\[CQ:image.*?file=(.*?).jpg.*?url=(.*?)\\]");
 
     @PluginFunction( name = "复读",
             description = "使用 " + COMMAND_PREFIX + "复读跟随" + COMMAND_SUFFIX + " 命令开启复读跟随功能，使用 "+COMMAND_PREFIX+"停止复读跟随"+COMMAND_SUFFIX+" 关闭该功能。当你发送消息时，机器人会自动复读你的消息。" +
@@ -62,22 +68,23 @@ public class RepeaterPlugin {
 
     private void enableFollowRepeat(Bot bot, Long groupId, Long userId) {
         // 1. 获取或创建当前群组的跟随者集合
-        // computeIfAbsent 确保了线程安全地创建 Set
         Set<Long> followersInGroup = repeaterFollowers.computeIfAbsent(groupId, k -> ConcurrentHashMap.newKeySet());
+
+        RepeaterPluginConfig config = (RepeaterPluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
+        int maxFollowersPerGroup = config.getMaxFollowersPerGroup();
 
         // 2. 检查是否已达到人数上限
         // 在添加前检查，需要考虑当前用户是否已经存在于集合中
-        if (followersInGroup.size() >= MAX_FOLLOWERS_PER_GROUP && !followersInGroup.contains(userId)) {
+        if (followersInGroup.size() >= maxFollowersPerGroup && !followersInGroup.contains(userId)) {
             log.warn("Group {} reached max repeater followers limit. User {} failed to enable.", groupId, userId);
             bot.sendGroupMsg(groupId, MsgUtils.builder()
                     .at(userId)
-                    .text("抱歉，本群的复读跟随名额（" + MAX_FOLLOWERS_PER_GROUP + "人）已满！")
+                    .text("抱歉，本群的复读跟随名额（" + maxFollowersPerGroup + "人）已满！")
                     .build(), false);
             return;
         }
 
         // 3. 将用户添加到集合中
-        // Set.add() 方法如果用户已存在，会返回 false，否则返回 true
         if (followersInGroup.add(userId)) {
             // 如果添加成功（之前不在集合里）
             log.info("User {} enabled repeater follow in group {}. Current followers: {}", userId, groupId, followersInGroup.size());
@@ -120,7 +127,6 @@ public class RepeaterPlugin {
         }
     }
 
-
     @Order(10)
     @GroupMessageHandler
     @Async
@@ -137,21 +143,9 @@ public class RepeaterPlugin {
         }
     }
 
-
-    private static final int SHORTEST_LENGTH = 1; // 最短消息长度
-    private static final int SHORTEST_TIMES = 4;  // 最少重复次数
-    private static final String[] BLACKLIST = {"黑名单消息1", "黑名单消息2"}; // 黑名单消息
-
-    private final Map<Long, String> lastMessage = new ConcurrentHashMap<>();
-    private final Map<Long, Integer> messageTimes = new ConcurrentHashMap<>();
-    private final Map<Long, Long> lastSenderId = new ConcurrentHashMap<>();
-
-    private static final Pattern IMAGE_PATTERN = Pattern.compile("\\[CQ:image.*?file=(.*?).jpg.*?url=(.*?)\\]");
-
     @Order(100)
     @GroupMessageHandler
     public void handleRepeatPlusOneMessage(Bot bot, GroupMessageEvent event) {
-        // --- 原有逻辑开始 ---
         if (event.getGroupId() == null) {
             return;
         }
@@ -167,8 +161,11 @@ public class RepeaterPlugin {
             return;
         }
 
+        RepeaterPluginConfig config = (RepeaterPluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
+        List<String> blacklist = config.getBlacklist();
+
         // 黑名单检查
-        for (String blocked : BLACKLIST) {
+        for (String blocked : blacklist) {
             if (rawMessage.equals(blocked)) {
                 resetCounter(groupId); // 中断计数
                 return;
@@ -176,7 +173,7 @@ public class RepeaterPlugin {
         }
 
         // 忽略过短消息
-        if (rawMessage.length() < SHORTEST_LENGTH) {
+        if (rawMessage.isEmpty()) {
             resetCounter(groupId); // 中断计数
             return;
         }
@@ -196,7 +193,8 @@ public class RepeaterPlugin {
                 messageTimes.put(groupId, newTimes);
 
                 // 判断是否达到触发复读的次数
-                if (newTimes == SHORTEST_TIMES) {
+                int shortestTimes = config.getShortestTimes();
+                if (newTimes == shortestTimes) {
                     // log.info("RepeaterPlugin triggered in group {}: message '{}'", groupId, rawMessage);
                     bot.sendGroupMsg(groupId, rawMessage, false); // 发送原始消息
 
@@ -235,7 +233,7 @@ public class RepeaterPlugin {
     private String preprocessMessage(String message) {
         Matcher matcher = IMAGE_PATTERN.matcher(message);
         // 使用 StringBuffer/StringBuilder 以获得更好的性能
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         while (matcher.find()) {
             // group(1) 捕获的是 file ID
             String fileId = matcher.group(1);

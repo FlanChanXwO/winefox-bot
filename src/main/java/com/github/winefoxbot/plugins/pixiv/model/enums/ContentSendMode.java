@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.model.enums.adultcontent;
+package com.github.winefoxbot.plugins.pixiv.model.enums;
 
 import com.baomidou.mybatisplus.annotation.EnumValue;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -7,28 +7,30 @@ import com.github.winefoxbot.core.model.type.BaseEnum;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * @author FlanChan (badapple495@outlook.com)
+ * @since 2026-02-05-18:54
+ */
 @Getter
 @RequiredArgsConstructor
-public enum AdultContentMode implements BaseEnum<String> {
-    
-    SFW("sfw", "🟢 安全模式 (SFW)"),
-    R18("r18", "🔞 仅限成人 (R18)"),
-    MIX("mix", "🔀 混合模式 (MIX)");
+public enum ContentSendMode  implements BaseEnum<String> {
+    FORWARD("forward", "合并转发"),
+    IMAGE("image", "图片"),
+    PDF("pdf", "PDF");
 
     @EnumValue
     @JsonValue
     private final String value;
-    
+
     // 增加一个描述字段，用于前端下拉框的 Label 显示
     private final String description;
     @JsonCreator
-    public static AdultContentMode fromValue(String value) {
-        for (AdultContentMode mode : values()) {
+    public static ContentSendMode fromValue(String value) {
+        for (ContentSendMode mode : values()) {
             if (mode.value.equalsIgnoreCase(value)) {
                 return mode;
             }
         }
-        // 默认返回 SFW，防止配置错误导致崩溃
-        return SFW;
+        return IMAGE;
     }
 }

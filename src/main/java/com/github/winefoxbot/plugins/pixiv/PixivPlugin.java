@@ -15,6 +15,7 @@ import com.github.winefoxbot.core.service.schedule.handler.BotJobHandler;
 import com.github.winefoxbot.core.service.shiro.ShiroSessionStateService;
 import com.github.winefoxbot.core.utils.CronFormatter;
 import com.github.winefoxbot.core.utils.FileUtil;
+import com.github.winefoxbot.plugins.pixiv.config.PixivPluginConfig;
 import com.github.winefoxbot.plugins.pixiv.job.PixivRankDailyJob;
 import com.github.winefoxbot.plugins.pixiv.job.PixivRankMonthlyJob;
 import com.github.winefoxbot.plugins.pixiv.job.PixivRankWeeklyJob;
@@ -62,7 +63,8 @@ import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
         permission = Permission.USER,
         iconPath = "icon/pixiv.png",
         description = "提供Pixiv图片获取、排行榜订阅、搜索等功能。",
-        order = 13
+        order = 13,
+        config = PixivPluginConfig.class
 )
 @Slf4j
 @RequiredArgsConstructor
@@ -715,7 +717,6 @@ public class PixivPlugin {
         Long userId = event.getUserId();
         Long groupId = event.getGroupId();
         try {
-            bot.sendMsg(event, "正在从收藏夹中抽取作品，请稍候...", false);
             // 1. 随机获取一个收藏
             Optional<PixivBookmark> bookmarkOptional = pixivBookmarkService.getRandomBookmark(userId,groupId);
             if (bookmarkOptional.isEmpty()) {

@@ -22,16 +22,13 @@ import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import java.util.Random;
 
 /**
@@ -49,9 +46,6 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
     private final OkHttpClient httpClient;
     private final FortuneRenderService renderService;
 
-    @Lazy
-    @Autowired
-    private FortuneDataService self;
 
     private final double[] WEIGHTS = {0.1, 0.15, 0.2, 0.25, 0.15, 0.12, 0.07, 0.005};
 
@@ -61,7 +55,7 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
         final long userId = event.getUserId();
 
         // 获取用户显示名称 (群名片 > 昵称)
-        String displayName = "OP";
+        String displayName = event.getUserId().toString();
         if (event.getSender() != null) {
             displayName = event.getSender().getCard() != null && !event.getSender().getCard().isEmpty()
                     ? event.getSender().getCard()
@@ -108,23 +102,39 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
             }
         }
 
+        String imageUrl = null;
         if (needNewFortune) {
             starNum = calculateLuck();
+            // 尝试获取图片并持久化
+            if (!"none".equals(apiConfig.getApi())) {
+                try {
+                    imageUrl = getImageUrlInternal(apiConfig.getApi());
+                } catch (Exception e) {
+                    log.error("获取运势图片失败", e);
+                }
+            }
+
             var newData = FortuneData.builder()
                     .userId(userId)
                     .starNum(starNum)
                     .fortuneDate(today)
+                    .imgUrl(imageUrl)
                     .build();
             this.saveOrUpdate(newData);
-        }
-
-        // 2. 数据组装：准备渲染所需的 VO 对象
-        String imageUrl = null;
-        if ( !"none".equals(apiConfig.getApi())) {
-            try {
-                imageUrl = self.getSyncedImageUrl(apiConfig.getApi(), userId, today.toString());
-            } catch (Exception e) {
-                log.error("获取运势图片失败", e);
+        } else {
+            // 复用已有运势图片
+            imageUrl = data.getImgUrl();
+            // 如果已有数据中没有图片（可能之前获取失败），且配置开启了图片，则尝试补获
+            if (imageUrl == null && !"none".equals(apiConfig.getApi())) {
+                try {
+                    imageUrl = getImageUrlInternal(apiConfig.getApi());
+                    if (imageUrl != null) {
+                        data.setImgUrl(imageUrl);
+                        this.updateById(data);
+                    }
+                } catch (Exception e) {
+                    log.error("补获运势图片失败", e);
+                }
             }
         }
 
@@ -230,8 +240,36 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
         return 0;
     }
 
-    // 将原 getImageUrl 改名为 Internal，供缓存方法调用
     private String getImageUrlInternal(String apiType) {
+        int maxRetries = 3;
+        for (int i = 0; i < maxRetries; i++) {
+            String url = getImageUrlCandidate(apiType);
+            if (url != null) {
+                if (isResourceAvailable(url)) {
+                    return url;
+                }
+                log.warn("获取到的图片URL无效或无法访问 (Retry {}/{}): {}", i + 1, maxRetries, url);
+            }
+        }
+        return null;
+    }
+
+    private boolean isResourceAvailable(String url) {
+        try {
+            Request request = new Request.Builder()
+                    .url(url)
+                    .head()
+                    .build();
+            try (Response response = httpClient.newCall(request).execute()) {
+                return response.isSuccessful();
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    // 底层获取图片URL逻辑
+    private String getImageUrlCandidate(String apiType) {
         if ("none".equals(apiType)) {
             return null;
         }
@@ -248,6 +286,7 @@ public class FortuneDataServiceImpl extends ServiceImpl<FortuneDataMapper, Fortu
                             .build();
                     yield fetchUrlFromJson(loliconUrl.toString(), "$.data[0].url");
                 }
+
                 case "custom" -> {
                     FortuneApiConfig.CustomApiConfig custom = apiConfig.getCustomApi();
                     if (custom == null || custom.getUrl() == null) yield null;
