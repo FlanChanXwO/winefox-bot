@@ -1,5 +1,7 @@
 package com.github.winefoxbot.plugins.chat.service;
 
+import cn.hutool.json.JSONArray;
+import cn.hutool.json.JSONObject;
 import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.model.entity.ShiroUserMessage;
 import com.github.winefoxbot.core.model.enums.common.MessageDirection;
@@ -23,12 +25,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AiInteractionHelper {
 
-    /**
-     * 重构后的 DTO：不再包含 JSON Node，而是直接包含格式化好的文本
-     */
     @Data
     public static class AiMessageInput {
-        private String textContent; // 格式化后的文本，例如 "[张三]: 你好"
+        private String textContent; // 格式化后的文本
         private List<String> imageUrls; // 图片URL列表
 
         public AiMessageInput(String textContent, List<String> imageUrls) {
@@ -48,13 +47,38 @@ public class AiInteractionHelper {
                 : (shiroMsg.getCard() != null ? shiroMsg.getCard() : shiroMsg.getNickname());
 
         List<String> imageUrls = new ArrayList<>();
+        JSONArray message = shiroMsg.getMessage();
+        if (message != null) {
+            for (int i = 0; i < message.size(); i++) {
+                JSONObject item = null;
+                try {
+                    item = message.getJSONObject(i);
+                } catch (Exception e) {
+                    continue;
+                }
+                if (item != null && "image".equals(item.getStr("type"))) {
+                    JSONObject data = item.getJSONObject("data");
+                    if (data != null) {
+                        String url = data.getStr("url");
+                        if (StringUtils.isNotBlank(url)) {
+                            imageUrls.add(url);
+                        }
+                    }
+                }
+            }
+        }
+
+        String rawText = shiroMsg.getPlainText();
+        if (StringUtils.isBlank(rawText)) {
+            rawText = !imageUrls.isEmpty() ? "[图片]" : "[无内容]";
+        }
 
         String finalContent;
         if (isBotMessage) {
-            finalContent = shiroMsg.getPlainText();
+            finalContent = rawText;
         } else {
             // 用户的历史记录，按照 Prompt 要求格式化
-            finalContent = String.format("[%s(%s)]: %s", nickname,shiroMsg.getUserId(), shiroMsg.getPlainText());
+            finalContent = String.format("[%s(%s)]: %s", nickname, shiroMsg.getUserId(), rawText);
         }
 
         return new AiMessageInput(finalContent, imageUrls);
@@ -79,7 +103,7 @@ public class AiInteractionHelper {
         String plainText = MessageConverter.getPlainTextMessage(rawMessage);
 
         // 2. 提取图片列表
-        List<String> imageUrls = ShiroUtils.getMsgImgUrlList(event.getArrayMsg());;
+        List<String> imageUrls = ShiroUtils.getMsgImgUrlList(event.getArrayMsg());
 
         // 3. 处理唤醒词逻辑 (解决需要手动输入"酒狐"的问题)
         // 既然进入了这个方法，说明 Controller 层已经校验过 At 了 (或者在私聊)

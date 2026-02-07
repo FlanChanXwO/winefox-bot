@@ -38,6 +38,7 @@ public class CurrentTimeTool {
     """)
     public Function<Void,String> getCurrentDateTime() {
         return _ -> {
+            log.info("AI调用获取当前时间工具");
             // 获取当前日期
             LocalDate currentDate = LocalDate.now();
             // 获取当前时间

@@ -1,7 +1,5 @@
 package com.github.winefoxbot.plugins.chat.service.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.model.entity.ShiroUserMessage;
 import com.github.winefoxbot.core.model.enums.common.MessageDirection;
@@ -41,7 +39,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 /**
  * @author FlanChan
@@ -54,7 +51,6 @@ public class OpenAiServiceImpl implements OpenAiService {
     private final ChatClient chatClient;
     private final ShiroMessagesService shiroMessagesService;
     private final AiInteractionHelper aiInteractionHelper;
-    private final ObjectMapper objectMapper;
     private final WineFoxBotChatProperties wineFoxBotChatProperties;
     private final OkHttpClient okHttpClient;
 
@@ -71,45 +67,7 @@ public class OpenAiServiceImpl implements OpenAiService {
         for (int i = history.size() - 1; i >= 0; i--) {
             ShiroUserMessage shiroMsg = history.get(i);
             try {
-                // 使用 Helper 解析历史消息（包含图片提取）
-                AiMessageInput historyInput = aiInteractionHelper.createHistoryMessageInput(shiroMsg);
-                String historyMessage = objectMapper.writeValueAsString(historyInput.getTextContent());
-                boolean isBotMessage = MessageDirection.MESSAGE_SENT.equals(shiroMsg.getDirection());
-                if (isBotMessage) {
-                    messages.add(new AssistantMessage(historyMessage));
-                } else {
-                    // 如果历史记录里有图片，也需要添加
-                    // 前提是图片分析功能开启
-                    if (wineFoxBotChatProperties.getEnableImageAnalysis() && historyInput.getImageUrls() != null && !historyInput.getImageUrls().isEmpty()) {
-                        log.debug("History message {} contains images. Re-fetching URLs to prevent expiration.", shiroMsg.getId());
-
-                        List<String> freshImageUrls = new ArrayList<>();
-                        try {
-                            ActionData<MsgResp> msgResp = bot.getMsg(shiroMsg.getMessageId().intValue());
-                            MsgResp msgData = Optional.ofNullable(msgResp).map(ActionData::getData).orElse(null);
-                            if (msgData != null && msgData.getMessage() != null) {
-                                List<ArrayMsg> arrayMsgs = MessageConverser.stringToArray(msgData.getMessage());
-                                freshImageUrls = ShiroUtils.getMsgImgUrlList(arrayMsgs);
-                                log.debug("Successfully re-fetched {} fresh image URLs for message {}.", freshImageUrls.size(), shiroMsg.getId());
-                            } else {
-                                log.warn("Could not re-fetch message data for message ID: {}. Response was null or empty.", shiroMsg.getMessageId());
-                            }
-                        } catch (Exception e) {
-                            log.error("Failed to re-fetch image URLs for historical message {}", shiroMsg.getMessageId(), e);
-                        }
-
-                        List<Media> mediaList = convertUrlsToMedia(freshImageUrls);
-                        messages.add(UserMessage.builder()
-                                .text(historyMessage)
-                                .media(mediaList)
-                                .build());
-                    } else {
-                        messages.add(new UserMessage(historyMessage));
-                    }
-                }
-
-            } catch (JsonProcessingException e) {
-                log.error("Failed to process history message JSON: {}", shiroMsg.getId(), e);
+                processHistoryMessage(messages, shiroMsg, bot);
             } catch (Exception e) {
                 log.error("Error processing history message: {}", shiroMsg.getId(), e);
             }
@@ -132,6 +90,67 @@ public class OpenAiServiceImpl implements OpenAiService {
         Prompt prompt = new Prompt(messages);
         log.info("Sending {} messages to AI.", messages.size());
         return cleanResponse(chatClient.prompt(prompt).call().content());
+    }
+
+    private void processHistoryMessage(List<Message> messages, ShiroUserMessage shiroMsg, Bot bot) {
+        // 使用 Helper 解析历史消息（包含图片提取）
+        AiMessageInput historyInput = aiInteractionHelper.createHistoryMessageInput(shiroMsg);
+        String historyMessage = historyInput.getTextContent();
+        boolean isBotMessage = MessageDirection.MESSAGE_SENT.equals(shiroMsg.getDirection());
+
+        List<String> imageUrls = getEffectiveImageUrls(shiroMsg, bot, historyInput.getImageUrls());
+        List<Media> mediaList = convertUrlsToMedia(imageUrls);
+
+        if (isBotMessage) {
+            // Bot消息处理
+            if (!mediaList.isEmpty()) {
+                historyMessage += "\n[发送了图片]";
+            }
+            messages.add(new AssistantMessage(historyMessage));
+
+            // CRITICAL FIX: 如果 Bot 发送了图片，通过插入一个 System/User 代理消息让 AI 能看到这张图片
+            // 因为 AssistantMessage 不支持直接携带 Media，所以如果 AI 需要"看见"自己发的图，必须通过这种 Hack 方式
+            if (!mediaList.isEmpty()) {
+                messages.add(UserMessage.builder()
+                        .text("[System: 上一条消息是酒狐发送的图片，请知悉]")
+                        .media(mediaList)
+                        .build());
+            }
+        } else {
+            // 用户消息处理
+            if (!mediaList.isEmpty()) {
+                messages.add(UserMessage.builder()
+                        .text(historyMessage)
+                        .media(mediaList)
+                        .build());
+            } else {
+                messages.add(new UserMessage(historyMessage));
+            }
+        }
+    }
+
+    private List<String> getEffectiveImageUrls(ShiroUserMessage shiroMsg, Bot bot, List<String> storedUrls) {
+        if (!wineFoxBotChatProperties.getEnableImageAnalysis() || storedUrls == null || storedUrls.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<String> freshImageUrls = new ArrayList<>();
+        try {
+            log.debug("History message {} contains images. Re-fetching URLs to prevent expiration.", shiroMsg.getId());
+            ActionData<MsgResp> msgResp = bot.getMsg(shiroMsg.getMessageId().intValue());
+            MsgResp msgData = Optional.ofNullable(msgResp).map(ActionData::getData).orElse(null);
+            if (msgData != null && msgData.getMessage() != null) {
+                List<ArrayMsg> arrayMsgs = MessageConverser.stringToArray(msgData.getMessage());
+                freshImageUrls = ShiroUtils.getMsgImgUrlList(arrayMsgs);
+                log.debug("Successfully re-fetched {} fresh image URLs for message {}.", freshImageUrls.size(), shiroMsg.getId());
+            } else {
+                log.warn("Could not re-fetch message data for message ID: {}. Response was null or empty.", shiroMsg.getMessageId());
+            }
+        } catch (Exception e) {
+            log.error("Failed to re-fetch image URLs for historical message {}", shiroMsg.getMessageId(), e);
+        }
+
+        return freshImageUrls.isEmpty() ? storedUrls : freshImageUrls;
     }
 
 
