@@ -5,6 +5,7 @@ import com.github.winefoxbot.core.annotation.webui.ShowInDashboard;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -19,7 +20,7 @@ public class WineFoxBotRobotProperties {
      * 机器人主人QQ号
      */
     @ShowInDashboard(label = "机器人主人QQ号", description = "拥有最高权限的用户QQ号")
-    private List<Long> superUsers = List.of(3085974224L);
+    private List<Long> superUsers = new ArrayList<>();
     /**
      * 机器人昵称
      */

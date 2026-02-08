@@ -196,3 +196,5 @@ winefoxbot:
               value: "true"
             - key: "size"
               value: "original"
+    gsuid:
+      super-users: ${winefox.robot.superusers}

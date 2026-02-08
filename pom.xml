@@ -11,7 +11,7 @@
 
     <groupId>com.github</groupId>
     <artifactId>winefox-bot</artifactId>
-    <version>1.12.13</version>
+    <version>1.13.0</version>
 
     <name>winefox-bot</name>
     <description>WineFox Bot 基于 Spring Boot 和 Shiro 的 QQ 机器人</description>
@@ -22,6 +22,7 @@
         <target.version>25</target.version>
         <source.version>25</source.version>
         <spring-ai.version>2.0.0-M1</spring-ai.version>
+        <java-websocket.version>1.5.3</java-websocket.version>
         <qq.bot.framework.version>2.5.2</qq.bot.framework.version>
         <okhttp.version>4.12.0</okhttp.version>
         <lombok.version>1.18.42</lombok.version>
@@ -63,6 +64,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.java-websocket</groupId>
+            <artifactId>Java-WebSocket</artifactId>
+            <version>${java-websocket.version}</version>
         </dependency>
         <!-- 模板引擎 -->
         <dependency>

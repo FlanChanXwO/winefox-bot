@@ -43,8 +43,7 @@ spring:
 winefox:
   robot:
     # 超级管理员QQ号
-    superusers:
-      - 1241414114
+    superusers: 1241414114,1241414114
     nickname: 酒狐
     bot-id: 1123141
     master-name: master
