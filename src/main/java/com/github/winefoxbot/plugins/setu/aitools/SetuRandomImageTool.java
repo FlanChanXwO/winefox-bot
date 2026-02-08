@@ -46,7 +46,7 @@ public class SetuRandomImageTool {
             Boolean success,
            String message) {}
 
-    @Bean
+    @Bean("rarndomSetuTool")
     @Description("""
     获取一个随机的色图，可以指定标签和数量。
     当用户需要获取色图时，调用此工具以触发图片发送功能，当你请求成功时，图片已经被发送了。

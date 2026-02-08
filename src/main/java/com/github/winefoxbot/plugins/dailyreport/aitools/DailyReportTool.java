@@ -30,7 +30,7 @@ public class DailyReportTool {
     private final DailyReportService dailyReportService;
     private final PluginConfigBinder configBinder;
 
-    @Bean
+    @Bean("dailyReportGetTool")
     @Description("""
             获取酒狐日报图片的工具，酒狐日报包含每日的新番信息、60S看世界、IT资讯，以及中国国内的节假日倒计时，以及B站热搜，还有今日一言信息。
             当用户明确想要查看酒狐日报时，应该调用此工具。
