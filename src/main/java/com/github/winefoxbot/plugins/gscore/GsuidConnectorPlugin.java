@@ -18,6 +18,7 @@ import com.mikuac.shiro.model.ArrayMsg;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
+import org.springframework.scheduling.annotation.Async;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,6 +39,7 @@ public class GsuidConnectorPlugin {
 
 
     // 处理群消息
+    @Async
     @GroupMessageHandler
     public void onGroupMessage(Bot bot, GroupMessageEvent event) {
         if (coreClient.isClosed()) return;
@@ -82,6 +84,7 @@ public class GsuidConnectorPlugin {
     }
 
     // 处理私聊消息
+    @Async
     @PrivateMessageHandler
     public void onPrivateMessage(Bot bot, PrivateMessageEvent event) {
         if (coreClient.isClosed()) return;
@@ -113,6 +116,7 @@ public class GsuidConnectorPlugin {
     }
 
     // 处理频道消息
+    @Async
     @GuildMessageHandler
     public void onGuildMessage(Bot bot, GuildMessageEvent event) {
         if (coreClient.isClosed()) return;
