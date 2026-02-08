@@ -20,4 +20,5 @@ public class GsuidPluginConfig {
     private String port = "8765";
     private String wsToken = "";
     private List<Long> superUsers = new ArrayList<>();
+    private Boolean enable = false;
 }

@@ -17,6 +17,7 @@ import com.mikuac.shiro.dto.event.message.PrivateMessageEvent;
 import com.mikuac.shiro.model.ArrayMsg;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,6 +27,7 @@ import java.util.Map;
 @Slf4j
 @Plugin(name = "gsuid 适配器", description = "基于shiro bot框架连接gscore核心")
 @RequiredArgsConstructor
+@ConditionalOnBooleanProperty("winefoxbot.plugins.gsuid.enable")
 public class GsuidConnectorPlugin {
 
     private final GsuidCoreClient coreClient;

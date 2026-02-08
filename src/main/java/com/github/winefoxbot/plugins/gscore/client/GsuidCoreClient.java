@@ -15,6 +15,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -26,6 +27,7 @@ import java.util.*;
 
 @Slf4j
 @Component
+@ConditionalOnBooleanProperty("winefoxbot.plugins.gsuid.enable")
 public class GsuidCoreClient extends WebSocketClient {
 
     private final ObjectMapper objectMapper;
