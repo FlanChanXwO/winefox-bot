@@ -43,7 +43,7 @@ public class GsuidConnectorPlugin {
         if (coreClient.isClosed()) return;
 
         CoreMessage msg = new CoreMessage();
-        msg.setBotId(config.getBotId());
+        msg.setBotId("onebot");
         msg.setBotSelfId(String.valueOf(bot.getSelfId()));
         msg.setMsgId(String.valueOf(event.getMessageId()));
         msg.setUserType("group");
@@ -87,7 +87,7 @@ public class GsuidConnectorPlugin {
         if (coreClient.isClosed()) return;
 
         CoreMessage msg = new CoreMessage();
-        msg.setBotId(config.getBotId());
+        msg.setBotId("onebot");
         msg.setBotSelfId(String.valueOf(bot.getSelfId()));
         msg.setMsgId(String.valueOf(event.getMessageId()));
         msg.setUserType("direct");
