@@ -214,13 +214,13 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
             FileUploadUtil.uploadFileAsync(bot, event, packedFilePath, fileName)
                 .handle((result, throwable) -> {
                      try {
-                        if (throwable != null) {
-                            log.error("Pixiv PDF 发送失败", throwable);
-                            SendMsgUtil.sendMsgByEvent(bot, event, "PDF文件发送失败: " + throwable.getMessage(), false);
+                         if (result != null && result.isSuccess()) {
+                             String status = result.getStatus();
+                             log.info("Pixiv PDF 发送成功: PID={}, status={}", info.getPid(), status);
+                             tryRevokeGroupFile(bot, event, fileName, config);
                         } else {
-                            String status = result != null ? result.getStatus() : "unknown";
-                            log.info("Pixiv PDF 发送成功: PID={}, status={}", info.getPid(), status);
-                            tryRevokeGroupFile(bot, event, fileName, config);
+                             log.error("Pixiv PDF 发送失败", throwable);
+                             SendMsgUtil.sendMsgByEvent(bot, event, "PDF文件发送失败: " + throwable.getMessage(), false);
                         }
                     } finally {
                         FileUtil.deleteFileWithRetry(packedFilePath.toAbsolutePath().toString());
@@ -254,18 +254,13 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
 
              String fileName = packedFilePath.getFileName().toString();
              FileUploadUtil.uploadFileAsync(bot, event, packedFilePath, fileName)
-                .handle((result, throwable) -> {
+                .handle((result, _) -> {
                     try {
-                        if (throwable != null) {
-                            log.error("Pixiv R18 文件上传异常", throwable);
-                            // 上传失败尝试降级混淆发送
-                            sendObfuscatedImageMessage(info, filePaths, "R18文件上传失败，尝试混淆图片发送", bot, event, config);
-                        } else if (result != null && result.isSuccess()) {
+                        if (result != null && result.isSuccess()) {
                             log.info("Pixiv R18 文件发送成功: PID={}", info.getPid());
                             tryRevokeGroupFile(bot, event, fileName, config);
                         } else {
-                             log.warn("Pixiv R18 文件上传失败: {}", result);
-                             sendObfuscatedImageMessage(info, filePaths, "R18文件上传未成功，尝试混淆图片发送", bot, event, config);
+                            log.warn("Pixiv R18 文件上传失败: {}", result);
                         }
                     } finally {
                         FileUtil.deleteFileWithRetry(packedFilePath.toAbsolutePath().toString());
@@ -274,13 +269,7 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
                 });
         } catch (Exception e) {
             log.error("R18 文件发送流程失败", e);
-            // 尝试混淆发送
-            try {
-                sendObfuscatedImageMessage(info, filePaths, "R18打包发送失败，尝试混淆图片发送", bot, event, config);
-            } catch (Exception ex) {
-                log.error("R18 混淆补发也失败了", ex);
-                throw new BusinessException("真正的瑟图被吞了...");
-            }
+            throw new BusinessException("R18文件发送失败...");
         }
     }
 

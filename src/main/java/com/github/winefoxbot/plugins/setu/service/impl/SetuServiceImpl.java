@@ -314,19 +314,13 @@ public class SetuServiceImpl implements SetuService {
             String fileName = packedFilePath.getFileName().toString();
 
             FileUploadUtil.uploadFileAsync(bot, event, packedFilePath, fileName)
-                    .handle((result, throwable) -> {
+                    .handle((result, _) -> {
                         try {
-                            if (throwable != null) {
-                                log.error("R18 文件上传异常: {}", fileName, throwable);
-                                // 上传失败尝试降级混淆发送
-                                sendObfuscatedImageMessage(downloadedPaths, "R18文件上传失败，尝试混淆图片发送");
-                            } else if (result != null && result.isSuccess()) {
+                            if (result != null && result.isSuccess()) {
                                 log.info("R18 文件发送成功: {}", result.getStatus());
-                                // 触发撤回逻辑
                                 tryRevokeGroupFile(bot, event, fileName, config);
                             } else {
                                 log.warn("R18 文件上传未成功: {}", result);
-                                sendObfuscatedImageMessage(downloadedPaths, "R18文件上传未成功，尝试混淆图片发送");
                             }
                         } finally {
                             FileUtil.deleteFileWithRetry(packedFilePath.toAbsolutePath().toString());
@@ -335,13 +329,7 @@ public class SetuServiceImpl implements SetuService {
                     });
         } catch (Exception e) {
             log.error("R18 文件发送流程失败", e);
-            // 尝试混淆发送
-            try {
-                sendObfuscatedImageMessage(downloadedPaths, "R18打包发送失败，尝试混淆图片发送");
-            } catch (Exception ex) {
-                log.error("R18 混淆补发也失败了", ex);
-                throw new BusinessException("真正的瑟图被吞了...");
-            }
+            throw new BusinessException("R18 文件发送失败");
         }
     }
 
@@ -372,13 +360,13 @@ public class SetuServiceImpl implements SetuService {
             String fileName = packedFilePath.getFileName().toString();
             // 上传文件
             FileUploadUtil.uploadFileAsync(bot, event, packedFilePath, fileName)
-                    .handle((result, throwable) -> {
+                    .handle((result, _) -> {
                         try {
-                            if (throwable != null) {
-                                log.error("SFW PDF发送失败", throwable);
-                            } else {
-                                log.info("SFW PDF发送成功: {}", result != null ? result.getStatus() : "unknown");
+                            if (result != null && result.isSuccess()) {
+                                log.info("SFW PDF发送成功: {}", result.getStatus());
                                 tryRevokeGroupFile(bot, event, fileName, config);
+                            } else {
+                                log.error("SFW PDF发送失败");
                             }
                         } finally {
                             FileUtil.deleteFileWithRetry(packedFilePath.toAbsolutePath().toString());
