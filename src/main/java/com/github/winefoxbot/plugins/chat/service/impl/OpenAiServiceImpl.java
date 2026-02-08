@@ -35,6 +35,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.MimeTypeUtils;
 
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -213,6 +214,8 @@ public class OpenAiServiceImpl implements OpenAiService {
                 // Use the constructor that accepts a Resource
                 mediaList.add(new Media(MimeTypeUtils.IMAGE_JPEG, resource));
 
+            } catch (SocketTimeoutException e) {
+                log.warn("Timeout downloading image from URL: {}. Skipping.", url);
             } catch (IOException e) {
                 log.error("IOException while downloading image from URL: {}", url, e);
             } catch (IllegalArgumentException e) {
