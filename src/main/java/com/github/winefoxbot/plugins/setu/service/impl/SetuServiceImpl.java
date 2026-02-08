@@ -387,7 +387,7 @@ public class SetuServiceImpl implements SetuService {
                     });
         } catch (Exception e) {
             log.error("SFW PDF 发送异常", e);
-            throw new BusinessException("PDF 发送失败: " + e.getMessage());
+            throw new BusinessException(e.getMessage());
         }
     }
 
@@ -410,7 +410,7 @@ public class SetuServiceImpl implements SetuService {
             // 发送
             ActionData<MsgId> result = bot.sendForwardMsg(event, forwardNodes);
             if (result.getRetCode() != 0) {
-                 throw new RuntimeException("合并转发发送失败，RetCode=" + result.getRetCode());
+                 throw new RuntimeException("合并转发发送失败");
             }
             log.info("SFW 合并转发发送成功");
 
@@ -434,7 +434,7 @@ public class SetuServiceImpl implements SetuService {
 
             } catch (Exception ex) {
                 log.error("混淆合并转发终极失败", ex);
-                throw new BusinessException("合并转发发送失败: " + e.getMessage());
+                throw new BusinessException(e.getMessage());
             }
         }
     }

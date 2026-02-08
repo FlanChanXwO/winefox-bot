@@ -139,7 +139,7 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
                 }
             } catch (Exception e) {
                 log.error("Pixiv 混淆重发异常", e);
-                throw new BusinessException("混淆发送失败: " + e.getMessage());
+                throw new BusinessException(e.getMessage());
             }
         }
     }
@@ -165,7 +165,7 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
             List<Map<String, Object>> forwardNodes = ShiroUtils.generateForwardMsg(bot, msgList);
             ActionData<MsgId> result = bot.sendForwardMsg(event, forwardNodes);
             if (result.getRetCode() != 0) {
-                 throw new RuntimeException("合并转发发送失败，RetCode=" + result.getRetCode());
+                 throw new RuntimeException("合并转发发送失败");
             }
             log.info("Pixiv 合并转发成功: PID={}", info.getPid());
         } catch (Exception e) {
@@ -199,7 +199,7 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
 
             } catch (Exception ex) {
                 log.error("混淆合并转发终极失败", ex);
-                throw new BusinessException("合并转发发送失败: " + e.getMessage());
+                throw new BusinessException(e.getMessage());
             }
         }
     }

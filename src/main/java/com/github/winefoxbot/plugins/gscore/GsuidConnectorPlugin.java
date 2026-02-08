@@ -3,6 +3,7 @@ package com.github.winefoxbot.plugins.gscore;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.core.annotation.plugin.Plugin;
+import com.github.winefoxbot.core.model.enums.common.PluginType;
 import com.github.winefoxbot.plugins.gscore.client.GsuidCoreClient;
 import com.github.winefoxbot.plugins.gscore.config.GsuidPluginConfig;
 import com.github.winefoxbot.plugins.gscore.model.CoreMessage;
@@ -26,7 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 @Slf4j
-@Plugin(name = "gsuid 适配器", description = "基于shiro bot框架连接gscore核心")
+@Plugin(name = "gsuid 适配器", description = "基于shiro bot框架连接gscore核心" ,type = PluginType.PASSIVE)
 @RequiredArgsConstructor
 @ConditionalOnBooleanProperty("winefoxbot.plugins.gsuid.enable")
 public class GsuidConnectorPlugin {
