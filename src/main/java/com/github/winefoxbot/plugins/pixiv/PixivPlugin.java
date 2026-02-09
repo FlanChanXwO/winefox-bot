@@ -15,6 +15,7 @@ import com.github.winefoxbot.core.service.schedule.handler.BotJobHandler;
 import com.github.winefoxbot.core.service.shiro.ShiroSessionStateService;
 import com.github.winefoxbot.core.utils.CronFormatter;
 import com.github.winefoxbot.core.utils.FileUtil;
+import com.github.winefoxbot.core.utils.NumberParserUtil;
 import com.github.winefoxbot.plugins.pixiv.config.PixivPluginConfig;
 import com.github.winefoxbot.plugins.pixiv.job.PixivRankDailyJob;
 import com.github.winefoxbot.plugins.pixiv.job.PixivRankMonthlyJob;
@@ -708,30 +709,42 @@ public class PixivPlugin {
             description = "从鼠鼠的收藏夹中随机抽取一张作品，发送 \"鼠鼠的收藏\" 命令即可获得~",
             permission = Permission.USER,
             autoGenerateHelp = false,
-            commands = {"/鼠鼠的收藏", "/鼠鼠的收藏"}
+            commands = {"/鼠鼠的收藏", "/酒狐的收藏", "来份酒狐的收藏", "来10个酒狐的收藏"}
     )
     @Order(10)
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/?鼠鼠的收藏$")
-    public void getRandomBookmark(Bot bot, AnyMessageEvent event) {
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = "^/?(?:来)?\\s*(?:(\\S*)\\s*(?:个|份|张|点)\\s*)?(鼠鼠|酒狐)的收藏$")
+    public void getRandomBookmark(Bot bot, AnyMessageEvent event, Matcher matcher) {
         Long userId = event.getUserId();
         Long groupId = event.getGroupId();
+        String numStr = matcher.group(1);
+        int num = NumberParserUtil.parseCount(numStr);
+        if (num < 1 || num > 5) {
+            String msg = (num == -1)
+                    ? "数量解析失败，请使用数字或中文数字表示正确的数量哦~，图片数量必须在1-5之间"
+                    : (num > 5 ? "一次最多只能获取5张哦~" : "图片数量必须在1-5之间哦~");
+            bot.sendMsg(event, msg, false);
+            return;
+        }
+
         try {
-            // 1. 随机获取一个收藏
-            Optional<PixivBookmark> bookmarkOptional = pixivBookmarkService.getRandomBookmark(userId,groupId);
-            if (bookmarkOptional.isEmpty()) {
-                bot.sendMsg(event, "收藏夹是空的哦，还没法抽卡呢~", false);
-                return; // 收藏夹为空，直接退出
+            for (int i = 0; i < num; i++) {
+                // 1. 随机获取一个收藏
+                Optional<PixivBookmark> bookmarkOptional = pixivBookmarkService.getRandomBookmark(userId,groupId);
+                if (bookmarkOptional.isEmpty()) {
+                    bot.sendMsg(event, "收藏夹是空的哦，还没法抽卡呢~", false);
+                    return; // 收藏夹为空，直接退出
+                }
+                PixivBookmark bookmark = bookmarkOptional.get();
+                String pid = bookmark.getId();
+                // 2. 获取作品的详细信息
+                PixivArtworkInfo pixivArtworkInfo = pixivService.getPixivArtworkInfo(pid);
+                // 3. 异步下载图片文件
+                List<File> files = pixivService.fetchImages(pid).join();
+                // 4. 调用统一的发送服务
+                pixivArtworkService.sendArtwork(pixivArtworkInfo, files, null);
+                log.info("用户 [{}] 的随机收藏发送完成，作品ID: {}。", event.getUserId(), pid);
             }
-            PixivBookmark bookmark = bookmarkOptional.get();
-            String pid = bookmark.getId();
-            // 2. 获取作品的详细信息
-            PixivArtworkInfo pixivArtworkInfo = pixivService.getPixivArtworkInfo(pid);
-            // 3. 异步下载图片文件
-            List<File> files = pixivService.fetchImages(pid).join();
-            // 4. 调用统一的发送服务
-            pixivArtworkService.sendArtwork(pixivArtworkInfo, files, null);
-            log.info("用户 [{}] 的随机收藏发送完成，作品ID: {}。", event.getUserId(), pid);
         } catch (Exception e) {
             log.error("网络异常，获取随机收藏失败: {}", e.getMessage(), e);
             throw new BotException("获取随机收藏失败");

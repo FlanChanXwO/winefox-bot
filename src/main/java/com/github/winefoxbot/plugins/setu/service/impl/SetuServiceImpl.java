@@ -42,6 +42,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.SocketTimeoutException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -403,6 +404,10 @@ public class SetuServiceImpl implements SetuService {
             log.info("SFW 合并转发发送成功");
 
         } catch (Exception e) {
+            if (e instanceof SocketTimeoutException || e.getCause() instanceof SocketTimeoutException) {
+                log.warn("合并转发发送超时，可能已发送成功，不再重试: {}", e.getMessage());
+                return;
+            }
             log.warn("合并转发发送异常，尝试混淆后重发", e);
             try {
                 // 混淆并重试转发
@@ -488,6 +493,10 @@ public class SetuServiceImpl implements SetuService {
                 return false;
             }
         } catch (Exception ex) {
+            if (ex instanceof SocketTimeoutException || ex.getCause() instanceof SocketTimeoutException) {
+                log.warn("SFW 图片发送超时，可能已发送成功: {}", ex.getMessage());
+                return true;
+            }
             log.warn("SFW 图片发送异常", ex);
             return false;
         }

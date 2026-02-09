@@ -16,7 +16,7 @@ import lombok.RequiredArgsConstructor;
 public enum ContentSendMode  implements BaseEnum<String> {
     FORWARD("forward", "合并转发"),
     IMAGE("image", "图片"),
-    PDF("pdf", "PDF");
+    PDF_OR_WORD("pdf_or_word", "PDF或Word");
 
     @EnumValue
     @JsonValue

@@ -28,6 +28,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
@@ -47,7 +48,7 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
     // R18 打包文件的临时输出目录
     private static final String FILE_OUTPUT_DIR = "data/files/pixiv/wrappers";
     
-    private static final long ZIP_THRESHOLD = 100 * 1024 * 1024;
+    // private static final long ZIP_THRESHOLD = 100 * 1024 * 1024; // This is no longer needed as packFiles is removed
 
     /**
      * 统一处理并发送Pixiv作品的核心方法
@@ -89,7 +90,7 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
 
         switch (sendMode) {
             case FORWARD -> sendForwardMessage(info, filePaths, additionalText, bot, event, config);
-            case PDF -> sendPdfInternal(info, filePaths, bot, event, config);
+            case PDF_OR_WORD -> sendDocumentInternal(info, files, bot, event, config);
             default -> sendImageMessage(info, filePaths, additionalText, bot, event, config);
         }
     }
@@ -117,6 +118,10 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
                 throw new RuntimeException("发送失败: " + result.getStatus());
             }
         } catch (Exception ex) {
+            if (ex instanceof SocketTimeoutException || ex.getCause() instanceof SocketTimeoutException) {
+                log.warn("Pixiv 直发超时，可能已发送成功，不再重试: {}", ex.getMessage());
+                return;
+            }
             log.warn("Pixiv 直发失败，尝试混淆后重发: {}", ex.getMessage());
              // 混淆重试逻辑
             try {
@@ -169,6 +174,10 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
             }
             log.info("Pixiv 合并转发成功: PID={}", info.getPid());
         } catch (Exception e) {
+            if (e instanceof SocketTimeoutException || e.getCause() instanceof SocketTimeoutException) {
+                log.warn("合并转发发送超时，可能已发送成功，不再重试: {}", e.getMessage());
+                return;
+            }
             log.warn("合并转发发送异常，尝试混淆后重发", e);
             try {
                 // 混淆并重试转发
@@ -204,10 +213,24 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
         }
     }
 
-    private void sendPdfInternal(PixivArtworkInfo info, List<Path> filePaths, Bot bot, MessageEvent event, PixivPluginConfig config) {
+    private void sendDocumentInternal(PixivArtworkInfo info, List<File> files, Bot bot, MessageEvent event, PixivPluginConfig config) {
          try {
             String baseName = "pixiv_" + info.getPid();
-            Path packedFilePath = packFiles(filePaths, baseName);
+            Path packedFilePath;
+            String sendModeName;
+
+            boolean isGif = files.stream().anyMatch(file -> file.getName().toLowerCase().endsWith(".gif"));
+
+            if (isGif) {
+                String fileName = baseName + ".docx";
+                packedFilePath = DocxUtil.wrapImagesIntoDocx(files, FILE_OUTPUT_DIR, fileName);
+                sendModeName = "Word";
+            } else {
+                List<Path> filePaths = files.stream().map(File::toPath).toList();
+                packedFilePath = PdfUtil.wrapImageIntoPdf(filePaths, FILE_OUTPUT_DIR + File.separator + baseName);
+                sendModeName = "PDF";
+            }
+
             if (packedFilePath == null) throw new BusinessException("文件打包失败");
             
             String fileName = packedFilePath.getFileName().toString();
@@ -216,11 +239,11 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
                      try {
                          if (result != null && result.isSuccess()) {
                              String status = result.getStatus();
-                             log.info("Pixiv PDF 发送成功: PID={}, status={}", info.getPid(), status);
+                             log.info("Pixiv {} 发送成功: PID={}, status={}", sendModeName, info.getPid(), status);
                              tryRevokeGroupFile(bot, event, fileName, config);
                         } else {
-                             log.error("Pixiv PDF 发送失败", throwable);
-                             SendMsgUtil.sendMsgByEvent(bot, event, "PDF文件发送失败: " + throwable.getMessage(), false);
+                             log.error("Pixiv {} 发送失败", sendModeName, throwable);
+                             SendMsgUtil.sendMsgByEvent(bot, event, sendModeName + "文件发送失败: " + throwable.getMessage(), false);
                         }
                     } finally {
                         FileUtil.deleteFileWithRetry(packedFilePath.toAbsolutePath().toString());
@@ -229,8 +252,8 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
                 });
 
          } catch (Exception e) {
-            log.error("Pixiv PDF 打包发送异常", e);
-            SendMsgUtil.sendMsgByEvent(bot, event, "PDF 发送异常", false);
+            log.error("Pixiv 文档打包发送异常", e);
+            SendMsgUtil.sendMsgByEvent(bot, event, "文档发送异常", false);
          }
     }
 
@@ -245,14 +268,13 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
         }
 
         // 2. 发送文件
-        List<Path> filePaths = files.stream().map(File::toPath).toList();
         String baseName = "pixiv_" + info.getPid();
 
         try {
-            Path packedFilePath = packFiles(filePaths, baseName);
+            String fileName = baseName + ".docx";
+            Path packedFilePath = DocxUtil.wrapImagesIntoDocx(files, FILE_OUTPUT_DIR, fileName);
              if (packedFilePath == null) throw new BusinessException("打包失败");
 
-             String fileName = packedFilePath.getFileName().toString();
              FileUploadUtil.uploadFileAsync(bot, event, packedFilePath, fileName)
                 .handle((result, _) -> {
                     try {
@@ -270,40 +292,6 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
         } catch (Exception e) {
             log.error("R18 文件发送流程失败", e);
             throw new BusinessException("R18文件发送失败...");
-        }
-    }
-
-    private Path packFiles(List<Path> filePaths, String baseName) throws IOException {
-        long totalSize = filePaths.stream().mapToLong(p -> p.toFile().length()).sum();
-        File dir = new File(FILE_OUTPUT_DIR);
-        if (!dir.exists() && !dir.mkdirs()) {
-             throw new IOException("无法创建目录: " + dir.getAbsolutePath());
-        }
-
-        if (totalSize >= ZIP_THRESHOLD) {
-            String zipName = baseName + "_" + UUID.randomUUID().toString().substring(0, 8) + ".zip";
-            Path zipPath = Paths.get(FILE_OUTPUT_DIR, zipName);
-            createZip(filePaths, zipPath);
-            return zipPath;
-        } else {
-            return PdfUtil.wrapImageIntoPdf(filePaths, FILE_OUTPUT_DIR + File.separator + baseName);
-        }
-    }
-
-    private void createZip(List<Path> files, Path zipFilePath) throws IOException {
-        try (FileOutputStream fos = new FileOutputStream(zipFilePath.toFile());
-             ZipArchiveOutputStream zaos = new ZipArchiveOutputStream(fos)) {
-            for (Path path : files) {
-                File file = path.toFile();
-                if (file.exists() && file.isFile()) {
-                    ZipArchiveEntry entry = new ZipArchiveEntry(file.getName());
-                    zaos.putArchiveEntry(entry);
-                    try (FileInputStream fis = new FileInputStream(file)) {
-                        fis.transferTo(zaos);
-                    }
-                    zaos.closeArchiveEntry();
-                }
-            }
         }
     }
 

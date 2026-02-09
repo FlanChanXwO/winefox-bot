@@ -1,11 +1,10 @@
 package com.github.winefoxbot.plugins.setu;
 
-import cn.hutool.core.convert.NumberChineseFormatter;
-import cn.hutool.core.util.NumberUtil;
 import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.github.winefoxbot.core.model.enums.common.Permission;
 import com.github.winefoxbot.core.service.common.SmartTagService;
+import com.github.winefoxbot.core.utils.NumberParserUtil;
 import com.github.winefoxbot.plugins.setu.config.SetuPluginConfig;
 import com.github.winefoxbot.plugins.setu.service.SetuService;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
@@ -50,7 +49,7 @@ public class SetuPlugin {
     public void getRandomPicture(Bot bot, AnyMessageEvent event, Matcher matcher) {
         String numStr = matcher.group(2);
 
-        int num = parseCount(numStr);
+        int num = NumberParserUtil.parseCount(numStr);
 
         if (num < 1 || num > MAX_SETU_COUNT) {
             String msg = (num == -1)
@@ -65,31 +64,6 @@ public class SetuPlugin {
         // 调用Service处理业务逻辑
         List<String> searchTags = tagService.getSearchTags(tag);
         setuService.handleSetuRequest(num, searchTags);
-    }
-
-    /**
-     * 解析数量字符串
-     * @return 返回解析后的数字，如果为空返回1，解析失败返回-1
-     */
-    private int parseCount(String text) {
-        if (text == null || text.isBlank()) {
-            return 1;
-        }
-
-        // 尝试解析阿拉伯数字
-        int n = NumberUtil.parseInt(text, -1);
-
-        // 如果解析失败，尝试解析中文数字
-        if (n == -1) {
-            try {
-                // 使用 Hutool 或类似的库
-                n = NumberChineseFormatter.chineseToNumber(text);
-            } catch (Exception _) {
-                return -1;
-            }
-        }
-
-        return n;
     }
 
 }

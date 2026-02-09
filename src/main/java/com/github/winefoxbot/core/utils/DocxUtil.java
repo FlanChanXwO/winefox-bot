@@ -37,17 +37,17 @@ public final class DocxUtil {
      * 每个图片/GIF将独占一页，并尽可能大地在页面中央显示。
      *
      * @param images     图片字节数组的列表
-     * @param outputPath 输出目录的路径
+     * @param outputDir  输出目录的路径
+     * @param fileName   输出文件名 (e.g., "document.docx")
      * @return 生成的 DOCX 文件的绝对路径，如果失败则返回 null
      */
-    public static Path wrapImagesIntoDocx(List<File> images, String outputPath) {
+    public static Path wrapImagesIntoDocx(List<File> images, String outputDir, String fileName) {
         // 1. 确定输出文件路径
         Path outputFilePath;
         try {
-            Path outputDir = Paths.get(outputPath);
-            Files.createDirectories(outputDir);
-            String randomFileName = UUID.randomUUID().toString().replace("-", "").substring(0, 8) + ".docx";
-            outputFilePath = outputDir.resolve(randomFileName);
+            Path dir = Paths.get(outputDir);
+            Files.createDirectories(dir);
+            outputFilePath = dir.resolve(fileName);
         } catch (IOException e) {
             e.printStackTrace();
             return null;
