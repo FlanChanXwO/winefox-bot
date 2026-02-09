@@ -493,34 +493,6 @@ public class SetuServiceImpl implements SetuService {
         }
     }
 
-    private void sendObfuscatedImageMessage(List<Path> originalPaths, String text) {
-        try {
-            List<Path> obfuscatedPaths = imageObfuscator.wrap(originalPaths);
-            if (obfuscatedPaths.isEmpty()) return;
-
-            MessageEvent messageEvent = BotContext.CURRENT_MESSAGE_EVENT.get();
-            Bot bot = BotContext.CURRENT_BOT.get();
-
-            Integer msgId = switch (messageEvent) {
-                case GroupMessageEvent e -> e.getMessageId();
-                case PrivateMessageEvent e -> e.getMessageId();
-                default -> null;
-            };
-
-            MsgUtils builder = MsgUtils.builder();
-            if (msgId != null) builder.reply(msgId);
-            builder.text(text);
-
-            for (Path p : obfuscatedPaths) {
-                builder.img(p.toUri().toString());
-            }
-
-            SendMsgUtil.sendMsgByEvent(bot, messageEvent, builder.build(), false);
-        } catch (Exception e) {
-            log.error("混淆发送工具方法异常", e);
-        }
-    }
-
     private Path packFiles(List<Path> filePaths, String outputDir, String baseName, boolean isR18) throws IOException { // Added 'isR18' param just in case logic differs
         long totalSize = filePaths.stream().mapToLong(p -> p.toFile().length()).sum();
         File dir = new File(outputDir);

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.github.winefoxbot.core.annotation.common.RedissonLock;
 
+import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.plugins.watergroup.config.WaterGroupPluginConfig;
 import com.github.winefoxbot.plugins.watergroup.mapper.WaterGroupMessageStatMapper;
 import com.github.winefoxbot.plugins.watergroup.model.entity.WaterGroupMessageStat;
@@ -23,7 +24,6 @@ import java.util.Optional;
 public class WaterGroupServiceImpl implements WaterGroupService {
 
     private final WaterGroupMessageStatMapper dayMapper;
-    private final WaterGroupPluginConfig pluginConfig;
 
     /**
      * 增加用户发言次数
@@ -63,10 +63,29 @@ public class WaterGroupServiceImpl implements WaterGroupService {
      */
     @Override
     public List<WaterGroupMessageStat> getDailyRanking(long groupId) {
-        Integer limit = Optional.ofNullable(pluginConfig.getLimit()).orElse(10);
+        WaterGroupPluginConfig config = (WaterGroupPluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
+        Integer limit = config.getLimit();
         return dayMapper.selectList(new LambdaQueryWrapper<WaterGroupMessageStat>()
                 .eq(WaterGroupMessageStat::getGroupId, groupId)
                 .eq(WaterGroupMessageStat::getDate, LocalDate.now()) // 只查询今天的数据
+                .gt(WaterGroupMessageStat::getMsgCount, 0) // 只看发言过的
+                .orderByDesc(WaterGroupMessageStat::getMsgCount)
+                .last("LIMIT %d".formatted(limit)));
+    }
+
+    /**
+     * 获取指定群组的昨日发言排行数据
+     *
+     * @param groupId 群号
+     * @return 包含用户信息的排行列表
+     */
+    @Override
+    public List<WaterGroupMessageStat> getYesterdayRanking(long groupId) {
+        WaterGroupPluginConfig config = (WaterGroupPluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
+        Integer limit = config.getLimit();
+        return dayMapper.selectList(new LambdaQueryWrapper<WaterGroupMessageStat>()
+                .eq(WaterGroupMessageStat::getGroupId, groupId)
+                .eq(WaterGroupMessageStat::getDate, LocalDate.now().minusDays(1)) // 查询昨天的数据
                 .gt(WaterGroupMessageStat::getMsgCount, 0) // 只看发言过的
                 .orderByDesc(WaterGroupMessageStat::getMsgCount)
                 .last("LIMIT %d".formatted(limit)));

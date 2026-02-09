@@ -34,12 +34,6 @@ public class WaterGroupStatsJob implements BotJobHandler<String, WaterGroupPlugi
 
     private final WaterGroupService waterGroupService;
     private final WaterGroupPosterDrawService waterGroupPosterDrawService;
-    private final WaterGroupPluginConfig pluginConfig;
-
-    @Override
-    public WaterGroupPluginConfig getPluginConfig() {
-        return pluginConfig;
-    }
 
     @Override
     public void run(Bot bot, Long targetId, PushTargetType targetType, String parameter) {

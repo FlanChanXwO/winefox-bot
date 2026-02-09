@@ -58,6 +58,11 @@ public interface ShiroScheduleTaskService extends IService<ShiroScheduleTask> {
     void cancelTask(Long botId, PushTargetType targetType, Long targetId, Class<? extends BotJobHandler<?,? extends BasePluginConfig>> handlerClass);
 
     /**
+     * 删除任务 (指定任务名)
+     */
+    void deleteTask(Long botId, PushTargetType targetType, Long targetId, String taskName);
+
+    /**
      * 获取任务配置 
      */
     ShiroScheduleTask getTaskConfig(Long botId, PushTargetType targetType, Long targetId, String taskName);

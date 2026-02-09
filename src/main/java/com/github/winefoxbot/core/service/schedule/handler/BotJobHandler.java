@@ -8,6 +8,7 @@ import com.mikuac.shiro.core.Bot;
  * 自动注入 Bot 的任务处理器接口
  * @author FlanChan
  */
+@SuppressWarnings("unused")
 public interface BotJobHandler<P, C extends BasePluginConfig> {
     /**
      * 具体的任务逻辑
@@ -16,12 +17,4 @@ public interface BotJobHandler<P, C extends BasePluginConfig> {
      * @param parameter 额外参数（可能是 null）
      */
     void run(Bot bot, Long targetId, PushTargetType targetType, P parameter);
-
-    /**
-     * 默认返回 None 配置，如果具体的 Job 需要配置，重写此方法返回具体的 Config Bean
-     */
-    @SuppressWarnings("unchecked")
-    default C getPluginConfig() {
-        return (C) new BasePluginConfig.None();
-    }
 }

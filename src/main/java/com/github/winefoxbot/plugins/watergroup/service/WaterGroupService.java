@@ -13,4 +13,5 @@ public interface WaterGroupService {
 
     List<WaterGroupMessageStat> getDailyRanking(long groupId);
 
+    List<WaterGroupMessageStat> getYesterdayRanking(long groupId);
 }

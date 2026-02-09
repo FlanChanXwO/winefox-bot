@@ -200,6 +200,12 @@ public class ShiroScheduleTaskServiceImpl extends ServiceImpl<ShiroScheduleTaskM
         cancelTask(botId, targetType, targetId, resolveTaskKey(handlerClass));
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteTask(Long botId, PushTargetType targetType, Long targetId, String taskName) {
+        cancelTask(botId, targetType, targetId, taskName);
+    }
+
     // ==================== 5. 查询接口 ====================
 
     @Override

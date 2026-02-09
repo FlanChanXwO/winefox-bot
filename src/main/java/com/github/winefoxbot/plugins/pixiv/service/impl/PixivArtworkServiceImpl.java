@@ -273,26 +273,6 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
         }
     }
 
-    private void sendObfuscatedImageMessage(PixivArtworkInfo info, List<Path> originalPaths, String text, Bot bot, MessageEvent event, PixivPluginConfig config) {
-        try {
-            List<Path> obfuscatedPaths = imageObfuscator.wrap(originalPaths);
-            if (obfuscatedPaths.isEmpty()) return;
-
-            String artworkInfo = (config != null && config.isSendArtworkInfo()) ? buildArtworkText(info, false) : "";
-            String fullText = StrUtil.isBlank(artworkInfo) ? text : artworkInfo + "\n" + text;
-
-            MsgUtils builder = MsgUtils.builder().text(fullText);
-
-            for (Path p : obfuscatedPaths) {
-                builder.img(p.toUri().toString());
-            }
-
-            SendMsgUtil.sendMsgByEvent(bot, event, builder.build(), false);
-        } catch (Exception e) {
-            log.error("混淆发送工具方法异常", e);
-        }
-    }
-
     private Path packFiles(List<Path> filePaths, String baseName) throws IOException {
         long totalSize = filePaths.stream().mapToLong(p -> p.toFile().length()).sum();
         File dir = new File(FILE_OUTPUT_DIR);
