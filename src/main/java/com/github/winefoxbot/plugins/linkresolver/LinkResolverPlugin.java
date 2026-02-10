@@ -96,7 +96,7 @@ public class LinkResolverPlugin {
                         canonicalId = urlToParse;
                     }
 
-                    String cacheKey = canonicalId;
+                    String cacheKey = event.getGroupId() + '-' + canonicalId;
                     if (Boolean.TRUE.equals(historyCache.getIfPresent(cacheKey))) {
                         log.debug("URL 命中防重复缓存，跳过: {}", cacheKey);
                         return;
