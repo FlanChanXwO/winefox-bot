@@ -32,6 +32,7 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MimeTypeUtils;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -63,11 +64,10 @@ public class OpenAiServiceImpl implements OpenAiService {
         Long sessionId = BotUtil.getSessionId(messageEvent);
         MessageType messageType = MessageType.fromValue(messageEvent.getMessageType());
         List<ShiroUserMessage> history = new ArrayList<>(shiroMessagesService.findLatestMessagesForContext(sessionId, messageType, wineFoxBotChatProperties.getContextSize()));
-        Optional<ArrayMsg> replyInfo = Optional.ofNullable(messageEvent.getArrayMsg())
-                .orElse(Collections.emptyList())
-                .stream()
-                .filter(e -> MsgTypeEnum.reply.equals(e.getType()))
-                .findFirst();
+        Optional<ArrayMsg> replyInfo = Optional.ofNullable(messageEvent.getArrayMsg()) // Safely handle possible null List
+                .flatMap(msgs -> msgs.stream()
+                        .filter(e -> MsgTypeEnum.reply.equals(e.getType()))
+                        .findFirst());
         if (replyInfo.isPresent()) {
             try {
                 int replyMsgId = replyInfo.get().getData().get("id").asInt();
@@ -228,8 +228,7 @@ public class OpenAiServiceImpl implements OpenAiService {
         return imageUrls.stream().map(url -> {
             try {
                 return Optional.of(new Media(MimeTypeUtils.IMAGE_JPEG, new UrlResource(url)));
-            } catch (MalformedURLException e) {
-                log.warn("Invalid image URL found, cannot create UrlResource: {}. Skipping.", url);
+            } catch (IOException e) {
                 return Optional.<Media>empty();
             }
         }).filter(Optional::isPresent).map(Optional::get).collect(Collectors.toList());

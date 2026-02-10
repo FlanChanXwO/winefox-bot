@@ -70,9 +70,6 @@ public class ChatPlugin {
     }
 
     @AnyMessageHandler
-    @Async
-    @Order(100)
-    @Block
     @Limit(userPermits = 1, timeInSeconds = 5, notificationIntervalSeconds = 30, message = "说话太快了，酒狐需要思考一会儿哦~")
     @MessageHandlerFilter(types = {MsgTypeEnum.text, MsgTypeEnum.image},at = AtEnum.NEED, cmd = "^(?!/)(?!\\s+$).+")
     public void handleChatMessage(Bot bot, AnyMessageEvent event) {
@@ -86,7 +83,6 @@ public class ChatPlugin {
 
     @GroupPokeNoticeHandler
     @Limit(userPermits = 1, timeInSeconds = 10, notificationIntervalSeconds = 30, message = "戳得太快了，酒狐需要休息一下哦~")
-    @Async
     public void handleGroupPokeNotice(Bot bot, PokeNoticeEvent event) {
         if (!event.getTargetId().equals(bot.getSelfId())) {
             return;
@@ -96,7 +92,6 @@ public class ChatPlugin {
 
     @PrivatePokeNoticeHandler
     @Limit(userPermits = 1, timeInSeconds = 1, notificationIntervalSeconds = 30, message = "戳得太快了，酒狐需要休息一下哦~")
-    @Async
     public void handlePrivatePokeNotice(Bot bot, PokeNoticeEvent event) {
         if (!event.getTargetId().equals(bot.getSelfId())) {
             return;

@@ -161,7 +161,7 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
             }
 
             if (needDownloadRes) {
-                bot.sendMsg(event, "检测到静态资源(Web/Template)变更，下载 resources.zip...", false);
+                bot.sendMsg(event, "检测到静态资源变更，下载 resources.zip...", false);
                 // 下载为 update-resources.zip，供重启脚本解压覆盖
                 downloadAsset(resAsset, "update-resources.zip");
             }

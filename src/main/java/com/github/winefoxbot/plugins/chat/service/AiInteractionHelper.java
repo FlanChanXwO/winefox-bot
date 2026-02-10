@@ -75,7 +75,19 @@ public class AiInteractionHelper {
 
         String finalContent;
         if (isBotMessage) {
-            finalContent = rawText;
+            // 当酒狐自身发送的消息包含图片时，需要按照 Prompt 的要求进行特殊处理
+            if (!imageUrls.isEmpty()) {
+                String systemText = "[System: 这是上一条酒狐发送的图片，请知悉]";
+                // 如果原始消息只有图片（rawText被设置为"[图片]"），则直接使用系统文本
+                if ("[图片]".equals(rawText)) {
+                    finalContent = systemText;
+                } else {
+                    // 如果原始消息有文本，则将系统文本附加到后面，以符合Prompt“紧跟在你文字回复之后”的描述
+                    finalContent = rawText + "\n" + systemText;
+                }
+            } else {
+                finalContent = rawText;
+            }
         } else {
             // 用户的历史记录，按照 Prompt 要求格式化
             finalContent = String.format("[%s(%s)]: %s", nickname, shiroMsg.getUserId(), rawText);
