@@ -39,7 +39,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.github.winefoxbot.core.utils.CommandUtil.*;
+import static com.github.winefoxbot.core.util.CommandUtil.*;
 
 @Service
 @RequiredArgsConstructor

@@ -6,7 +6,7 @@ import com.github.winefoxbot.core.model.dto.HelpData;
 import com.github.winefoxbot.core.model.dto.HelpGroup;
 import com.github.winefoxbot.core.service.file.FileStorageService;
 import com.github.winefoxbot.core.service.helpdoc.HelpImageService;
-import com.github.winefoxbot.core.utils.Base64Utils;
+import com.github.winefoxbot.core.util.Base64Util;
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.ScreenshotType;
 import com.microsoft.playwright.options.WaitForSelectorState;
@@ -247,7 +247,7 @@ public class HelpImageServiceImpl implements HelpImageService {
                 for (Resource resource : resources) {
                     if (resource.isReadable()) {
                         try {
-                            String dataUri = Base64Utils.toBase64String(resource);
+                            String dataUri = Base64Util.toBase64String(resource);
                             String fullPath = resource.getURI().toString();
 
                             // 智能截取 Key

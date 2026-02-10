@@ -1,7 +1,7 @@
 package com.github.winefoxbot.plugins.fortune.service.impl;
 
 import com.github.winefoxbot.core.config.playwright.PlaywrightConfig;
-import com.github.winefoxbot.core.utils.Base64Utils;
+import com.github.winefoxbot.core.util.Base64Util;
 import com.github.winefoxbot.plugins.fortune.model.vo.FortuneRenderVO;
 import com.github.winefoxbot.plugins.fortune.service.FortuneRenderService;
 import com.microsoft.playwright.Browser;
@@ -43,7 +43,7 @@ public class FortuneRenderServiceImpl implements FortuneRenderService {
         if (data.imageUrl() != null && !data.imageUrl().isEmpty()) {
             try {
                 // 下载图片并转为 Base64
-                String base64Image = Base64Utils.toBase64String(data.imageUrl());
+                String base64Image = Base64Util.toBase64String(data.imageUrl());
                 context.setVariable("imageUrl", base64Image);
             } catch (Exception e) {
                 log.error("下载运势图片失败: {}", data.imageUrl(), e);

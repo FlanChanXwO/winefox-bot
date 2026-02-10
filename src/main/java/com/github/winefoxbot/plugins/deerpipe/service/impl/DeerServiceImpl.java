@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.github.winefoxbot.core.config.playwright.PlaywrightConfig;
 import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.exception.bot.PluginException;
-import com.github.winefoxbot.core.utils.DynamicResourceLoader;
+import com.github.winefoxbot.core.util.DynamicResourceLoader;
 import com.github.winefoxbot.plugins.deerpipe.config.DeerPipePluginConfig;
 import com.github.winefoxbot.plugins.deerpipe.mapper.DeerRecordMapper;
 import com.github.winefoxbot.plugins.deerpipe.mapper.DeerUserConfigMapper;

@@ -7,8 +7,8 @@ import java.util.regex.Pattern;
  * @author FlanChan (badapple495@outlook.com)
  * @since 2026-01-14-15:11
  */
-public final class PixivUtils {
-    private PixivUtils() {
+public final class PixivUtil {
+    private PixivUtil() {
         throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
     }
 

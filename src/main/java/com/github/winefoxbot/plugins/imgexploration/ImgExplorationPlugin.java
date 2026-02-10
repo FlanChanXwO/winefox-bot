@@ -4,7 +4,7 @@ import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.github.winefoxbot.core.model.dto.SessionData;
 import com.github.winefoxbot.core.model.enums.common.Permission;
-import com.github.winefoxbot.core.utils.BotUtils;
+import com.github.winefoxbot.core.util.BotUtil;
 import com.github.winefoxbot.plugins.imgexploration.model.dto.SearchResultItemDTO;
 import com.github.winefoxbot.plugins.imgexploration.service.ImageExplorationRenderer;
 import com.github.winefoxbot.plugins.imgexploration.service.ImgExplorationService;
@@ -123,7 +123,7 @@ public class ImgExplorationPlugin {
             bot.sendMsg(event, MsgUtils.builder().img(image).text("\n发送对应序号可获取链接 (60s内有效)，发送 0 则退出").build(), false);
 
             // 2. 存入会话缓存
-            String key = BotUtils.getSessionIdWithPrefix(event);
+            String key = BotUtil.getSessionIdWithPrefix(event);
             sessionCache.put(key, new SessionData<>(result.items()));
 
         }).exceptionally(ex -> {
@@ -146,7 +146,7 @@ public class ImgExplorationPlugin {
             return;
         }
 
-        String key = BotUtils.getSessionIdWithPrefix(event);
+        String key = BotUtil.getSessionIdWithPrefix(event);
         // 检查是否存在活跃会话
         if (!sessionCache.containsKey(key)) {
             return;

@@ -1,4 +1,4 @@
-package com.github.winefoxbot.plugins.linkresolver.utils;
+package com.github.winefoxbot.plugins.linkresolver.util;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
  *  - httpGetJson(url)：同步请求并返回 JsonNode
  *  - expandShortLink：处理 b23.tv 短链（跟随重定向）
  */
-public class BiliUtils {
+public class BiliUtil {
 
     // 正则表达式区域 (修正和优化后)
     // 视频BV号: BV1...

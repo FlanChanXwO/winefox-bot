@@ -4,7 +4,7 @@ import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
 import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.service.plugin.PluginService;
-import com.github.winefoxbot.core.utils.PluginConfigBinder;
+import com.github.winefoxbot.core.util.PluginConfigBinder;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import com.mikuac.shiro.dto.event.message.MessageEvent;
 import lombok.RequiredArgsConstructor;

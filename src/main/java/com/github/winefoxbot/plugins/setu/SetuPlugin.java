@@ -4,7 +4,7 @@ import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.github.winefoxbot.core.model.enums.common.Permission;
 import com.github.winefoxbot.core.service.common.SmartTagService;
-import com.github.winefoxbot.core.utils.NumberParserUtil;
+import com.github.winefoxbot.core.util.NumberParserUtil;
 import com.github.winefoxbot.plugins.setu.config.SetuPluginConfig;
 import com.github.winefoxbot.plugins.setu.service.SetuService;
 import com.mikuac.shiro.annotation.AnyMessageHandler;

@@ -5,7 +5,7 @@ import com.github.winefoxbot.core.config.playwright.PlaywrightConfig;
 import com.github.winefoxbot.core.config.status.StatusImageGeneratorConfig;
 import com.github.winefoxbot.core.service.denpencyversion.DependencyVersionService;
 import com.github.winefoxbot.core.service.status.StatusImageService;
-import com.github.winefoxbot.core.utils.DynamicResourceLoader;
+import com.github.winefoxbot.core.util.DynamicResourceLoader;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;

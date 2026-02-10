@@ -7,7 +7,7 @@ import com.github.winefoxbot.core.mapper.ShiroGroupMembersMapper;
 import com.github.winefoxbot.core.model.dto.GroupMemberInfo;
 import com.github.winefoxbot.core.model.entity.ShiroGroupMember;
 import com.github.winefoxbot.core.service.shiro.ShiroGroupMembersService;
-import com.github.winefoxbot.core.utils.BotUtils;
+import com.github.winefoxbot.core.util.BotUtil;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.BotContainer;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
@@ -70,7 +70,7 @@ public class ShiroGroupMembersServiceImpl extends ServiceImpl<ShiroGroupMembersM
         Optional<Bot> bot = botContainer.robots.values().stream().findFirst();
         if (bot.isPresent()) {
             Bot firstBot = bot.get();
-            GroupMemberInfo groupMemberInfo = BotUtils.getGroupMemberInfo(firstBot, groupId, userId);
+            GroupMemberInfo groupMemberInfo = BotUtil.getGroupMemberInfo(firstBot, groupId, userId);
             member.setRole(groupMemberInfo.getRole());
             member.setMemberNickname(groupMemberInfo.getCard().isBlank() ? groupMemberInfo.getNickname() : groupMemberInfo.getCard());
         } else {

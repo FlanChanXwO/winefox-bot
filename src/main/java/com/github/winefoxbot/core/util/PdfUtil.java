@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.utils;
+package com.github.winefoxbot.core.util;
 
 import com.itextpdf.text.Document;
 import com.itextpdf.text.DocumentException;

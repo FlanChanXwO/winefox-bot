@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.utils;
+package com.github.winefoxbot.core.util;
 
 import java.util.ArrayList;
 import java.util.Collections;

@@ -23,4 +23,13 @@ public interface LinkResolverService {
      * @param match 匹配到的链接或文本
      */
     void resolve(Bot bot, GroupMessageEvent event, String match);
+
+    /**
+     * 从链接中提取唯一的、规范的ID，用于防重复检测
+     * @param url 待处理的URL
+     * @return 规范ID (例如 Bilibili 的 bvid)
+     */
+    default String getCanonicalId(String url) {
+        return url;
+    }
 }

@@ -376,6 +376,7 @@
                                     <directory>src/main/resources</directory>
                                     <!-- 包含这些大文件夹 -->
                                     <includes>
+                                        <include>assets/**</include>
                                         <include>templates/**</include>
                                         <include>static/**</include>
                                     </includes>
@@ -395,6 +396,7 @@
                         </manifestEntries>
                     </archive>
                     <excludes>
+                        <exclude>assets/**</exclude>
                         <exclude>templates/**</exclude>
                         <exclude>static/**</exclude>
                     </excludes>

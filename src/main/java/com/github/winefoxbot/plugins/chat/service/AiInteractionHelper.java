@@ -5,8 +5,8 @@ import cn.hutool.json.JSONObject;
 import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.model.entity.ShiroUserMessage;
 import com.github.winefoxbot.core.model.enums.common.MessageDirection;
-import com.github.winefoxbot.core.utils.BotUtils;
-import com.github.winefoxbot.core.utils.MessageConverter;
+import com.github.winefoxbot.core.util.BotUtil;
+import com.github.winefoxbot.core.util.MessageConverter;
 import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
@@ -95,8 +95,8 @@ public class AiInteractionHelper {
 
         // 获取昵称
         String nickname = isGroupMessage
-                ? BotUtils.getGroupMemberNickname(bot, groupId, userId)
-                : BotUtils.getUserNickname(bot, userId);
+                ? BotUtil.getGroupMemberNickname(bot, groupId, userId)
+                : BotUtil.getUserNickname(bot, userId);
 
         // 1. 获取内容
         String rawMessage = event.getRawMessage();
@@ -137,8 +137,8 @@ public class AiInteractionHelper {
         Long groupId = event.getGroupId();
 
         String nickname = (groupId != null)
-                ? BotUtils.getGroupMemberNickname(bot, groupId, userId)
-                : BotUtils.getUserNickname(bot, userId);
+                ? BotUtil.getGroupMemberNickname(bot, groupId, userId)
+                : BotUtil.getUserNickname(bot, userId);
 
         String action = isPokingBack ? "(酒狐被戳了，并决定反击！)" : "(戳了一下酒狐)";
         String formattedMsg = String.format("[%s(%s)] - %s", nickname,userId, action);

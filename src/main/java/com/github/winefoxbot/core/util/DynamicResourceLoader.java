@@ -1,8 +1,7 @@
-package com.github.winefoxbot.core.utils;
+package com.github.winefoxbot.core.util;
 
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
 import org.springframework.util.StreamUtils;
 
 import java.io.IOException;

@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.utils;
+package com.github.winefoxbot.core.util;
 
 import com.github.winefoxbot.core.model.dto.SendMsgResult;
 import com.mikuac.shiro.core.Bot;

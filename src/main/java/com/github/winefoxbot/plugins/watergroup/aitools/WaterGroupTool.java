@@ -1,8 +1,8 @@
 package com.github.winefoxbot.plugins.watergroup.aitools;
 
 import com.github.winefoxbot.core.context.BotContext;
-import com.github.winefoxbot.core.utils.FileUtil;
-import com.github.winefoxbot.core.utils.PluginConfigBinder;
+import com.github.winefoxbot.core.util.FileUtil;
+import com.github.winefoxbot.core.util.PluginConfigBinder;
 import com.github.winefoxbot.plugins.watergroup.config.WaterGroupPluginConfig;
 import com.github.winefoxbot.plugins.watergroup.model.entity.WaterGroupMessageStat;
 import com.github.winefoxbot.plugins.watergroup.service.WaterGroupPosterDrawService;

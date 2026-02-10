@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.utils;
+package com.github.winefoxbot.core.util;
 
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.IdUtil;
@@ -13,8 +13,6 @@ import org.springframework.stereotype.Component;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;

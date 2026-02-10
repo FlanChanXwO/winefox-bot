@@ -1,6 +1,6 @@
 package com.github.winefoxbot.plugins.chat.config;
 
-import com.github.winefoxbot.core.utils.DynamicResourceLoader;
+import com.github.winefoxbot.core.util.DynamicResourceLoader;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;

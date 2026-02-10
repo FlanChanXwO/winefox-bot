@@ -8,7 +8,7 @@ import com.github.winefoxbot.core.model.entity.ShiroScheduleTask;
 import com.github.winefoxbot.core.model.enums.common.PushTargetType;
 import com.github.winefoxbot.core.service.plugin.PluginService;
 import com.github.winefoxbot.core.service.schedule.handler.BotJobHandler;
-import com.github.winefoxbot.core.utils.PluginConfigBinder;
+import com.github.winefoxbot.core.util.PluginConfigBinder;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.BotContainer;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;

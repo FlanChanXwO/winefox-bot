@@ -5,7 +5,7 @@ import com.github.winefoxbot.core.model.entity.ShiroUserMessage;
 import com.github.winefoxbot.core.model.enums.common.MessageDirection;
 import com.github.winefoxbot.core.model.enums.common.MessageType;
 import com.github.winefoxbot.core.service.shiro.ShiroMessagesService;
-import com.github.winefoxbot.core.utils.BotUtils;
+import com.github.winefoxbot.core.util.BotUtil;
 import com.github.winefoxbot.plugins.chat.config.WineFoxBotChatProperties;
 import com.github.winefoxbot.plugins.chat.service.AiInteractionHelper;
 import com.github.winefoxbot.plugins.chat.service.AiInteractionHelper.AiMessageInput;
@@ -62,7 +62,7 @@ public class OpenAiServiceImpl implements OpenAiService {
         Bot bot = BotContext.CURRENT_BOT.get();
         // 1. 处理历史记录
         AnyMessageEvent messageEvent = (AnyMessageEvent) BotContext.CURRENT_MESSAGE_EVENT.get();
-        Long sessionId = BotUtils.getSessionId(messageEvent);
+        Long sessionId = BotUtil.getSessionId(messageEvent);
         MessageType messageType = MessageType.fromValue(messageEvent.getMessageType());
         List<ShiroUserMessage> history = shiroMessagesService.findLatestMessagesForContext(sessionId, messageType, wineFoxBotChatProperties.getContextSize());
         for (int i = history.size() - 1; i >= 0; i--) {

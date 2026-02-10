@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.utils;
+package com.github.winefoxbot.core.util;
 
 import com.github.winefoxbot.core.annotation.plugin.ConfigItem;
 import com.github.winefoxbot.core.annotation.plugin.PluginConfig;

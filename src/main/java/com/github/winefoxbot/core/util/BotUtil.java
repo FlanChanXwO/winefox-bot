@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.utils;
+package com.github.winefoxbot.core.util;
 
 import com.github.winefoxbot.core.model.dto.GroupMemberInfo;
 import com.github.winefoxbot.core.model.enums.common.GroupMemberRole;
@@ -18,8 +18,8 @@ import lombok.extern.slf4j.Slf4j;
  * @since 2025-12-08-21:02
  */
 @Slf4j
-public final class BotUtils {
-    private BotUtils() {
+public final class BotUtil {
+    private BotUtil() {
         throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
     }
 

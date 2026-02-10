@@ -1,7 +1,7 @@
 package com.github.winefoxbot.plugins.imgexploration.service;
 
 import com.github.winefoxbot.core.config.playwright.PlaywrightConfig;
-import com.github.winefoxbot.core.utils.DynamicResourceLoader; // 引入新工具类
+import com.github.winefoxbot.core.util.DynamicResourceLoader; // 引入新工具类
 import com.github.winefoxbot.plugins.imgexploration.model.dto.SearchResultItemDTO;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;

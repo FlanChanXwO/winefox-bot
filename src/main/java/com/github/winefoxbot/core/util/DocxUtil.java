@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.utils;
+package com.github.winefoxbot.core.util;
 
 import org.docx4j.dml.wordprocessingDrawing.Inline;
 import org.docx4j.docProps.custom.Properties;

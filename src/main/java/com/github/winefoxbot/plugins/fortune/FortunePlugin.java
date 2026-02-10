@@ -5,7 +5,7 @@ import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.github.winefoxbot.core.config.app.WineFoxBotRobotProperties;
 import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.model.enums.common.Permission;
-import com.github.winefoxbot.core.utils.BotUtils;
+import com.github.winefoxbot.core.util.BotUtil;
 import com.github.winefoxbot.plugins.fortune.config.FortunePluginConfig;
 import com.github.winefoxbot.plugins.fortune.service.FortuneDataService;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
@@ -68,7 +68,7 @@ public class FortunePlugin {
     }
 
     private boolean hasPermissionToRefresh(Bot bot, Long userId) {
-        return BotUtils.isAdmin(bot, userId) || robotProperties.getSuperUsers().stream().anyMatch(user -> Objects.equals(user, userId));
+        return BotUtil.isAdmin(bot, userId) || robotProperties.getSuperUsers().stream().anyMatch(user -> Objects.equals(user, userId));
     }
 
     @PluginFunction(

@@ -1,7 +1,7 @@
 package com.github.winefoxbot.plugins.dailyreport.aitools;
 
 import com.github.winefoxbot.core.context.BotContext;
-import com.github.winefoxbot.core.utils.PluginConfigBinder;
+import com.github.winefoxbot.core.util.PluginConfigBinder;
 import com.github.winefoxbot.plugins.dailyreport.service.DailyReportService;
 import com.github.winefoxbot.plugins.setu.config.SetuPluginConfig;
 import com.mikuac.shiro.common.utils.MsgUtils;

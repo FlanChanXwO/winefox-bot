@@ -3,7 +3,7 @@ package com.github.winefoxbot.plugins.pixiv.service.impl;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
 import com.github.winefoxbot.core.config.playwright.PlaywrightConfig;
-import com.github.winefoxbot.core.utils.Base64Utils;
+import com.github.winefoxbot.core.util.Base64Util;
 import com.github.winefoxbot.plugins.pixiv.config.PixivProperties;
 import com.github.winefoxbot.plugins.pixiv.model.dto.search.PixivSearchParams;
 import com.github.winefoxbot.plugins.pixiv.model.dto.search.PixivSearchResult;
@@ -24,7 +24,6 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -351,7 +350,7 @@ public class PixivSearchServiceImpl implements PixivSearchService {
 
                         // 读取并转换 Base64
                         byte[] bytes = Files.readAllBytes(path);
-                        String base64 = Base64Utils.toBase64String(bytes, path.getFileName().toString()); // 假设你有这个重载，或者看下面的补丁
+                        String base64 = Base64Util.toBase64String(bytes, path.getFileName().toString()); // 假设你有这个重载，或者看下面的补丁
                         resourceMap.put(key, base64);
                     } catch (Exception e) {
                         log.error("Failed to load external resource: {}", path, e);
@@ -395,6 +394,6 @@ public class PixivSearchServiceImpl implements PixivSearchService {
 
     // 【新增】将单个资源文件转换为 Data URI
     private String loadResourceAsDataUri(Resource resource) throws IOException {
-        return Base64Utils.toBase64String(resource);
+        return Base64Util.toBase64String(resource);
     }
 }

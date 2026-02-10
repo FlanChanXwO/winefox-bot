@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.utils;
+package com.github.winefoxbot.core.util;
 
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;

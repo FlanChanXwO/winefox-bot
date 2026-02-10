@@ -11,8 +11,8 @@ import com.github.winefoxbot.core.service.shiro.ShiroGroupMembersService;
 import com.github.winefoxbot.core.service.shiro.ShiroGroupsService;
 import com.github.winefoxbot.core.service.shiro.ShiroMessagesService;
 import com.github.winefoxbot.core.service.shiro.ShiroUsersService;
-import com.github.winefoxbot.core.utils.BotUtils;
-import com.github.winefoxbot.core.utils.MessageConverter;
+import com.github.winefoxbot.core.util.BotUtil;
+import com.github.winefoxbot.core.util.MessageConverter;
 import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.action.common.ActionData;
@@ -150,7 +150,7 @@ public class ShiroBotAfterCompletionMsgHandler {
         Long groupId = event instanceof GroupMessageEvent groupEvent ? groupEvent.getGroupId() : null;
         MessageType messageType = MessageType.fromValue(event.getMessageType());
         JSONArray jsonMessage = MessageConverter.parseCQToJSONArray(event.getRawMessage());
-        String jsonString = jsonMessage.toJSONString(1);
+        String jsonString = jsonMessage.toStringPretty();
         log.info("[{}] | [{}{}] | {} : {}", direction.getValue(), messageType.getValue(), messageType.equals(MessageType.GROUP) ? '(' + String.valueOf(groupId) + ')' : StringUtils.EMPTY, userId, jsonString.substring(0, Math.min(jsonString.length(), 1000)));
 
         message.setMessageId(msgId);
@@ -169,7 +169,7 @@ public class ShiroBotAfterCompletionMsgHandler {
         user.setAvatarUrl(ShiroUtils.getUserAvatar(event.getUserId(), 0));
 
         try {
-            String userNickname = BotUtils.getUserNickname(bot, event.getUserId());
+            String userNickname = BotUtil.getUserNickname(bot, event.getUserId());
             user.setNickname(userNickname);
         } catch (Exception e) {
             log.debug("Failed to fetch user nickname for userId: {}", event.getUserId());

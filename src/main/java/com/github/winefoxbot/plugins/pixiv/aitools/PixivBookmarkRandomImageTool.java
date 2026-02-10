@@ -1,17 +1,13 @@
 package com.github.winefoxbot.plugins.pixiv.aitools;
 
 import com.github.winefoxbot.core.context.BotContext;
-import com.github.winefoxbot.core.model.enums.common.MessageType;
-import com.github.winefoxbot.core.utils.SendMsgUtil;
 import com.github.winefoxbot.plugins.pixiv.model.dto.common.PixivArtworkInfo;
 import com.github.winefoxbot.plugins.pixiv.model.entity.PixivBookmark;
 import com.github.winefoxbot.plugins.pixiv.service.PixivArtworkService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivBookmarkService;
 import com.github.winefoxbot.plugins.pixiv.service.PixivService;
 import com.mikuac.shiro.core.Bot;
-import com.mikuac.shiro.core.BotContainer;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
-import com.mikuac.shiro.dto.event.message.MessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.ToolParam;

@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.utils;
+package com.github.winefoxbot.core.util;
 
 import cn.hutool.core.convert.NumberChineseFormatter;
 import cn.hutool.core.util.NumberUtil;

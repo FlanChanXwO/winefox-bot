@@ -7,7 +7,7 @@ import com.github.winefoxbot.core.model.enums.common.GroupAdminChangeType;
 import com.github.winefoxbot.core.model.enums.common.GroupMemberDecreaseType;
 import com.github.winefoxbot.core.model.enums.reply.BotReplyTemplateType;
 import com.github.winefoxbot.core.service.reply.TextReplyService;
-import com.github.winefoxbot.core.utils.BotUtils;
+import com.github.winefoxbot.core.util.BotUtil;
 import com.mikuac.shiro.annotation.GroupAdminHandler;
 import com.mikuac.shiro.annotation.GroupDecreaseHandler;
 import com.mikuac.shiro.annotation.GroupIncreaseHandler;
@@ -57,7 +57,7 @@ public class GroupWelcomePlugin {
         }
 
         log.info("插件检测到群成员 {} 加入群 {}，准备发送欢迎语", userId, groupId);
-        String username = BotUtils.getGroupMemberNickname(bot, groupId, userId);
+        String username = BotUtil.getGroupMemberNickname(bot, groupId, userId);
         
         TextReply reply = textReplyService.getReply(new TextReplyParams(username, BotReplyTemplateType.WELCOME));
         sendReply(bot, reply, groupId, userId, true);
@@ -71,7 +71,7 @@ public class GroupWelcomePlugin {
         Long groupId = event.getGroupId();
         Long userId = event.getUserId();
 
-        String username = BotUtils.getStrangeNickname(bot, userId);
+        String username = BotUtil.getStrangeNickname(bot, userId);
         GroupMemberDecreaseType type = GroupMemberDecreaseType.fromValue(event.getSubType());
         
         TextReply reply = null;

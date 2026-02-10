@@ -2,7 +2,7 @@ package com.github.winefoxbot.core.service.reply.impl;
 
 import com.github.winefoxbot.core.config.reply.WinefoxBotVoiceReplyConfig;
 import com.github.winefoxbot.core.service.reply.VoiceReplyService;
-import com.github.winefoxbot.core.utils.LotteryUtils;
+import com.github.winefoxbot.core.util.LotteryUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -49,7 +49,7 @@ public class VoiceReplyServiceImpl implements VoiceReplyService {
 
         try {
             // 2. 调用抽奖工具
-            Object result = LotteryUtils.draw(prizeMap);
+            Object result = LotteryUtil.draw(prizeMap);
 
             if (result instanceof File) {
                 File chosenFile = (File) result;

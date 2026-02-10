@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.utils;
+package com.github.winefoxbot.core.util;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONArray;

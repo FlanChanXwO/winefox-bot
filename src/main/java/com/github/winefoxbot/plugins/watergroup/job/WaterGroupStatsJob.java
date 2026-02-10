@@ -3,7 +3,7 @@ package com.github.winefoxbot.plugins.watergroup.job;
 import com.github.winefoxbot.core.annotation.schedule.BotTask;
 import com.github.winefoxbot.core.model.enums.common.PushTargetType;
 import com.github.winefoxbot.core.service.schedule.handler.BotJobHandler;
-import com.github.winefoxbot.core.utils.FileUtil;
+import com.github.winefoxbot.core.util.FileUtil;
 import com.github.winefoxbot.plugins.watergroup.config.WaterGroupPluginConfig;
 import com.github.winefoxbot.plugins.watergroup.model.entity.WaterGroupMessageStat;
 import com.github.winefoxbot.plugins.watergroup.service.WaterGroupPosterDrawService;

@@ -37,7 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 
 import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.*;
-import static com.github.winefoxbot.core.utils.FileUtil.formatDataSize;
+import static com.github.winefoxbot.core.util.FileUtil.formatDataSize;
 import static com.mikuac.shiro.core.BotPlugin.MESSAGE_BLOCK;
 import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
 

@@ -1,23 +1,17 @@
 package com.github.winefoxbot.plugins.fortune.aitools;
 
 import com.github.winefoxbot.core.context.BotContext;
-import com.github.winefoxbot.core.model.enums.common.MessageType;
-import com.github.winefoxbot.core.utils.PluginConfigBinder;
+import com.github.winefoxbot.core.util.PluginConfigBinder;
 import com.github.winefoxbot.plugins.fortune.config.FortunePluginConfig;
-import com.github.winefoxbot.plugins.fortune.model.vo.FortuneRenderVO;
 import com.github.winefoxbot.plugins.fortune.service.FortuneDataService;
 import com.mikuac.shiro.core.Bot;
-import com.mikuac.shiro.core.BotContainer;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
-import com.mikuac.shiro.dto.event.message.MessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Description;
 
-import java.util.Optional;
 import java.util.function.Function;
 
 /**

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.core.model.dto.TextReply;
 import com.github.winefoxbot.core.model.dto.TextReplyParams;
 import com.github.winefoxbot.core.service.reply.TextReplyService;
-import com.github.winefoxbot.core.utils.DynamicResourceLoader;
+import com.github.winefoxbot.core.util.DynamicResourceLoader;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

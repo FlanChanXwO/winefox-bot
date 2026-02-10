@@ -13,9 +13,9 @@ import com.github.winefoxbot.core.model.enums.common.PushTargetType;
 import com.github.winefoxbot.core.service.schedule.ShiroScheduleTaskService;
 import com.github.winefoxbot.core.service.schedule.handler.BotJobHandler;
 import com.github.winefoxbot.core.service.shiro.ShiroSessionStateService;
-import com.github.winefoxbot.core.utils.CronFormatter;
-import com.github.winefoxbot.core.utils.FileUtil;
-import com.github.winefoxbot.core.utils.NumberParserUtil;
+import com.github.winefoxbot.core.util.CronFormatter;
+import com.github.winefoxbot.core.util.FileUtil;
+import com.github.winefoxbot.core.util.NumberParserUtil;
 import com.github.winefoxbot.plugins.pixiv.config.PixivPluginConfig;
 import com.github.winefoxbot.plugins.pixiv.job.PixivRankDailyJob;
 import com.github.winefoxbot.plugins.pixiv.job.PixivRankMonthlyJob;
@@ -26,7 +26,7 @@ import com.github.winefoxbot.plugins.pixiv.model.dto.search.PixivSearchResult;
 import com.github.winefoxbot.plugins.pixiv.model.entity.PixivBookmark;
 import com.github.winefoxbot.plugins.pixiv.model.enums.PixivRankPushMode;
 import com.github.winefoxbot.plugins.pixiv.service.*;
-import com.github.winefoxbot.plugins.pixiv.utils.PixivUtils;
+import com.github.winefoxbot.plugins.pixiv.utils.PixivUtil;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.common.Order;
@@ -257,10 +257,10 @@ public class PixivPlugin {
     public void getPixivPic(Bot bot, AnyMessageEvent event, Matcher matcher) {
         String arg = matcher.group(2);
         Integer messageId = event.getMessageId();
-        if (arg == null || (!PixivUtils.isPixivArtworkUrl(arg) && !arg.matches("\\d+"))) {
+        if (arg == null || (!PixivUtil.isPixivArtworkUrl(arg) && !arg.matches("\\d+"))) {
             return; // 忽略无效命令
         }
-        String pid = PixivUtils.extractPID(arg);
+        String pid = PixivUtil.extractPID(arg);
         try {
             if (pid == null || !pixivService.isValidPixivPID(pid)) {
                 bot.sendMsg(event, MsgUtils.builder().reply(messageId).text("无效的 Pixiv PID 或 URL！").build(), false);
@@ -764,7 +764,7 @@ public class PixivPlugin {
     public void addSingleBookmark(Bot bot, AnyMessageEvent event, Matcher matcher) {
         String arg = matcher.group(1).trim();
         // 解析 PID
-        String pid = PixivUtils.extractPID(arg);
+        String pid = PixivUtil.extractPID(arg);
 
         if (pid == null) {
             bot.sendMsg(event, "无法从输入中提取有效的 Pixiv 作品 ID。", false);
@@ -797,7 +797,7 @@ public class PixivPlugin {
     public void removeSingleBookmark(Bot bot, AnyMessageEvent event, Matcher matcher) {
         String arg = matcher.group(2).trim(); // group 1 是 (取消|移除)，group 2 是参数
         // 解析 PID
-        String pid = PixivUtils.extractPID(arg);
+        String pid = PixivUtil.extractPID(arg);
 
         if (pid == null) {
             bot.sendMsg(event, "无法从输入中提取有效的 Pixiv 作品 ID。", false);
@@ -831,7 +831,7 @@ public class PixivPlugin {
     public void crawlUserArtworks(Bot bot, AnyMessageEvent event, Matcher matcher) {
         String arg = matcher.group(1).trim();
         // 解析 uid
-        String uid = PixivUtils.extractUID(arg);
+        String uid = PixivUtil.extractUID(arg);
 
         bot.sendMsg(event, "开始解析画师 [" + uid + "] 的作品列表，正在异步执行批量收藏...", false);
 
@@ -861,7 +861,7 @@ public class PixivPlugin {
     public void transferBookmarks(Bot bot, AnyMessageEvent event, Matcher matcher) {
         String arg = matcher.group(2).trim();
         // 解析 uid
-        String targetUserId = PixivUtils.extractUID(arg);
+        String targetUserId = PixivUtil.extractUID(arg);
 
         if (targetUserId == null) {
             bot.sendMsg(event, "无法提取有效的用户 ID。请输入纯数字 ID 或用户主页链接。", false);

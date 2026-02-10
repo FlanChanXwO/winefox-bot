@@ -4,8 +4,9 @@ import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.github.winefoxbot.core.annotation.plugin.Plugin;
-import com.github.winefoxbot.core.utils.MessageConverter;
-import com.github.winefoxbot.plugins.linkresolver.config.BilibiliPluginConfig;
+import com.github.winefoxbot.core.util.MessageConverter;
+import com.github.winefoxbot.plugins.linkresolver.config.LinkResolverConfig;
+import com.github.winefoxbot.plugins.linkresolver.config.LinkResolverPluginConfig;
 import com.github.winefoxbot.plugins.linkresolver.service.LinkResolverService;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -21,6 +22,8 @@ import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
 import com.mikuac.shiro.enums.MsgTypeEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.eclipse.sisu.PostConstruct;
+import org.springframework.scheduling.annotation.Async;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -43,19 +46,24 @@ import static com.github.winefoxbot.core.model.enums.common.PluginType.PASSIVE;
         type = PASSIVE,
         builtIn = true,
         order = 100,
-        config = BilibiliPluginConfig.class
+        config = LinkResolverPluginConfig.class
 )
 @Slf4j
-@RequiredArgsConstructor
-public class BiliBiliLinkResolverPlugin {
+public class LinkResolverPlugin {
 
     private final List<LinkResolverService> resolvers;
+    private final Cache<String, Boolean> historyCache;
+
     private final Gson gson = new Gson();
 
-    private final Cache<String, Boolean> historyCache = CacheBuilder.newBuilder()
-            .expireAfterWrite(60, TimeUnit.SECONDS)
-            .maximumSize(1000)
-            .build();
+    public LinkResolverPlugin(List<LinkResolverService> resolvers, LinkResolverConfig linkResolverConfig) {
+        this.resolvers = resolvers;
+        this.historyCache = CacheBuilder.newBuilder()
+                .expireAfterWrite(linkResolverConfig.getReanalysisTimeSeconds())
+                .maximumSize(1000)
+                .build();
+    }
+
 
     private final Striped<Lock> keyLocks = Striped.lock(64);
 
@@ -63,6 +71,7 @@ public class BiliBiliLinkResolverPlugin {
     // 添加 (?s) 启用 DOTALL 模式，使 . 匹配换行符，解决多行消息无法触发的问题
     private static final String FILTER_REGEX = "(?is).*(bilibili|b23\\.tv|BV[a-zA-Z0-9]{10}|av\\d+|cv\\d+|哔哩哔哩|youtube|youtu\\.be|douyin|iesdouyin|QQ小程序|twitter\\.com|x\\.com|m\\.q\\.qq\\.com).*";
 
+    @Async
     @GroupMessageHandler
     @MessageHandlerFilter(types = {MsgTypeEnum.text, MsgTypeEnum.json}, cmd = FILTER_REGEX)
     public void resolveLink(Bot bot, GroupMessageEvent event) {
@@ -79,8 +88,15 @@ public class BiliBiliLinkResolverPlugin {
             for (LinkResolverService resolver : resolvers) {
                 Matcher matcher = resolver.getRegex().matcher(urlToParse);
                 if (matcher.find()) {
-                    // 防重复处理
-                    String cacheKey = urlToParse;
+                    // 使用规范ID进行防重复处理
+                    String canonicalId = resolver.getCanonicalId(urlToParse);
+                    if (canonicalId == null || canonicalId.trim().isEmpty()) {
+                        log.warn("无法为 URL提取规范 ID: {}", urlToParse);
+                        // 无法获取规范ID时，回退到使用原始URL作为key，避免跳过处理
+                        canonicalId = urlToParse;
+                    }
+
+                    String cacheKey = canonicalId;
                     if (Boolean.TRUE.equals(historyCache.getIfPresent(cacheKey))) {
                         log.debug("URL 命中防重复缓存，跳过: {}", cacheKey);
                         return;
@@ -172,8 +188,7 @@ public class BiliBiliLinkResolverPlugin {
                     try {
                         JSONArray nestedSegments = MessageConverter.parseCQToJSONArray(text);
                         for (Object nestedItem : nestedSegments) {
-                            if (!(nestedItem instanceof JSONObject)) continue;
-                            JSONObject nestedSeg = (JSONObject) nestedItem;
+                            if (!(nestedItem instanceof JSONObject nestedSeg)) continue;
                             if ("json".equals(nestedSeg.getStr("type"))) {
                                 JSONObject nestedData = nestedSeg.getJSONObject("data");
                                 if (nestedData != null) {

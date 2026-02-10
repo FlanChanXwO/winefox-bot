@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.utils;
+package com.github.winefoxbot.core.util;
 
 import com.github.winefoxbot.core.exception.common.BusinessException;
 import com.github.winefoxbot.core.model.dto.BroadcastMessageResult;

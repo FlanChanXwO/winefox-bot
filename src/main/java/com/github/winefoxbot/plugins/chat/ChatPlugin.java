@@ -4,13 +4,9 @@ import com.github.winefoxbot.core.annotation.common.Block;
 import com.github.winefoxbot.core.annotation.common.Limit;
 import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
-import com.github.winefoxbot.core.model.enums.common.MessageType;
 import com.github.winefoxbot.core.model.enums.common.Permission;
 import com.github.winefoxbot.core.service.reply.VoiceReplyService;
 import com.github.winefoxbot.core.service.shiro.ShiroMessagesService;
-import com.github.winefoxbot.core.service.shiro.ShiroSessionStateService;
-import com.github.winefoxbot.core.utils.BotUtils;
-import com.github.winefoxbot.core.utils.MessageConverter;
 import com.github.winefoxbot.plugins.chat.service.AiInteractionHelper;
 import com.github.winefoxbot.plugins.chat.service.AiInteractionHelper.AiMessageInput;
 import com.github.winefoxbot.plugins.chat.service.OpenAiService;
@@ -19,8 +15,6 @@ import com.mikuac.shiro.annotation.common.Order;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
-import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
-import com.mikuac.shiro.dto.event.message.PrivateMessageEvent;
 import com.mikuac.shiro.dto.event.notice.PokeNoticeEvent;
 import com.mikuac.shiro.enums.AtEnum;
 import com.mikuac.shiro.enums.MsgTypeEnum;
@@ -37,8 +31,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
-import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.COMMAND_PREFIX;
-import static com.github.winefoxbot.core.config.app.WineFoxBotConfig.COMMAND_SUFFIX;
 import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
 
 /**

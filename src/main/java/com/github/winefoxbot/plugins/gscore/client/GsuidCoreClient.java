@@ -144,8 +144,10 @@ public class GsuidCoreClient extends WebSocketClient {
                         }
 
                         // 构建子消息链
-                        String nodeContent = buildMessageChain(subNodes, bot, req.getTargetType(), req.getTargetId());
-                        forwardNodes.add(nodeContent);
+                        for (MsgNode subNode : subNodes) {
+                            String nodeContent = buildMessageChain(subNode, bot, req.getTargetType(), req.getTargetId());
+                            forwardNodes.add(nodeContent);
+                        }
                     } catch (Exception e) {
                         log.error("[gsuid] 解析合并转发节点失败: {}", node.getData(), e);
                     }
@@ -181,69 +183,81 @@ public class GsuidCoreClient extends WebSocketClient {
         }
     }
 
+    private void appendNodeToMessage(MsgUtils builder, MsgNode node, Bot bot, String targetType, String targetId) {
+        switch (node.getType()) {
+            case "text":
+            case "markdown":
+                if (node.getData() instanceof String) {
+                    builder.text((String) node.getData());
+                }
+                break;
+            case "image":
+                if (node.getData() instanceof String imgData) {
+                    if (imgData.startsWith("http")) {
+                        builder.img(imgData);
+                    } else if (imgData.startsWith("base64://")) {
+                        // Shiro 支持 Base64 图片
+                        builder.img(imgData);
+                    } else {
+                        // 纯 Base64 字符串处理
+                        builder.img("base64://" + imgData);
+                    }
+                }
+                break;
+            case "at":
+                try {
+                    if (node.getData() instanceof String) {
+                        builder.at(Long.parseLong((String) node.getData()));
+                    } else if (node.getData() instanceof Number) {
+                        builder.at(((Number) node.getData()).longValue());
+                    }
+                } catch (NumberFormatException e) {
+                    log.warn("[gsuid] Invalid at target: {}", node.getData());
+                }
+                break;
+            case "reply":
+                try {
+                    if (node.getData() instanceof String) {
+                        builder.reply(Integer.parseInt((String) node.getData()));
+                    } else if (node.getData() instanceof Number) {
+                        builder.reply(((Number) node.getData()).intValue());
+                    }
+                } catch (NumberFormatException e) {
+                    log.warn("[gsuid] Invalid reply id: {}", node.getData());
+                }
+                break;
+            case "record":
+                if (node.getData() instanceof String) {
+                    builder.voice((String) node.getData());
+                }
+                break;
+            case "file":
+                // 处理文件上传
+                if (node.getData() instanceof String) {
+                    handleFileUpload((String) node.getData(), bot, targetType, targetId);
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
     // 构建消息链字符串
     private String buildMessageChain(List<MsgNode> nodes, Bot bot, String targetType, String targetId) {
         MsgUtils builder = MsgUtils.builder();
         for (MsgNode node : nodes) {
-            switch (node.getType()) {
-                case "text":
-                case "markdown":
-                    if (node.getData() instanceof String) {
-                        builder.text((String) node.getData());
-                    }
-                    break;
-                case "image":
-                    if (node.getData() instanceof String imgData) {
-                        if (imgData.startsWith("http")) {
-                            builder.img(imgData);
-                        } else if (imgData.startsWith("base64://")) {
-                            // Shiro 支持 Base64 图片
-                            builder.img(imgData);
-                        } else {
-                            // 纯 Base64 字符串处理
-                            builder.img("base64://" + imgData);
-                        }
-                    }
-                    break;
-                case "at":
-                    try {
-                        if (node.getData() instanceof String) {
-                            builder.at(Long.parseLong((String) node.getData()));
-                        } else if (node.getData() instanceof Number) {
-                            builder.at(((Number) node.getData()).longValue());
-                        }
-                    } catch (NumberFormatException e) {
-                        log.warn("[gsuid] Invalid at target: {}", node.getData());
-                    }
-                    break;
-                case "reply":
-                    try {
-                        if (node.getData() instanceof String) {
-                            builder.reply(Integer.parseInt((String) node.getData()));
-                        } else if (node.getData() instanceof Number) {
-                            builder.reply(((Number) node.getData()).intValue());
-                        }
-                    } catch (NumberFormatException e) {
-                        log.warn("[gsuid] Invalid reply id: {}", node.getData());
-                    }
-                    break;
-                case "record":
-                    if (node.getData() instanceof String) {
-                        builder.voice((String) node.getData());
-                    }
-                    break;
-                case "file":
-                    // 处理文件上传
-                    if (node.getData() instanceof String) {
-                        handleFileUpload((String) node.getData(), bot, targetType, targetId);
-                    }
-                    break;
-                default:
-                    break;
-            }
+            appendNodeToMessage(builder, node, bot, targetType, targetId);
         }
         return builder.build();
     }
+
+    private String buildMessageChain(MsgNode node, Bot bot, String targetType, String targetId) {
+        MsgUtils builder = MsgUtils.builder();
+        appendNodeToMessage(builder, node, bot, targetType, targetId);
+        return builder.build();
+    }
+
+
 
     private void handleFileUpload(String data, Bot bot, String targetType, String targetId) {
         try {

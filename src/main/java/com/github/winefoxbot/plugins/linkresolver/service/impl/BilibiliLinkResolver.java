@@ -4,10 +4,13 @@ import cn.hutool.core.date.DateUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.core.context.BotContext;
-import com.github.winefoxbot.plugins.linkresolver.config.BilibiliPluginConfig;
+import com.github.winefoxbot.core.service.file.FileStorageService;
+import com.github.winefoxbot.plugins.linkresolver.config.LinkResolverConfig;
+import com.github.winefoxbot.plugins.linkresolver.config.LinkResolverPluginConfig;
+import com.github.winefoxbot.plugins.linkresolver.constant.LinkResolverConstants;
 import com.github.winefoxbot.plugins.linkresolver.service.LinkResolverService;
-import com.github.winefoxbot.plugins.linkresolver.utils.BiliUtils;
-import com.github.winefoxbot.plugins.linkresolver.utils.CardGenerator;
+import com.github.winefoxbot.plugins.linkresolver.util.BiliUtil;
+import com.github.winefoxbot.plugins.linkresolver.util.CardGenerator;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
@@ -21,8 +24,13 @@ import org.apache.logging.log4j.util.Strings;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Pattern;
 
 @Slf4j
@@ -32,7 +40,9 @@ public class BilibiliLinkResolver implements LinkResolverService {
 
     private final ObjectMapper mapper;
     private final OkHttpClient client;
-
+    private final LinkResolverConfig linkResolverConfig;
+    private final CardGenerator cardGenerator;
+    private final FileStorageService fileStorageService;
     // 移除了原正则中未被捕获组1包含的部分，确保只匹配有效的 URL 或 ID
     private static final String REGEX_STR =
             "https?://(?:www\\.bilibili\\.com/(?:video|read|bangumi)/[a-zA-Z0-9]+(?:\\?\\S*)?|b23\\.tv/[a-zA-Z0-9]+(?:\\?\\S*)?|live\\.bilibili\\.com/\\d+|t\\.bilibili\\.com/\\d+)" +
@@ -44,6 +54,54 @@ public class BilibiliLinkResolver implements LinkResolverService {
     public Pattern getRegex() {
         return REGEX;
     }
+
+    @Override
+    public String getCanonicalId(String url) {
+        try {
+            // 处理短链接
+            if (url.toLowerCase().contains("b23.tv") || url.toLowerCase().contains("bili23.cn") || url.toLowerCase().contains("m.q.qq.com")) {
+                // 如果是小程序链接，需要补充协议头
+                if (url.startsWith("m.q.qq.com")) {
+                    url = "https://" + url;
+                }
+                String expanded = expandShortLink(url);
+                if (!expanded.isEmpty()) {
+                    url = expanded;
+                }
+            }
+        } catch (Exception e) {
+            log.debug("短链接展开失败: {}", e.getMessage());
+        }
+
+        // 提取信息
+        String[] extracted = BiliUtil.extract(url);
+        String bvid = extracted[0];
+        if ("video".equals(bvid)) {
+            return getBvidFromApi(extracted[1]);
+        }
+        return extracted[2];
+    }
+
+    private String getBvidFromApi(String apiUrl) {
+        if (apiUrl == null || apiUrl.isEmpty()) {
+            return null;
+        }
+        try {
+            JsonNode root = httpGetJson(apiUrl, null);
+            JsonNode data = root.path("data");
+            if (!data.isMissingNode()) {
+                if (data.has("bvid")) {
+                    return data.path("bvid").asText();
+                } else if (data.has("aid")) {
+                    return "av" + data.path("aid").asText();
+                }
+            }
+        } catch (Exception e) {
+            log.error("从API获取bvid失败", e);
+        }
+        return null;
+    }
+
 
     @Override
     public void resolve(Bot bot, GroupMessageEvent event, String urlToParse) {
@@ -65,7 +123,7 @@ public class BilibiliLinkResolver implements LinkResolverService {
             }
 
             // 提取信息
-            String[] extracted = BiliUtils.extract(urlToParse);
+            String[] extracted = BiliUtil.extract(urlToParse);
             String type = extracted[0];
             String api = extracted[1];
             String cvid = extracted[2];
@@ -82,50 +140,46 @@ public class BilibiliLinkResolver implements LinkResolverService {
     }
 
     private void processAnalysis(Bot bot, long groupId, String type, String api, String cvid) {
-        BilibiliPluginConfig config = (BilibiliPluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
+        LinkResolverPluginConfig config = (LinkResolverPluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
         if (config == null) {
             log.warn("BilibiliPluginConfig not found in context");
             return;
         }
 
-        // 如果开启了图片模式且是视频类型
-        if (Boolean.TRUE.equals(config.getSendImage()) && "video".equals(type)) {
+        if (Boolean.TRUE.equals(config.getSendCard()) && "video".equals(type)) {
             try {
                 JsonNode root = httpGetJson(api, config);
                 JsonNode data = root.path("data");
                 if (!data.isMissingNode()) {
                     String title = data.path("title").asText();
                     String cover = data.path("pic").asText();
-
-                    JsonNode owner = data.path("owner");
-                    String upName = owner.path("name").asText();
-                    String upFace = owner.path("face").asText();
-
-                    JsonNode stat = data.path("stat");
-                    String plays = BiliUtils.handleNum(stat.path("view").asLong());
-                    String danmaku = BiliUtils.handleNum(stat.path("danmaku").asLong());
-                    String like = BiliUtils.handleNum(stat.path("like").asLong());
-                    String coin = BiliUtils.handleNum(stat.path("coin").asLong());
-                    String favorite = BiliUtils.handleNum(stat.path("favorite").asLong());
-                    String share = BiliUtils.handleNum(stat.path("share").asLong());
-
+                    String upName = data.path("owner").path("name").asText();
+                    String upFace = data.path("owner").path("face").asText();
                     long pubDate = data.path("pubdate").asLong();
                     String dateStr = DateUtil.date(pubDate * 1000).toString();
-
                     String summary = data.path("desc").asText();
-                    // 截断过长的简介
                     if (summary.length() > 100) {
                         summary = summary.substring(0, 100) + "...";
                     }
 
-                    File cardFile = CardGenerator.generateBilibiliCard(
-                            title, cover, upName, upFace, dateStr,
-                            plays, danmaku, like, coin, favorite, share,
-                            summary, config.getTmpPath()
-                    );
+                    JsonNode stat = data.path("stat");
+                    List<CardGenerator.CardStatistic> statistics = new ArrayList<>();
+                    statistics.add(new CardGenerator.CardStatistic("play.png", BiliUtil.handleNum(stat.path("view").asLong())));
+                    statistics.add(new CardGenerator.CardStatistic("barrage.png", BiliUtil.handleNum(stat.path("danmaku").asLong())));
+                    statistics.add(new CardGenerator.CardStatistic("like.png", BiliUtil.handleNum(stat.path("like").asLong())));
+                    statistics.add(new CardGenerator.CardStatistic("coin.png", BiliUtil.handleNum(stat.path("coin").asLong())));
+                    statistics.add(new CardGenerator.CardStatistic("favourite.png", BiliUtil.handleNum(stat.path("favorite").asLong())));
+                    statistics.add(new CardGenerator.CardStatistic("share.png", BiliUtil.handleNum(stat.path("share").asLong())));
 
-                    if (cardFile != null && cardFile.exists()) {
-                        bot.sendGroupMsg(groupId, MsgUtils.builder().img(cardFile.toPath().toUri().toString()).build(), false);
+                    List<String> imageUrls = new ArrayList<>();
+                    imageUrls.add(cover);
+
+                    Path cardPath = cardGenerator.generateCard(
+                            upName, dateStr, upFace, title + "\n\n" + summary, imageUrls,
+                            null, statistics, "bilibili", false, 16.0 / 9.0, "bili-card-" + cvid + ".png");
+
+                    if (cardPath != null) {
+                        bot.sendGroupMsg(groupId, MsgUtils.builder().img(cardPath.toAbsolutePath().toString()).build(), false);
                     }
                 }
             } catch (Exception e) {
@@ -133,44 +187,53 @@ public class BilibiliLinkResolver implements LinkResolverService {
             }
         }
 
-        // 视频文件下载逻辑
-        if (Boolean.TRUE.equals(config.getAnalysisVideoSend()) && "video".equals(type)) {
+        if (Boolean.TRUE.equals(config.getSendResource()) && "video".equals(type)) {
             handleVideoDownloadAndSend(bot, groupId, api, config);
         }
     }
 
-    private void handleVideoDownloadAndSend(Bot bot, long groupId, String api, BilibiliPluginConfig config) {
+    private void handleVideoDownloadAndSend(Bot bot, long groupId, String api, LinkResolverPluginConfig config) {
         try {
-            File file = downloadVideo(api, config);
-            if (file != null) {
-                log.info("下载到视频，准备发送: {}", file.getAbsolutePath());
+            Path filePath = downloadVideo(api, config);
+            if (filePath != null) {
+                log.info("下载到视频，准备发送: {}", filePath.toAbsolutePath());
                 String videoMsg = MsgUtils.builder()
-                        .video("file:///" + file.getAbsolutePath(), Strings.EMPTY)
+                        .video(filePath.toUri().toString(), Strings.EMPTY)
                         .build();
                 bot.sendGroupMsg(groupId, videoMsg, false);
-
-                if (file.exists()) {
-                    if (!file.delete()) {
-                        file.deleteOnExit();
-                    }
-                }
             }
         } catch (Exception e) {
             log.error("视频发送失败", e);
         }
     }
 
-    private File downloadVideo(String apiUrl, BilibiliPluginConfig config) {
+    private Path downloadVideo(String apiUrl, LinkResolverPluginConfig config) {
         try {
             JsonNode root = httpGetJson(apiUrl, config);
             JsonNode data = root.path("data");
             if (data.isMissingNode() || data.isNull()) return null;
             long duration = data.get("duration").asLong();
             long cid = data.get("cid").asLong();
+            String bvid = data.get("bvid").asText();
 
             if (duration <= config.getDurationSecLimit()) {
-                String bvid = data.get("bvid").asText();
-                return downloadBiliVideo(bvid, cid, duration, config);
+                String cacheKey = "bili-video-" + bvid + ".mp4";
+                Path cachedPath = fileStorageService.getFilePathByCacheKey(cacheKey);
+                if (cachedPath != null && Files.exists(cachedPath)) {
+                    log.debug("Found Bilibili video in cache: {}", cacheKey);
+                    return cachedPath;
+                }
+
+                File mergedVideo = downloadBiliVideo(bvid, cid, duration, config);
+                if (mergedVideo != null && mergedVideo.exists()) {
+                    try (InputStream is = new FileInputStream(mergedVideo)) {
+                        return fileStorageService.saveFileByCacheKey(cacheKey, is, LinkResolverConstants.RESOURCE_CACHE_DURATION);
+                    } finally {
+                        if (!mergedVideo.delete()) {
+                            mergedVideo.deleteOnExit();
+                        }
+                    }
+                }
             }
         } catch (Exception e) {
             log.error("下载视频失败 apiUrl=" + apiUrl, e);
@@ -178,7 +241,7 @@ public class BilibiliLinkResolver implements LinkResolverService {
         return null;
     }
 
-    private JsonNode httpGetJson(String url, BilibiliPluginConfig config) throws IOException {
+    private JsonNode httpGetJson(String url, LinkResolverPluginConfig config) throws IOException {
         Request request = buildHttpRequest(url, config);
         try (Response resp = client.newCall(request).execute()) {
             if (!resp.isSuccessful()) throw new IOException("HTTP error " + resp.code() + " for " + url);
@@ -187,13 +250,15 @@ public class BilibiliLinkResolver implements LinkResolverService {
         }
     }
 
-    private Request buildHttpRequest(String url, BilibiliPluginConfig config) {
-        return new Request.Builder()
+    private Request buildHttpRequest(String url, LinkResolverPluginConfig config) {
+        Request.Builder builder = new Request.Builder()
                 .url(url)
                 .header("User-Agent", "Mozilla/5.0 WineFoxBot")
-                .header("Referer", "https://www.bilibili.com/")
-                .header("Cookie", config.getCookie())
-                .build();
+                .header("Referer", "https://www.bilibili.com/");
+        if (config != null && !config.getBiliBilicookie().isBlank()) {
+            builder.header("Cookie", config.getBiliBilicookie());
+        }
+        return builder.build();
     }
 
     private String expandShortLink(String shortUrl) throws IOException {
@@ -207,7 +272,7 @@ public class BilibiliLinkResolver implements LinkResolverService {
         }
     }
 
-    private File downloadBiliVideo(String bvid, long cid, long durationSec, BilibiliPluginConfig config) throws Exception {
+    private File downloadBiliVideo(String bvid, long cid, long durationSec, LinkResolverPluginConfig config) throws Exception {
         if (config.getDurationSecLimit() > 0 && durationSec > config.getDurationSecLimit()) {
             return null;
         }
@@ -218,7 +283,7 @@ public class BilibiliLinkResolver implements LinkResolverService {
         String videoUrl = dash.get("video").get(0).get("baseUrl").asText();
         String audioUrl = dash.get("audio").get(0).get("baseUrl").asText();
 
-        File tempDir = new File(config.getTmpPath());
+        File tempDir = new File(linkResolverConfig.getTmpPath());
         if (!tempDir.exists()) tempDir.mkdirs();
 
         File videoFile = new File(tempDir, bvid + "_v.mp4");
@@ -231,7 +296,7 @@ public class BilibiliLinkResolver implements LinkResolverService {
         return outputFile;
     }
 
-    private void downloadResource(String url, File out, BilibiliPluginConfig config) throws IOException {
+    private void downloadResource(String url, File out, LinkResolverPluginConfig config) throws IOException {
         Request req = buildHttpRequest(url, config);
         try (Response resp = client.newCall(req).execute()) {
             if (!resp.isSuccessful()) throw new IOException("HTTP " + resp.code());

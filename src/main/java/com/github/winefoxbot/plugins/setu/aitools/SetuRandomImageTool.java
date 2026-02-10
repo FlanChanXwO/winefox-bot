@@ -1,14 +1,11 @@
 package com.github.winefoxbot.plugins.setu.aitools;
 
 import com.github.winefoxbot.core.context.BotContext;
-import com.github.winefoxbot.core.model.enums.common.MessageType;
 import com.github.winefoxbot.core.service.common.SmartTagService;
-import com.github.winefoxbot.core.utils.PluginConfigBinder;
-import com.github.winefoxbot.plugins.fortune.config.FortunePluginConfig;
+import com.github.winefoxbot.core.util.PluginConfigBinder;
 import com.github.winefoxbot.plugins.setu.config.SetuPluginConfig;
 import com.github.winefoxbot.plugins.setu.service.SetuService;
 import com.mikuac.shiro.core.Bot;
-import com.mikuac.shiro.core.BotContainer;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +15,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Description;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Function;
 
 /**

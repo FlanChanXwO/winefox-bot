@@ -5,7 +5,7 @@ import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.exception.bot.BotException;
 import com.github.winefoxbot.core.exception.common.BusinessException;
 import com.github.winefoxbot.core.model.enums.common.MessageType;
-import com.github.winefoxbot.core.utils.SendMsgUtil;
+import com.github.winefoxbot.core.util.SendMsgUtil;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.action.common.ActionData;

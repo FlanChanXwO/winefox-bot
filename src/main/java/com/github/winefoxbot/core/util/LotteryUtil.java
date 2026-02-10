@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.utils;
+package com.github.winefoxbot.core.util;
 
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
@@ -15,12 +15,12 @@ import java.util.concurrent.ThreadLocalRandom;
  *
  * @author FlanChanXwO
  */
-public final class LotteryUtils {
+public final class LotteryUtil {
 
     /**
      * 私有构造函数，防止实例化
      */
-    private LotteryUtils() {
+    private LotteryUtil() {
         throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
     }
 

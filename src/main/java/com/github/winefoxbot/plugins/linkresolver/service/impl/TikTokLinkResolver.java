@@ -25,4 +25,9 @@ public class TikTokLinkResolver implements LinkResolverService {
         // TODO: 实现抖音解析逻辑
         log.info("TikTok link detected: {}", match);
     }
+
+    @Override
+    public String getCanonicalId(String url) {
+        return url;
+    }
 }

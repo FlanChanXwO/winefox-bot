@@ -1,4 +1,4 @@
-package com.github.winefoxbot.core.utils;
+package com.github.winefoxbot.core.util;
 
 import org.apache.tika.Tika;
 import org.springframework.core.io.Resource;
@@ -20,12 +20,12 @@ import java.util.regex.Pattern;
  * Base64 工具类，支持多种数据源与带 MIME-Type 前缀的 Base64 字符串之间的转换。
  * @author FlanChan
  */
-public final class Base64Utils {
+public final class Base64Util {
 
     private static final Tika TIKA_INSTANCE = new Tika();
     private static final Pattern BASE64_PREFIX_PATTERN = Pattern.compile("^data:(.*?);base64,");
 
-    private Base64Utils() {
+    private Base64Util() {
         // 防止实例化
         throw new UnsupportedOperationException("Base64Utils is a utility class and cannot be instantiated");
     }
