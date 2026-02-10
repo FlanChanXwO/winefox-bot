@@ -19,6 +19,9 @@ import org.springframework.stereotype.Service;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -41,7 +44,6 @@ public class YoutubeLinkResolver implements LinkResolverService {
 
     private static final String REGEX_STR = "(?:https?://)?(?:www\\.)?(?:m\\.)?(?:youtube\\.com|youtu\\.be)/(?:watch\\?v=|v/|embed/|shorts/)?([a-zA-Z0-9_-]{11})";
     private static final Pattern REGEX = Pattern.compile(REGEX_STR);
-    private static final Pattern AVATAR_REGEX = Pattern.compile("<meta property=\"og:image\" content=\"(.*?)\">");
 
 
     @Override
@@ -83,25 +85,33 @@ public class YoutubeLinkResolver implements LinkResolverService {
         // If resource was not sent (e.g. too long, or disabled), and cards are enabled, send a card.
         if (!resourceSent && Boolean.TRUE.equals(config.getSendCard())) {
             try {
-                String apiUrl = "https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=" + videoId + "&format=json";
-                JsonNode data = httpGetJson(apiUrl);
+                JsonNode videoInfo = getVideoInfoFromPlayerApi(videoId);
 
-                if (data != null) {
-                    String title = data.path("title").asText();
-                    String authorName = data.path("author_name").asText();
-                    String authorUrl = data.path("author_url").asText();
-                    String thumbnailUrl = data.path("thumbnail_url").asText();
-                    String authorAvatarUrl = getAuthorAvatarUrl(authorUrl);
+                if (videoInfo != null) {
+                    JsonNode details = videoInfo.path("videoDetails");
+                    JsonNode microformat = videoInfo.path("microformat").path("playerMicroformatRenderer");
 
+                    String title = details.path("title").asText("未知标题");
+                    String authorName = details.path("author").asText("未知作者");
+
+                    JsonNode thumbnails = details.path("thumbnail").path("thumbnails");
+                    String thumbnailUrl = "";
+                    if (thumbnails.isArray() && !thumbnails.isEmpty()) {
+                        thumbnailUrl = thumbnails.get(thumbnails.size() - 1).path("url").asText();
+                    }
+
+                    JsonNode authorThumbnails = microformat.path("thumbnail").path("thumbnails");
+                    String authorAvatarUrl = "";
+                    if (authorThumbnails.isArray() && !authorThumbnails.isEmpty()) {
+                        authorAvatarUrl = authorThumbnails.get(authorThumbnails.size() - 1).path("url").asText();
+                    }
                     List<String> imageUrls = Collections.singletonList(thumbnailUrl);
 
                     Path cardPath = cardGenerator.generateCard(
                             authorName, "", authorAvatarUrl, title, imageUrls,
                             null, new ArrayList<>(), "youtube", false, 16.0 / 9.0, true, "youtube-card-" + videoId + ".png");
 
-                    if (cardPath != null) {
-                        bot.sendGroupMsg(event.getGroupId(), MsgUtils.builder().img(cardPath.toAbsolutePath().toString()).build(), false);
-                    }
+                    if (cardPath != null) bot.sendGroupMsg(event.getGroupId(), MsgUtils.builder().img(cardPath.toAbsolutePath().toString()).build(), false);
                 }
             } catch (Exception e) {
                 log.error("Failed to resolve YouTube link and send card", e);
@@ -112,9 +122,44 @@ public class YoutubeLinkResolver implements LinkResolverService {
     private boolean downloadAndSendVideo(Bot bot, GroupMessageEvent event, String videoId, LinkResolverPluginConfig config) {
         Path tempVideoFile = null;
         Path tempThumbnailFile = null;
+        Path tempCookieFile = null;
         try {
             String videoUrl = "https://www.youtube.com/watch?v=" + videoId;
-            ProcessBuilder infoProcessBuilder = new ProcessBuilder("yt-dlp", "--dump-json", videoUrl);
+
+            List<String> commandArgs = new ArrayList<>();
+            commandArgs.add(config.getYtDlpPath());
+
+            // 从OkHttpClient获取代理并应用到yt-dlp
+            Proxy proxy = client.proxy();
+            if (proxy != null && proxy.type() != java.net.Proxy.Type.DIRECT) {
+                if (proxy.address() instanceof InetSocketAddress address) {
+                    String host = address.getHostString();
+                    int port = address.getPort();
+                    String proxyUrl;
+                    if (proxy.type() == java.net.Proxy.Type.SOCKS) {
+                        proxyUrl = "socks5://" + host + ":" + port;
+                    } else { // 默认为 HTTP 代理
+                        proxyUrl = "http://" + host + ":" + port;
+                    }
+                    commandArgs.add("--proxy");
+                    commandArgs.add(proxyUrl);
+                    log.debug("Using proxy {} for yt-dlp from OkHttpClient configuration.", proxyUrl);
+                }
+            }
+
+            String cookieContent = config.getYoutubeCookie();
+            if (cookieContent != null && !cookieContent.trim().isEmpty()) {
+                tempCookieFile = Files.createTempFile("youtube-cookies-", ".txt");
+                Files.write(tempCookieFile, cookieContent.getBytes(StandardCharsets.UTF_8));
+                commandArgs.add("--cookies");
+                commandArgs.add(tempCookieFile.toAbsolutePath().toString());
+                log.debug("Using YouTube cookies from config for videoId: {}", videoId);
+            }
+
+            List<String> infoCommand = new ArrayList<>(commandArgs);
+            infoCommand.add("--dump-json");
+            infoCommand.add(videoUrl);
+            ProcessBuilder infoProcessBuilder = new ProcessBuilder(infoCommand);
             infoProcessBuilder.redirectErrorStream(true);
             Process infoProcess = infoProcessBuilder.start();
 
@@ -153,12 +198,13 @@ public class YoutubeLinkResolver implements LinkResolverService {
             }
 
             tempVideoFile = Files.createTempFile("youtube-" + videoId, ".mp4");
-            ProcessBuilder downloadProcessBuilder = new ProcessBuilder(
-                    "yt-dlp",
-                    "-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/best",
-                    "-o", tempVideoFile.toAbsolutePath().toString(),
-                    videoUrl
-            );
+            List<String> downloadCommand = new ArrayList<>(commandArgs);
+            downloadCommand.add("-f");
+            downloadCommand.add("bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/best");
+            downloadCommand.add("-o");
+            downloadCommand.add(tempVideoFile.toAbsolutePath().toString());
+            downloadCommand.add(videoUrl);
+            ProcessBuilder downloadProcessBuilder = new ProcessBuilder(downloadCommand);
             downloadProcessBuilder.redirectErrorStream(true);
 
             log.info("Starting download for video: {}", videoId);
@@ -189,41 +235,26 @@ public class YoutubeLinkResolver implements LinkResolverService {
             try {
                 if (tempVideoFile != null) Files.deleteIfExists(tempVideoFile);
                 if (tempThumbnailFile != null) Files.deleteIfExists(tempThumbnailFile);
+                if (tempCookieFile != null) Files.deleteIfExists(tempCookieFile);
             } catch (IOException e) {
                 log.error("Failed to delete temporary files for video {}", videoId, e);
             }
         }
     }
 
-    private String getAuthorAvatarUrl(String authorUrl) {
-        if (authorUrl == null || authorUrl.isEmpty()) {
-            return null;
-        }
-        try {
-            Request request = new Request.Builder().url(authorUrl).header("User-Agent", "Mozilla/5.0 WineFoxBot").build();
-            try (Response response = client.newCall(request).execute()) {
-                if (response.isSuccessful() && response.body() != null) {
-                    String html = response.body().string();
-                    Matcher matcher = AVATAR_REGEX.matcher(html);
-                    if (matcher.find()) {
-                        return matcher.group(1);
-                    }
-                }
-            }
-        } catch (IOException e) {
-            log.error("Failed to fetch author avatar for url: {}", authorUrl, e);
-        }
-        return null;
-    }
+    private JsonNode getVideoInfoFromPlayerApi(String videoId) throws IOException {
+        String url = "https://www.youtube.com/youtubei/v1/player";
+        String payload = String.format("{\"videoId\":\"%s\",\"context\":{\"client\":{\"clientName\":\"WEB\",\"clientVersion\":\"2.20240328.01.00\"}}}", videoId);
 
-    private JsonNode httpGetJson(String url) throws IOException {
         Request request = new Request.Builder()
                 .url(url)
-                .header("User-Agent", "Mozilla/5.0 WineFoxBot")
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .post(okhttp3.RequestBody.create(payload, okhttp3.MediaType.get("application/json")))
                 .build();
+
         try (Response resp = client.newCall(request).execute()) {
             if (!resp.isSuccessful()) {
-                throw new IOException("HTTP error " + resp.code() + " for " + url);
+                throw new IOException("YouTube Player API request failed with code " + resp.code() + " for videoId " + videoId);
             }
             String body = resp.body().string();
             return mapper.readTree(body);

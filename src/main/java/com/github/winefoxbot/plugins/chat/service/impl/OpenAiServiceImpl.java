@@ -63,7 +63,11 @@ public class OpenAiServiceImpl implements OpenAiService {
         Long sessionId = BotUtil.getSessionId(messageEvent);
         MessageType messageType = MessageType.fromValue(messageEvent.getMessageType());
         List<ShiroUserMessage> history = new ArrayList<>(shiroMessagesService.findLatestMessagesForContext(sessionId, messageType, wineFoxBotChatProperties.getContextSize()));
-        Optional<ArrayMsg> replyInfo = messageEvent.getArrayMsg().stream().filter(e -> MsgTypeEnum.reply.equals(e.getType())).findFirst();
+        Optional<ArrayMsg> replyInfo = Optional.ofNullable(messageEvent.getArrayMsg())
+                .orElse(Collections.emptyList())
+                .stream()
+                .filter(e -> MsgTypeEnum.reply.equals(e.getType()))
+                .findFirst();
         if (replyInfo.isPresent()) {
             try {
                 int replyMsgId = replyInfo.get().getData().get("id").asInt();
@@ -119,6 +123,13 @@ public class OpenAiServiceImpl implements OpenAiService {
 
         // 始终重新获取图片URL，以防链接过期或初始解析不完整
         List<String> imageUrls = getFreshImageUrls(shiroMsg, bot);
+        // 如果获取新URL失败（如消息过旧，API返回“消息不存在”），则回退使用数据库中存储的原始URL
+        if (imageUrls.isEmpty()) {
+            imageUrls = historyInput.getImageUrls();
+            if (imageUrls != null && !imageUrls.isEmpty()) {
+                log.debug("Falling back to use original image URLs for message {}.", shiroMsg.getId());
+            }
+        }
         List<Media> mediaList = convertUrlsToMedia(imageUrls);
 
         if (isBotMessage) {
