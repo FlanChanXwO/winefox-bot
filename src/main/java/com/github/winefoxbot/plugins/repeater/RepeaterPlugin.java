@@ -46,7 +46,10 @@ public class RepeaterPlugin {
     private final Map<Long, Integer> messageTimes = new ConcurrentHashMap<>();
     private final Map<Long, Long> lastSenderId = new ConcurrentHashMap<>();
 
-    private static final Pattern IMAGE_PATTERN = Pattern.compile("\\[CQ:image.*?file=(.*?).jpg.*?url=(.*?)\\]");
+    /**
+     * 匹配图片CQ码并提取file属性，更具通用性
+     */
+    private static final Pattern IMAGE_PATTERN = Pattern.compile("\\[CQ:image,[^]]*?file=([^,]+)[^]]*?\\]");
 
     @PluginFunction( name = "复读",
             description = "使用 " + COMMAND_PREFIX + "复读跟随" + COMMAND_SUFFIX + " 命令开启复读跟随功能，使用 "+COMMAND_PREFIX+"停止复读跟随"+COMMAND_SUFFIX+" 关闭该功能。当你发送消息时，机器人会自动复读你的消息。" +
@@ -236,9 +239,9 @@ public class RepeaterPlugin {
         StringBuilder sb = new StringBuilder();
         while (matcher.find()) {
             // group(1) 捕获的是 file ID
-            String fileId = matcher.group(1);
+            String fileValue = matcher.group(1);
             // 将整个 CQ 码替换为一个统一的、可识别的占位符
-            matcher.appendReplacement(sb, "[image_id:" + fileId + "]");
+            matcher.appendReplacement(sb, "[image_file:" + fileValue + "]");
         }
         matcher.appendTail(sb);
         return sb.toString();

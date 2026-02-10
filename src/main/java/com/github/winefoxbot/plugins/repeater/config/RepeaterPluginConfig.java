@@ -25,7 +25,7 @@ public class RepeaterPluginConfig extends BasePluginConfig {
             description = "最大复读跟随名额，默认为10个",
             defaultValue = "10"
     )
-    private int maxFollowersPerGroup;
+    private Integer maxFollowersPerGroup;
 
     @ConfigItem(
             key = "shortestTimes",
@@ -33,7 +33,7 @@ public class RepeaterPluginConfig extends BasePluginConfig {
             description = "触发复读的最少重复次数，默认为4",
             defaultValue = "4"
     )
-    private int shortestTimes;
+    private Integer shortestTimes;
 
     @ConfigItem(
             key = "blacklistMessages",
