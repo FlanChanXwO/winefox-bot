@@ -46,6 +46,10 @@ public class CardGenerator {
     private static final Color BORDER_COLOR = new Color(230, 230, 230);
     private static final int BLUR_RADIUS = 60;
 
+    private static final String ICON_PATH = "assets/linkresolver/icon/";
+
+    private static final String PLATFORM_ICON_PATH = "assets/linkresolver/platform/";
+
     private static final String FONT_NAME = "Noto Sans SC Regular";
 
     private final OkHttpClient httpClient;
@@ -62,7 +66,7 @@ public class CardGenerator {
     public Path generateCard(String name, String subName, String avatarUrl, String text,
                                       List<String> imageUrls, String dateStr,
                                       List<CardStatistic> statistics,
-                                      String platform, boolean isSensitive, double singleImageAspectRatio,
+                                      String platform, boolean isSensitive, double singleImageAspectRatio, boolean hasVideo,
                                       String cacheKey) {
         try {
             BufferedImage dummy = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
@@ -146,7 +150,7 @@ public class CardGenerator {
             }
 
             if (imageUrls != null && !imageUrls.isEmpty()) {
-                drawImages(g, imageUrls, PADDING, drawY, contentWidth, imagesHeight, isSensitive);
+                drawImages(g, imageUrls, PADDING, drawY, contentWidth, imagesHeight, isSensitive, hasVideo);
                 drawY += imagesHeight + 30;
             }
 
@@ -173,7 +177,7 @@ public class CardGenerator {
                     return fileStorageService.saveFileByCacheKey(cacheKey, is, Duration.ofMinutes(10));
                 }
             } finally {
-                if (tempFile != null && tempFile.exists()) {
+                if (tempFile.exists()) {
                     tempFile.delete();
                 }
             }
@@ -190,7 +194,7 @@ public class CardGenerator {
 
         for (CardStatistic stat : stats) {
             if (stat.getIconName() != null) {
-                try (InputStream is = DynamicResourceLoader.getInputStream("assets/linkresolver/" + stat.getIconName())) {
+                try (InputStream is = DynamicResourceLoader.getInputStream(ICON_PATH  + stat.getIconName())) {
                     if (is != null) {
                         BufferedImage icon = ImageIO.read(is);
                         g.drawImage(icon, currentX, y - iconSize + 4, iconSize, iconSize, null);
@@ -208,7 +212,7 @@ public class CardGenerator {
 
     private void drawPlatformIcon(Graphics2D g, String platform, int y) {
         try {
-            String iconPath = "assets/linkresolver/" + (platform.contains("Twitter") ? "twitter.png" : "bilibili.png");
+            String iconPath = PLATFORM_ICON_PATH + platform + ".png";
             try (InputStream is = DynamicResourceLoader.getInputStream(iconPath)) {
                 if (is != null) {
                     BufferedImage icon = ImageIO.read(is);
@@ -221,12 +225,17 @@ public class CardGenerator {
         } catch (Exception ignored) {}
     }
 
-    private void drawImages(Graphics2D g, List<String> urls, int x, int y, int w, int totalH, boolean isSensitive) {
+    private void drawImages(Graphics2D g, List<String> urls, int x, int y, int w, int totalH, boolean isSensitive, boolean hasVideo) {
         int gap = 20;
         int count = urls.size();
         if (count == 1) {
             BufferedImage img = fetchAndProcessImage(urls.get(0), isSensitive);
-            if (img != null) drawImageRounded(g, img, x, y, w, totalH, true);
+            if (img != null) {
+                drawImageRounded(g, img, x, y, w, totalH, true);
+                if (hasVideo) {
+                    drawPlayIcon(g, x, y, w, totalH);
+                }
+            }
         } else {
             int cols = (count <= 4) ? 2 : 3;
             int itemW = (w - (gap * (cols - 1))) / cols;
@@ -236,11 +245,32 @@ public class CardGenerator {
                 if (img != null) {
                     int r = i / cols;
                     int c = i % cols;
-                    drawImageRounded(g, img, x + (itemW + gap) * c, y + (itemH + gap) * r, itemW, itemH, false);
+                    int imgX = x + (itemW + gap) * c;
+                    int imgY = y + (itemH + gap) * r;
+                    drawImageRounded(g, img, imgX, imgY, itemW, itemH, false);
+                    if (hasVideo && i == 0) {
+                        drawPlayIcon(g, imgX, imgY, itemW, itemH);
+                    }
                 }
             }
         }
     }
+
+    private void drawPlayIcon(Graphics2D g, int x, int y, int w, int h) {
+        try (InputStream is = DynamicResourceLoader.getInputStream(ICON_PATH + "play.png")) {
+            if (is != null) {
+                BufferedImage icon = ImageIO.read(is);
+                int iconSize = Math.min(w, h) / 4;
+                iconSize = Math.min(iconSize, 128);
+                int iconX = x + (w - iconSize) / 2;
+                int iconY = y + (h - iconSize) / 2;
+                g.drawImage(icon, iconX, iconY, iconSize, iconSize, null);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to load or draw play icon", e);
+        }
+    }
+
     private BufferedImage fetchAndProcessImage(String url, boolean blur) {
         BufferedImage img = fetchImage(url);
         if (img != null && blur) return blurImage(img);

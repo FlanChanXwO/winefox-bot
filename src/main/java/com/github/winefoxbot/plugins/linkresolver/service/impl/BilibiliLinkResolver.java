@@ -176,7 +176,7 @@ public class BilibiliLinkResolver implements LinkResolverService {
 
                     Path cardPath = cardGenerator.generateCard(
                             upName, dateStr, upFace, title + "\n\n" + summary, imageUrls,
-                            null, statistics, "bilibili", false, 16.0 / 9.0, "bili-card-" + cvid + ".png");
+                            null, statistics, "bilibili", false, 16.0 / 9.0, true, "bili-card-" + cvid + ".png");
 
                     if (cardPath != null) {
                         bot.sendGroupMsg(groupId, MsgUtils.builder().img(cardPath.toAbsolutePath().toString()).build(), false);

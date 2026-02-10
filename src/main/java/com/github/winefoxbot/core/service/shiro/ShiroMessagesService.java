@@ -39,4 +39,12 @@ public interface ShiroMessagesService extends IService<ShiroMessage> {
      * @return
      */
     boolean removeByMessageId(Integer messageId);
+
+    /**
+     * 根据消息ID查找完整的用户信息消息
+     *
+     * @param messageId 消息ID
+     * @return 包含用户信息的
+     */
+    ShiroUserMessage findByMessageId(Long messageId);
 }

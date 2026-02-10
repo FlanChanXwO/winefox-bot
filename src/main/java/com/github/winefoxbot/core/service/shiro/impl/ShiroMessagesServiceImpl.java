@@ -42,8 +42,11 @@ public class ShiroMessagesServiceImpl extends ServiceImpl<ShiroMessagesMapper, S
         queryWrapper.eq(ShiroMessage::getMessageId,messageId);
         return this.remove(queryWrapper);
     }
+
+    @Override
+    public ShiroUserMessage findByMessageId(Long messageId) {
+        // 此处调用了 baseMapper 中一个新增的 selectUserMessageByMessageId 方法。
+        // 你需要在 ShiroMessagesMapper.xml 中添加对应的 <select> 语句来实现它，其功能类似于 selectUserMessages，但通过消息ID查询单个结果。
+        return this.baseMapper.selectUserMessageByMessageId(messageId);
+    }
 }
-
-
-
-

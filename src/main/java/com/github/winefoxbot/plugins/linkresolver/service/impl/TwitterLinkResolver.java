@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.service.file.FileStorageService;
-import com.github.winefoxbot.plugins.linkresolver.config.LinkResolverConfig;
 import com.github.winefoxbot.plugins.linkresolver.config.LinkResolverPluginConfig;
 import com.github.winefoxbot.plugins.linkresolver.constant.LinkResolverConstants;
 import com.github.winefoxbot.plugins.linkresolver.service.LinkResolverService;
@@ -23,6 +22,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.*;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -42,7 +42,6 @@ public class TwitterLinkResolver implements LinkResolverService {
 
     private final OkHttpClient httpClient;
     private final ObjectMapper mapper;
-    private final LinkResolverConfig linkResolverConfig;
     private final CardGenerator cardGenerator;
     private final FileStorageService fileStorageService;
 
@@ -75,19 +74,57 @@ public class TwitterLinkResolver implements LinkResolverService {
             String authorName = tweet.path("author").path("name").asText("Unknown");
             String authorHandle = tweet.path("author").path("screen_name").asText("unknown");
 
-            List<String> imageUrls = new ArrayList<>();
+            List<String> cardImageUrls = new ArrayList<>();
+            List<String> photoUrls = new ArrayList<>();
+            List<String> gifUrls = new ArrayList<>();
+            String videoUrl = null;
+            String videoThumbnailUrl = null;
             double firstImageAspectRatio = 0.0;
             JsonNode mediaNode = tweet.path("media");
-            if (mediaNode.has("photos")) {
+
+            if (mediaNode.has("all") && mediaNode.path("all").isArray()) {
                 int index = 0;
-                for (JsonNode photo : mediaNode.path("photos")) {
-                    imageUrls.add(photo.path("url").asText());
+                for (JsonNode mediaItem : mediaNode.path("all")) {
                     if (index == 0) {
-                        double w = photo.path("width").asDouble(0);
-                        double h = photo.path("height").asDouble(0);
+                        double w = mediaItem.path("width").asDouble(0);
+                        double h = mediaItem.path("height").asDouble(0);
                         if (w > 0 && h > 0) firstImageAspectRatio = w / h;
                     }
+                    String type = mediaItem.path("type").asText();
+                    String url = mediaItem.path("url").asText();
+                    if ("photo".equals(type)) {
+                        cardImageUrls.add(url);
+                        photoUrls.add(url);
+                    } else if ("gif".equals(type)) {
+                        cardImageUrls.add(mediaItem.path("thumbnail_url").asText());
+                        gifUrls.add(url);
+                    } else if ("video".equals(type) && videoUrl == null) {
+                        videoUrl = url;
+                        videoThumbnailUrl = mediaItem.path("thumbnail_url").asText();
+                    }
                     index++;
+                }
+                if (videoThumbnailUrl != null) {
+                    cardImageUrls.add(0, videoThumbnailUrl);
+                }
+            } else {
+                // Fallback for older API structure
+                if (mediaNode.has("photos")) {
+                    for (JsonNode photo : mediaNode.path("photos")) {
+                        String url = photo.path("url").asText();
+                        cardImageUrls.add(url);
+                        photoUrls.add(url);
+                    }
+                }
+                if (mediaNode.has("videos")) {
+                    JsonNode videos = mediaNode.path("videos");
+                    if (videos.isArray() && !videos.isEmpty()) {
+                        videoUrl = videos.get(0).path("url").asText();
+                        String thumbnailUrl = videos.get(0).path("thumbnail_url").asText();
+                        if (thumbnailUrl != null && !thumbnailUrl.isEmpty()) {
+                            cardImageUrls.add(0, thumbnailUrl);
+                        }
+                    }
                 }
             }
 
@@ -115,8 +152,8 @@ public class TwitterLinkResolver implements LinkResolverService {
                 }
 
                 Path cardPath = cardGenerator.generateCard(
-                        authorName, "@" + authorHandle, avatarUrl, rawText, imageUrls, dateStr,
-                        stats, "Twitter/X", isSensitive, firstImageAspectRatio, "twitter-card-" + tweetId + ".png"
+                        authorName, "@" + authorHandle, avatarUrl, rawText, cardImageUrls, dateStr,
+                        stats, "twitter", isSensitive, firstImageAspectRatio, videoUrl != null, "twitter-card-" + tweetId + ".png"
                 );
 
                 if (cardPath != null) {
@@ -125,10 +162,10 @@ public class TwitterLinkResolver implements LinkResolverService {
             }
 
             if (config.getSendResource() && !isSensitive) {
-                if (!imageUrls.isEmpty()) {
+                if (!photoUrls.isEmpty()) {
                     List<String> forwardMsgs = new ArrayList<>();
                     int imageIndex = 0;
-                    for (String imageUrl : imageUrls) {
+                    for (String imageUrl : photoUrls) {
                         String cacheKey = "twitter-image-" + tweetId + "-" + imageIndex;
                         Path localImagePath = downloadAndCacheResource(imageUrl, cacheKey);
                         if (localImagePath != null) {
@@ -141,11 +178,15 @@ public class TwitterLinkResolver implements LinkResolverService {
                     }
                 }
 
-                String videoUrl = null;
-                if (mediaNode.has("videos")) {
-                    JsonNode videos = mediaNode.path("videos");
-                    if (videos.isArray() && !videos.isEmpty()) {
-                        videoUrl = videos.get(0).path("url").asText();
+                if (!gifUrls.isEmpty()) {
+                    int gifIndex = 0;
+                    for (String gifUrl : gifUrls) {
+                        String cacheKey = "twitter-gif-converted-" + tweetId + "-" + gifIndex + ".gif";
+                        Path localGifPath = downloadAndConvertAndCacheGif(gifUrl, cacheKey);
+                        if (localGifPath != null) {
+                            bot.sendGroupMsg(event.getGroupId(), MsgUtils.builder().img(localGifPath.toUri().toString()).build(), false);
+                        }
+                        gifIndex++;
                     }
                 }
 
@@ -205,5 +246,66 @@ public class TwitterLinkResolver implements LinkResolverService {
             log.error("Error downloading or caching resource: {}", url, e);
             return null;
         }
+    }
+
+    private Path downloadAndConvertAndCacheGif(String mp4Url, String finalCacheKey) {
+        try {
+            // 1. Check cache for final GIF
+            Path cachedGifPath = fileStorageService.getFilePathByCacheKey(finalCacheKey);
+            if (cachedGifPath != null && Files.exists(cachedGifPath)) {
+                log.debug("Found converted GIF in cache: {}", finalCacheKey);
+                return cachedGifPath;
+            }
+
+            // 2. Download MP4 to a temp file
+            Path tempMp4 = null;
+            Path tempGif = null;
+            try {
+                tempMp4 = Files.createTempFile("twitter-gif-", ".mp4");
+                log.debug("Downloading GIF (as MP4) for conversion: {}", mp4Url);
+                Request request = new Request.Builder().url(mp4Url).build();
+                try (Response response = httpClient.newCall(request).execute()) {
+                    if (!response.isSuccessful() || response.body() == null) {
+                        log.error("Failed to download resource from url: {}. Response code: {}", mp4Url, response.code());
+                        return null;
+                    }
+                    try (InputStream in = response.body().byteStream()) {
+                        Files.copy(in, tempMp4, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                }
+
+                // 3. Convert MP4 to GIF
+                tempGif = Files.createTempFile("twitter-gif-converted-", ".gif");
+                convertMp4ToGif(tempMp4, tempGif);
+
+                // 4. Cache the converted GIF
+                try (InputStream gifStream = Files.newInputStream(tempGif)) {
+                    return fileStorageService.saveFileByCacheKey(finalCacheKey, gifStream, LinkResolverConstants.RESOURCE_CACHE_DURATION);
+                }
+
+            } finally {
+                // 5. Clean up temp files
+                if (tempMp4 != null) Files.deleteIfExists(tempMp4);
+                if (tempGif != null) Files.deleteIfExists(tempGif);
+            }
+        } catch (Exception e) {
+            log.error("Error downloading or converting GIF for URL: {}", mp4Url, e);
+            return null;
+        }
+    }
+
+    private void convertMp4ToGif(Path inputMp4, Path outputGif) throws IOException, InterruptedException {
+        log.debug("Converting {} to {}", inputMp4, outputGif);
+        ProcessBuilder pb = new ProcessBuilder(
+                "ffmpeg", "-y", "-i", inputMp4.toAbsolutePath().toString(),
+                "-vf", "fps=15,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse",
+                "-loop", "0", outputGif.toAbsolutePath().toString()
+        );
+        Process process = pb.start();
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            throw new IOException("ffmpeg process exited with code " + exitCode);
+        }
+        log.debug("Successfully converted {} to {}", inputMp4, outputGif);
     }
 }

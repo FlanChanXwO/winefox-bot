@@ -24,6 +24,13 @@ public interface ShiroMessagesMapper extends BaseMapper<ShiroMessage> {
      * @return 包含詳細訊息的列表
      */
     List<ShiroUserMessage> selectUserMessages(@Param("sessionId") Long sessionId , @Param("messageType") MessageType messageType, @Param("limit") int limit);
+
+    /**
+     * 查询用户讯息
+     * @param messageId
+     * @return
+     */
+    ShiroUserMessage selectUserMessageByMessageId(Long messageId);
 }
 
 

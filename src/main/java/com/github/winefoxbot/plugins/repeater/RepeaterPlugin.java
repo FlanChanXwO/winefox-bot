@@ -46,11 +46,6 @@ public class RepeaterPlugin {
     private final Map<Long, Integer> messageTimes = new ConcurrentHashMap<>();
     private final Map<Long, Long> lastSenderId = new ConcurrentHashMap<>();
 
-    /**
-     * 匹配图片CQ码并提取file属性，更具通用性
-     */
-    private static final Pattern IMAGE_PATTERN = Pattern.compile("\\[CQ:image,[^]]*?file=([^,]+)[^]]*?\\]");
-
     @PluginFunction( name = "复读",
             description = "使用 " + COMMAND_PREFIX + "复读跟随" + COMMAND_SUFFIX + " 命令开启复读跟随功能，使用 "+COMMAND_PREFIX+"停止复读跟随"+COMMAND_SUFFIX+" 关闭该功能。当你发送消息时，机器人会自动复读你的消息。" +
                     "此外如果有其他用户发送了相同的消息且达到一定次数，机器人也会复读该消息。"
@@ -181,14 +176,10 @@ public class RepeaterPlugin {
             return;
         }
 
-        // 消息预处理，统一图片CQ码，便于比较
-        String processedMessage = preprocessMessage(rawMessage);
-
         String prevMessage = lastMessage.get(groupId);
         Long prevSenderId = lastSenderId.get(groupId);
 
-        // 核心逻辑修改：判断消息是否与上一条相同
-        if (processedMessage.equals(prevMessage)) {
+        if (rawMessage.equals(prevMessage)) {
             // **新增规则：当前发送者必须与上一个发送者不同**
             if (prevSenderId != null && !currentSenderId.equals(prevSenderId)) {
                 // 消息相同，且不是同一个人发的，计数器+1
@@ -198,9 +189,7 @@ public class RepeaterPlugin {
                 // 判断是否达到触发复读的次数
                 int shortestTimes = config.getShortestTimes();
                 if (newTimes == shortestTimes) {
-                    // log.info("RepeaterPlugin triggered in group {}: message '{}'", groupId, rawMessage);
                     bot.sendGroupMsg(groupId, rawMessage, false); // 发送原始消息
-
                     // 触发复读后，立即重置计数器，避免刷屏
                     resetCounter(groupId);
                     return; // 结束本次处理，防止更新 lastSenderId 和 lastMessage
@@ -213,7 +202,7 @@ public class RepeaterPlugin {
         }
 
         // 无论是否触发复读，都更新最后一条消息的内容和发送者
-        lastMessage.put(groupId, processedMessage);
+        lastMessage.put(groupId, rawMessage);
         lastSenderId.put(groupId, currentSenderId);
     }
 
@@ -227,23 +216,5 @@ public class RepeaterPlugin {
         lastMessage.remove(groupId);
         messageTimes.remove(groupId);
         lastSenderId.remove(groupId);
-    }
-
-    /**
-     * 消息预处理，把图片 CQ 码统一成 [file_id]，用于对比重复消息。
-     * 这样可以确保内容相同的多张图片被视为同一消息。
-     */
-    private String preprocessMessage(String message) {
-        Matcher matcher = IMAGE_PATTERN.matcher(message);
-        // 使用 StringBuffer/StringBuilder 以获得更好的性能
-        StringBuilder sb = new StringBuilder();
-        while (matcher.find()) {
-            // group(1) 捕获的是 file ID
-            String fileValue = matcher.group(1);
-            // 将整个 CQ 码替换为一个统一的、可识别的占位符
-            matcher.appendReplacement(sb, "[image_file:" + fileValue + "]");
-        }
-        matcher.appendTail(sb);
-        return sb.toString();
     }
 }
