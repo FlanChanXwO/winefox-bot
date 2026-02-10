@@ -237,23 +237,7 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
             try {
                 Thread.sleep(1000); // 给消息发送留出时间
                 log.info(">>>>>>>>> 触发重启流程 (Exit Code: {}) <<<<<<<<<", RESTART_EXIT_CODE);
-
-                // 1. 尝试优雅退出 Spring
-                int exitCode = SpringApplication.exit(context, () -> RESTART_EXIT_CODE);
-
-                // 2. 开启保底强制退出线程
-                Thread forceExitThread = new Thread(() -> {
-                    try {
-                        Thread.sleep(5000); // 如果 5 秒后还没退出
-                        Runtime.getRuntime().halt(RESTART_EXIT_CODE); // 强制硬退出 (不触发 Shutdown Hook)
-                    } catch (InterruptedException ignored) {}
-                });
-                forceExitThread.setDaemon(true);
-                forceExitThread.start();
-
-                // 3. 正常退出 JVM
-                System.exit(exitCode);
-
+                System.exit(SpringApplication.exit(context, () -> RESTART_EXIT_CODE));
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.error("重启线程被中断", e);
