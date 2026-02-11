@@ -164,7 +164,7 @@ public class BilibiliLinkResolver implements LinkResolverService {
 
                     JsonNode stat = data.path("stat");
                     List<CardGenerator.CardStatistic> statistics = new ArrayList<>();
-                    statistics.add(new CardGenerator.CardStatistic("play.png", BiliUtil.handleNum(stat.path("view").asLong())));
+                    statistics.add(new CardGenerator.CardStatistic("views.png", BiliUtil.handleNum(stat.path("view").asLong())));
                     statistics.add(new CardGenerator.CardStatistic("barrage.png", BiliUtil.handleNum(stat.path("danmaku").asLong())));
                     statistics.add(new CardGenerator.CardStatistic("like.png", BiliUtil.handleNum(stat.path("like").asLong())));
                     statistics.add(new CardGenerator.CardStatistic("coin.png", BiliUtil.handleNum(stat.path("coin").asLong())));

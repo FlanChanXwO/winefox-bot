@@ -4,6 +4,7 @@ import com.github.winefoxbot.plugins.pixiv.model.dto.common.PixivArtworkInfo;
 
 import java.io.File;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author FlanChan (badapple495@outlook.com)
@@ -11,4 +12,6 @@ import java.util.List;
  */
 public interface PixivArtworkService {
     void sendArtwork(PixivArtworkInfo pixivArtworkInfo, List<File> files, String additionalText);
+
+    void sendArtworks(List<Map.Entry<PixivArtworkInfo, List<File>>> artworkEntries, String additionalText);
 }

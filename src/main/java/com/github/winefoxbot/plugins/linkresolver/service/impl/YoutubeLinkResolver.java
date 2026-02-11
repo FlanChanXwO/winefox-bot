@@ -62,6 +62,9 @@ public class YoutubeLinkResolver implements LinkResolverService {
 
     @Override
     public void resolve(Bot bot, GroupMessageEvent event, String url) {
+        if (true) {
+            return; // 暂时禁用油管插件
+        }
         LinkResolverPluginConfig config = (LinkResolverPluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
         if (config == null) {
             return;

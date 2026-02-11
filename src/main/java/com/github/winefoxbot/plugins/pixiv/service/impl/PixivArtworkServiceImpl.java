@@ -21,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tomcat.util.buf.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import java.io.File;
 import java.net.SocketTimeoutException;
@@ -28,6 +29,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * @author FlanChan
@@ -41,7 +43,7 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
 
     // R18 打包文件的临时输出目录
     private static final String FILE_OUTPUT_DIR = "data/files/pixiv/wrappers";
-    
+
     // private static final long ZIP_THRESHOLD = 100 * 1024 * 1024; // This is no longer needed as packFiles is removed
 
     /**
@@ -72,14 +74,174 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
         }
     }
 
+    @Override
+    public void sendArtworks(List<Map.Entry<PixivArtworkInfo, List<File>>> artworkEntries, String additionalText) {
+        if (CollectionUtils.isEmpty(artworkEntries)) {
+            return;
+        }
+
+        Bot bot = BotContext.CURRENT_BOT.get();
+        AnyMessageEvent event = (AnyMessageEvent) BotContext.CURRENT_MESSAGE_EVENT.get();
+        PixivPluginConfig config = (PixivPluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
+        ContentSendMode sendMode = config.getSendMode();
+
+        // 筛选出 SFW 和 R18 作品
+        List<Map.Entry<PixivArtworkInfo, List<File>>> sfwArtworks = artworkEntries.stream()
+                .filter(entry -> !entry.getKey().getIsR18())
+                .toList();
+
+        List<Map.Entry<PixivArtworkInfo, List<File>>> r18Artworks = artworkEntries.stream()
+                .filter(entry -> entry.getKey().getIsR18())
+                .toList();
+
+        // 统一处理 SFW 作品
+        if (!sfwArtworks.isEmpty()) {
+            if (sendMode == ContentSendMode.FORWARD) {
+                sendMultipleArtworksAsForward(sfwArtworks, additionalText, bot, event, config);
+            } else { // 默认为 IMAGE 模式
+                sendMultipleArtworksAsImages(sfwArtworks, additionalText, bot, event, config);
+            }
+        }
+
+        // 独立处理 R18 作品
+        r18Artworks.forEach(entry -> sendArtwork(entry.getKey(), entry.getValue(), null));
+    }
+
+    private void sendMultipleArtworksAsImages(List<Map.Entry<PixivArtworkInfo, List<File>>> artworkEntries, String additionalText, Bot bot, AnyMessageEvent event, PixivPluginConfig config) {
+        MsgUtils builder = MsgUtils.builder();
+        List<Path> allFilePaths = new ArrayList<>();
+
+        // 构建消息
+        for (Map.Entry<PixivArtworkInfo, List<File>> entry : artworkEntries) {
+            PixivArtworkInfo info = entry.getKey();
+            List<File> files = entry.getValue();
+
+            if (config.isSendArtworkInfo()) {
+                builder.text(buildArtworkText(info, false));
+            }
+            files.forEach(file -> {
+                allFilePaths.add(file.toPath());
+                builder.img(FileUtil.getFileUrlPrefix() + file.getAbsolutePath());
+            });
+        }
+
+        if (StrUtil.isNotBlank(additionalText)) {
+            builder.text(additionalText);
+        }
+
+        // 发送消息
+        try {
+            SendMsgResult result = SendMsgUtil.sendMsgByEvent(bot, event, builder.build(), false);
+            if (!result.isSuccess()) {
+                throw new RuntimeException("批量发送图片失败: " + result.getStatus());
+            }
+            log.info("批量发送 {} 个SFW作品的图片成功。", artworkEntries.size());
+        } catch (Exception ex) {
+            log.warn("批量图片直发失败，尝试混淆后重发: {}", ex.getMessage());
+            // 混淆重试
+            try {
+                List<Path> obfuscatedPaths = imageObfuscator.wrap(allFilePaths);
+                if (obfuscatedPaths.isEmpty()) throw new BusinessException("图片混淆失败");
+
+                MsgUtils retryBuilder = MsgUtils.builder();
+                int obfuscatedIndex = 0;
+                for (Map.Entry<PixivArtworkInfo, List<File>> entry : artworkEntries) {
+                    if (config.isSendArtworkInfo()) {
+                        retryBuilder.text(buildArtworkText(entry.getKey(), false));
+                    }
+                    for (int i = 0; i < entry.getValue().size(); i++) {
+                        if (obfuscatedIndex < obfuscatedPaths.size()) {
+                            retryBuilder.img(FileUtil.getFileUrlPrefix() + obfuscatedPaths.get(obfuscatedIndex++).toAbsolutePath());
+                        }
+                    }
+                }
+                if (StrUtil.isNotBlank(additionalText)) {
+                    retryBuilder.text(additionalText);
+                }
+
+                SendMsgResult retryResult = SendMsgUtil.sendMsgByEvent(bot, event, retryBuilder.build(), false);
+                if (!retryResult.isSuccess()) {
+                    throw new BusinessException("批量发送混淆图片仍然失败");
+                }
+                log.info("批量发送混淆后的SFW作品图片成功。");
+            } catch (Exception e) {
+                log.error("批量图片混淆重发异常", e);
+                throw new BusinessException("批量发送图片最终失败: " + e.getMessage());
+            }
+        }
+    }
+
+    private void sendMultipleArtworksAsForward(List<Map.Entry<PixivArtworkInfo, List<File>>> artworkEntries, String additionalText, Bot bot, AnyMessageEvent event, PixivPluginConfig config) {
+        List<String> msgList = new ArrayList<>();
+        List<Path> allFilePaths = new ArrayList<>();
+
+        for (Map.Entry<PixivArtworkInfo, List<File>> entry : artworkEntries) {
+            PixivArtworkInfo info = entry.getKey();
+            List<File> files = entry.getValue();
+
+            if (config.isSendArtworkInfo()) {
+                msgList.add(buildArtworkText(info, true));
+            }
+            files.forEach(file -> {
+                allFilePaths.add(file.toPath());
+                msgList.add(MsgUtils.builder().img(file.toURI().toString()).build());
+            });
+        }
+
+        if (StrUtil.isNotBlank(additionalText)) {
+            msgList.add(additionalText);
+        }
+
+        try {
+            List<Map<String, Object>> forwardNodes = ShiroUtils.generateForwardMsg(bot, msgList);
+            ActionData<MsgId> result = bot.sendForwardMsg(event, forwardNodes);
+            if (result.getRetCode() != 0) {
+                throw new RuntimeException("合并转发发送失败, RetCode=" + result.getRetCode());
+            }
+            log.info("批量发送 {} 个SFW作品的合并转发成功。", artworkEntries.size());
+        } catch (Exception e) {
+            log.warn("批量合并转发发送异常，尝试混淆后重发", e);
+            try {
+                List<Path> obfuscatedPaths = imageObfuscator.wrap(allFilePaths);
+                if (obfuscatedPaths.isEmpty()) throw new BusinessException("图片混淆失败");
+
+                List<String> retryMsgList = new ArrayList<>();
+                int obfuscatedIndex = 0;
+                for (Map.Entry<PixivArtworkInfo, List<File>> entry : artworkEntries) {
+                    if (config.isSendArtworkInfo()) {
+                        retryMsgList.add(buildArtworkText(entry.getKey(), true));
+                    }
+                    for (int i = 0; i < entry.getValue().size(); i++) {
+                        if (obfuscatedIndex < obfuscatedPaths.size()) {
+                            retryMsgList.add(MsgUtils.builder().img(obfuscatedPaths.get(obfuscatedIndex++).toUri().toString()).build());
+                        }
+                    }
+                }
+                if (StrUtil.isNotBlank(additionalText)) {
+                    retryMsgList.add(additionalText);
+                }
+
+                List<Map<String, Object>> retryNodes = ShiroUtils.generateForwardMsg(bot, retryMsgList);
+                ActionData<MsgId> retryResult = bot.sendForwardMsg(event, retryNodes);
+                if (retryResult.getRetCode() != 0) {
+                    throw new BusinessException("混淆后合并转发仍然失败, RetCode=" + retryResult.getRetCode());
+                }
+                log.info("批量发送混淆后的SFW作品合并转发成功。");
+            } catch (Exception ex) {
+                log.error("批量合并转发混淆重发异常", ex);
+                throw new BusinessException("批量合并转发最终失败: " + ex.getMessage());
+            }
+        }
+    }
+
 
     /**
      * 处理非R18作品：根据配置选择发送方式
      */
     private void handleNormalArtwork(PixivArtworkInfo info, List<File> files, String additionalText, PixivPluginConfig config, Bot bot, AnyMessageEvent event) {
         List<Path> filePaths = files.stream().map(File::toPath).toList();
-        ContentSendMode sendMode = (config != null && config.getSendMode() != null) 
-                ? config.getSendMode() 
+        ContentSendMode sendMode = (config != null && config.getSendMode() != null)
+                ? config.getSendMode()
                 : ContentSendMode.IMAGE;
 
         switch (sendMode) {
@@ -112,15 +274,15 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
                 throw new RuntimeException("发送失败: " + result.getStatus());
             }
         } catch (Exception ex) {
-            if (ex instanceof SocketTimeoutException || ex.getCause() instanceof SocketTimeoutException) {
+            if (ex.getCause() instanceof SocketTimeoutException) {
                 log.warn("Pixiv 直发超时，可能已发送成功，不再重试: {}", ex.getMessage());
                 return;
             }
             log.warn("Pixiv 直发失败，尝试混淆后重发: {}", ex.getMessage());
-             // 混淆重试逻辑
+            // 混淆重试逻辑
             try {
                 List<Path> obfuscatedPaths = imageObfuscator.wrap(filePaths);
-                 if (obfuscatedPaths.isEmpty()) {
+                if (obfuscatedPaths.isEmpty()) {
                     throw new BusinessException("图片混淆失败，无法重试");
                 }
                 List<String> newUrlList = obfuscatedPaths.stream()
@@ -148,7 +310,7 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
             List<String> msgList = new ArrayList<>();
             // 节点1: 信息
             String infoText = (config != null && config.isSendArtworkInfo()) ? buildArtworkText(info, true) : "";
-             if (StrUtil.isNotBlank(additionalText)) {
+            if (StrUtil.isNotBlank(additionalText)) {
                 infoText = StrUtil.isBlank(infoText) ? additionalText : infoText + "\n" + additionalText;
             }
             if (StrUtil.isNotBlank(infoText)) {
@@ -164,11 +326,11 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
             List<Map<String, Object>> forwardNodes = ShiroUtils.generateForwardMsg(bot, msgList);
             ActionData<MsgId> result = bot.sendForwardMsg(event, forwardNodes);
             if (result.getRetCode() != 0) {
-                 throw new RuntimeException("合并转发发送失败");
+                throw new RuntimeException("合并转发发送失败");
             }
             log.info("Pixiv 合并转发成功: PID={}", info.getPid());
         } catch (Exception e) {
-            if (e instanceof SocketTimeoutException || e.getCause() instanceof SocketTimeoutException) {
+            if (e.getCause() instanceof SocketTimeoutException) {
                 log.warn("合并转发发送超时，可能已发送成功，不再重试: {}", e.getMessage());
                 return;
             }
@@ -208,7 +370,7 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
     }
 
     private void sendDocumentInternal(PixivArtworkInfo info, List<File> files, Bot bot, MessageEvent event, PixivPluginConfig config) {
-         try {
+        try {
             String baseName = "pixiv_" + info.getPid();
             Path packedFilePath;
             String sendModeName;
@@ -226,29 +388,29 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
             }
 
             if (packedFilePath == null) throw new BusinessException("文件打包失败");
-            
+
             String fileName = packedFilePath.getFileName().toString();
             FileUploadUtil.uploadFileAsync(bot, event, packedFilePath, fileName)
-                .handle((result, throwable) -> {
-                     try {
-                         if (result != null && result.isSuccess()) {
-                             String status = result.getStatus();
-                             log.info("Pixiv {} 发送成功: PID={}, status={}", sendModeName, info.getPid(), status);
-                             tryRevokeGroupFile(bot, event, fileName, config);
-                        } else {
-                             log.error("Pixiv {} 发送失败", sendModeName, throwable);
-                             SendMsgUtil.sendMsgByEvent(bot, event, sendModeName + "文件发送失败: " + throwable.getMessage(), false);
+                    .handle((result, throwable) -> {
+                        try {
+                            if (result != null && result.isSuccess()) {
+                                String status = result.getStatus();
+                                log.info("Pixiv {} 发送成功: PID={}, status={}", sendModeName, info.getPid(), status);
+                                tryRevokeGroupFile(bot, event, fileName, config);
+                            } else {
+                                log.error("Pixiv {} 发送失败", sendModeName, throwable);
+                                SendMsgUtil.sendMsgByEvent(bot, event, sendModeName + "文件发送失败: " + throwable.getMessage(), false);
+                            }
+                        } finally {
+                            FileUtil.deleteFileWithRetry(packedFilePath.toAbsolutePath().toString());
                         }
-                    } finally {
-                        FileUtil.deleteFileWithRetry(packedFilePath.toAbsolutePath().toString());
-                    }
-                    return null;
-                });
+                        return null;
+                    });
 
-         } catch (Exception e) {
+        } catch (Exception e) {
             log.error("Pixiv 文档打包发送异常", e);
             SendMsgUtil.sendMsgByEvent(bot, event, "文档发送异常", false);
-         }
+        }
     }
 
     /**
@@ -267,29 +429,29 @@ public class PixivArtworkServiceImpl implements PixivArtworkService {
         try {
             String fileName = baseName + ".docx";
             Path packedFilePath = DocxUtil.wrapImagesIntoDocx(files, FILE_OUTPUT_DIR, fileName);
-             if (packedFilePath == null) throw new BusinessException("打包失败");
+            if (packedFilePath == null) throw new BusinessException("打包失败");
 
-             FileUploadUtil.uploadFileAsync(bot, event, packedFilePath, fileName)
-                .handle((result, _) -> {
-                    try {
-                        if (result != null && result.isSuccess()) {
-                            log.info("Pixiv R18 文件发送成功: PID={}", info.getPid());
-                            tryRevokeGroupFile(bot, event, fileName, config);
-                        } else {
-                            log.warn("Pixiv R18 文件上传失败: {}", result);
+            FileUploadUtil.uploadFileAsync(bot, event, packedFilePath, fileName)
+                    .handle((result, _) -> {
+                        try {
+                            if (result != null && result.isSuccess()) {
+                                log.info("Pixiv R18 文件发送成功: PID={}", info.getPid());
+                                tryRevokeGroupFile(bot, event, fileName, config);
+                            } else {
+                                log.warn("Pixiv R18 文件上传失败: {}", result);
+                            }
+                        } finally {
+                            FileUtil.deleteFileWithRetry(packedFilePath.toAbsolutePath().toString());
                         }
-                    } finally {
-                        FileUtil.deleteFileWithRetry(packedFilePath.toAbsolutePath().toString());
-                    }
-                    return null;
-                });
+                        return null;
+                    });
         } catch (Exception e) {
             log.error("R18 文件发送流程失败", e);
             throw new BusinessException("R18文件发送失败...");
         }
     }
 
-     private void tryRevokeGroupFile(Bot bot, MessageEvent event, String fileName, PixivPluginConfig config) {
+    private void tryRevokeGroupFile(Bot bot, MessageEvent event, String fileName, PixivPluginConfig config) {
         Long groupId = null;
         if (event instanceof GroupMessageEvent ge) {
             groupId = ge.getGroupId();

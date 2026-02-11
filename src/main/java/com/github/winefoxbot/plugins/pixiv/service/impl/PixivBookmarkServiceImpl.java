@@ -556,37 +556,38 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
      */
     @Override
     public Optional<PixivBookmark> getRandomBookmark(Long userId, Long groupId) {
+        List<PixivBookmark> randomBookmarks = getRandomBookmarks(userId, groupId, 1);
+        return randomBookmarks.isEmpty() ? Optional.empty() : Optional.of(randomBookmarks.get(0));
+    }
+
+    @Override
+    public List<PixivBookmark> getRandomBookmarks(Long userId, Long groupId, int count) {
         PixivPluginConfig config = (PixivPluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
         AdultContentMode contentMode = config.getContentMode();
-        String zsetKey = "";
-        // 根据模式选择 Redis Key
+        String zsetKey;
         switch (contentMode) {
-            case MIX -> {
-                zsetKey = CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_MIX;
-                log.debug("Content mode is MIX, using ZSET: {}", zsetKey);
-            }
-            case R18 -> {
-                zsetKey = CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_R18;
-                log.debug("Content mode is R18, using ZSET: {}", zsetKey);
-            }
-            case SFW -> {
+            case MIX -> zsetKey = CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_MIX;
+            case R18 -> zsetKey = CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_R18;
+            case SFW -> zsetKey = CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_SFW;
+            default -> {
+                log.warn("未知的 AdultContentMode，将使用 SFW 模式。");
                 zsetKey = CacheConstants.ZSET_BOOKMARK_WEIGHTS_KEY_SFW;
-                log.debug("Content mode is SFW (or default), using ZSET: {}", zsetKey);
             }
         }
+        log.debug("Content mode is {}, using ZSET: {}", contentMode, zsetKey);
 
-        // 调用原有逻辑获取 ID
-        Optional<String> randomIdOptional = this.getRandomBookmarkIdWithWeight(zsetKey);
+        List<String> randomIds = getRandomBookmarkIdsWithWeight(zsetKey, count);
 
-        if (randomIdOptional.isPresent()) {
-            String randomId = randomIdOptional.get();
-            log.debug("Randomly selected bookmark ID {} from ZSET {}", randomId, zsetKey);
-            PixivBookmark bookmark = this.getById(randomId);
-            return Optional.ofNullable(bookmark);
-        } else {
-            log.warn("无法从 Redis ZSET {} 中获取随机 Bookmark ID。该分类可能为空。", zsetKey);
-            return Optional.empty();
+        if (randomIds.isEmpty()) {
+            log.warn("无法从 Redis ZSET {} 中获取任何随机 Bookmark ID。该分类可能为空。", zsetKey);
+            return Collections.emptyList();
         }
+
+        log.debug("Randomly selected {} bookmark IDs from ZSET {}", randomIds.size(), zsetKey);
+        List<PixivBookmark> bookmarks = this.listByIds(randomIds);
+        // 打乱顺序，因为 listByIds 可能会按ID排序
+        Collections.shuffle(bookmarks);
+        return bookmarks;
     }
 
 
@@ -597,27 +598,43 @@ public class PixivBookmarkServiceImpl extends ServiceImpl<PixivBookmarkMapper, P
      * @return 随机抽取的 Bookmark ID Optional
      */
     private Optional<String> getRandomBookmarkIdWithWeight(String zsetKey) {
+        List<String> ids = getRandomBookmarkIdsWithWeight(zsetKey, 1);
+        return ids.isEmpty() ? Optional.empty() : Optional.of(ids.get(0));
+    }
+
+    private List<String> getRandomBookmarkIdsWithWeight(String zsetKey, int count) {
         ZSetOperations<String, String> zSetOps = redisTemplate.opsForZSet();
 
-        // 使用 Optional.ofNullable 处理可能为 null 的情况
-        long zcard = Optional.of(zSetOps.zCard(zsetKey)).orElse(0L);
+        long zcard = Optional.ofNullable(zSetOps.zCard(zsetKey)).orElse(0L);
         if (zcard == 0) {
             log.warn("ZSET {} 为空，无法进行随机抽取。", zsetKey);
-            return Optional.empty();
+            return Collections.emptyList();
+        }
+
+        // 如果请求的数量大于等于集合大小，直接返回所有成员
+        if (count >= zcard) {
+            Set<String> allMembers = zSetOps.range(zsetKey, 0, -1);
+            return allMembers != null ? new ArrayList<>(allMembers) : Collections.emptyList();
         }
 
         checkAndResetWeightsIfNeeded(zsetKey);
 
-        String selectedId = zSetOps.randomMember(zsetKey);
+        // 使用 randomMembers 获取多个不重复的成员
+        List<String> selectedIds = zSetOps.randomMembers(zsetKey, count);
 
-        // 降低被选中 ID 的权重（惩罚）
-        // 每次抽中，权重减 10，但最低不小于 1
-        Double newScore = zSetOps.incrementScore(zsetKey, selectedId, -10.0);
-        if (newScore < 1.0) {
-            zSetOps.add(zsetKey, selectedId, 1.0); // 权重不低于1
+        if (CollectionUtils.isEmpty(selectedIds)) {
+            return Collections.emptyList();
         }
 
-        return Optional.of(selectedId);
+        // 批量降低被选中 ID 的权重
+        for (String selectedId : selectedIds) {
+            Double newScore = zSetOps.incrementScore(zsetKey, selectedId, -10.0);
+            if (newScore != null && newScore < 1.0) {
+                zSetOps.add(zsetKey, selectedId, 1.0); // 权重不低于1
+            }
+        }
+
+        return selectedIds;
     }
 
     /**

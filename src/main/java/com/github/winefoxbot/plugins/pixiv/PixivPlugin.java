@@ -40,6 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.tomcat.util.buf.StringUtils;
 import org.jobrunr.scheduling.cron.Cron;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.util.CollectionUtils;
 
 import javax.net.ssl.SSLHandshakeException;
 import java.io.File;
@@ -703,7 +704,7 @@ public class PixivPlugin {
     }
 
 
-    @Limit(globalPermits = 20, userPermits = 3 , timeInSeconds = 3)
+    @Limit(globalPermits = 20, userPermits = 3, timeInSeconds = 3)
     @Async
     @PluginFunction(name = "鼠鼠の收藏",
             description = "从鼠鼠的收藏夹中随机抽取一张作品，发送 \"鼠鼠的收藏\" 命令即可获得~",
@@ -719,6 +720,7 @@ public class PixivPlugin {
         Long groupId = event.getGroupId();
         String numStr = matcher.group(1);
         int num = NumberParserUtil.parseCount(numStr);
+
         if (num < 1 || num > 5) {
             String msg = (num == -1)
                     ? "数量解析失败，请使用数字或中文数字表示正确的数量哦~，图片数量必须在1-5之间"
@@ -728,23 +730,53 @@ public class PixivPlugin {
         }
 
         try {
-            for (int i = 0; i < num; i++) {
-                // 1. 随机获取一个收藏
-                Optional<PixivBookmark> bookmarkOptional = pixivBookmarkService.getRandomBookmark(userId,groupId);
-                if (bookmarkOptional.isEmpty()) {
-                    bot.sendMsg(event, "收藏夹是空的哦，还没法抽卡呢~", false);
-                    return; // 收藏夹为空，直接退出
-                }
-                PixivBookmark bookmark = bookmarkOptional.get();
-                String pid = bookmark.getId();
-                // 2. 获取作品的详细信息
-                PixivArtworkInfo pixivArtworkInfo = pixivService.getPixivArtworkInfo(pid);
-                // 3. 异步下载图片文件
-                List<File> files = pixivService.fetchImages(pid).join();
-                // 4. 调用统一的发送服务
-                pixivArtworkService.sendArtwork(pixivArtworkInfo, files, null);
-                log.info("用户 [{}] 的随机收藏发送完成，作品ID: {}。", event.getUserId(), pid);
+            List<PixivBookmark> bookmarks = pixivBookmarkService.getRandomBookmarks(userId, groupId, num);
+            if (CollectionUtils.isEmpty(bookmarks)) {
+                bot.sendMsg(event, "收藏夹是空的哦，还没法抽卡呢~", false);
+                return;
             }
+
+            // 分类 SFW 和 R18
+            List<Map.Entry<PixivArtworkInfo, List<File>>> sfwArtworks = new ArrayList<>();
+            List<Map.Entry<PixivArtworkInfo, List<File>>> r18Artworks = new ArrayList<>();
+
+            // 使用 CompletableFuture 并行处理所有图片的获取
+            List<CompletableFuture<Void>> futures = bookmarks.stream().map(bookmark -> {
+                String pid = bookmark.getId();
+                return CompletableFuture.runAsync(() -> {
+                    try {
+                        PixivArtworkInfo info = pixivService.getPixivArtworkInfo(pid);
+                        List<File> files = pixivService.fetchImages(pid).join();
+                        if (info.getIsR18()) {
+                            synchronized (r18Artworks) {
+                                r18Artworks.add(new AbstractMap.SimpleEntry<>(info, files));
+                            }
+                        } else {
+                            synchronized (sfwArtworks) {
+                                sfwArtworks.add(new AbstractMap.SimpleEntry<>(info, files));
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.error("获取作品 {} 信息或图片失败", pid, e);
+                    }
+                });
+            }).toList();
+
+            // 等待所有图片处理完成
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+            // 统一发送 SFW 内容
+            if (!sfwArtworks.isEmpty()) {
+                pixivArtworkService.sendArtworks(sfwArtworks, null);
+            }
+
+            // 独立发送 R18 内容
+            for (Map.Entry<PixivArtworkInfo, List<File>> entry : r18Artworks) {
+                pixivArtworkService.sendArtwork(entry.getKey(), entry.getValue(), null);
+            }
+
+            log.info("用户 [{}] 的 {} 个随机收藏发送完成。SFW: {}, R18: {}", event.getUserId(), num, sfwArtworks.size(), r18Artworks.size());
+
         } catch (Exception e) {
             log.error("网络异常，获取随机收藏失败: {}", e.getMessage(), e);
             throw new BotException("获取随机收藏失败");

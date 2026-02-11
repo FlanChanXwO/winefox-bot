@@ -51,6 +51,15 @@ public interface PixivBookmarkService extends IService<PixivBookmark> {
     Optional<PixivBookmark> getRandomBookmark(Long userId, Long groupId);
 
     /**
+     * 根据用户和群组的配置，随机获取多个收藏作品。
+     * @param userId 用户ID
+     * @param groupId 群组ID
+     * @param count 获取数量
+     * @return 随机作品的列表
+     */
+    List<PixivBookmark> getRandomBookmarks(Long userId, Long groupId, int count);
+
+    /**
      * 添加单个作品到收藏夹
      * @param illustId 作品ID
      * @param restrict 0: 公开, 1: 私人(非公开)
