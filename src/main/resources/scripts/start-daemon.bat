@@ -1,14 +1,36 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: ===================== 配置区 =====================
-set "JAVA_OPTS=-Xms400m -Xmx800m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=.\logs\heapdump.hprof -Djava.io.tmpdir=.\tmp -Dfile.encoding=UTF-8 -Dspring.profiles.active=prod"
-:: ====================================================
+:: ===================== 防重锁配置 =====================
+set "LOCK_FILE=daemon.lock"
 
+:: 尝试锁定文件 (Stream 9)
+:: 如果锁定失败 (||)，说明已经有实例在运行
+(
+    call :main_logic
+) 9> "%LOCK_FILE%" || (
+    color 4f
+    echo.
+    echo ==========================================
+    echo [ERROR] 程序已经在运行了！(Found Lock File)
+    echo ==========================================
+    echo 请检查任务栏是否已有 CMD 窗口，或在任务管理器中结束 cmd.exe。
+    echo.
+    pause
+    exit /b 1
+)
+:: 运行结束退出
+goto :eof
+:: ==========================================================
+
+
+:: ===================== 原有逻辑封装在标签内 =====================
+:main_logic
+:: --- 原有配置区 ---
+set "JAVA_OPTS=-Xms400m -Xmx800m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=.\logs\heapdump.hprof -Djava.io.tmpdir=.\tmp -Dfile.encoding=UTF-8 -Dspring.profiles.active=prod"
 set "JAR_PATH=winefox-bot.jar"
 set "TEMP_JAR_PATH=update-temp.jar"
 set "TEMP_LIB_PATH=update-lib.zip"
-:: [新增] 定义资源包路径
 set "TEMP_RES_PATH=update-resources.zip"
 set "UPDATE_EXIT_CODE=5"
 
@@ -28,7 +50,6 @@ echo Timestamp: %date% %time%
 echo =======================================================
 echo.
 
-:: 检查 JAR 是否存在
 if not exist "%JAR_PATH%" (
     echo [FATAL ERROR] JAR file "%JAR_PATH%" not found!
     echo Please rename your jar to "%JAR_PATH%" or update the script.
@@ -48,10 +69,11 @@ echo Timestamp: %date% %time%
 echo =======================================================
 echo.
 
-:: 正常退出检测 (Code 0)
+:: 正常退出 (Code 0)
 if "!EXIT_CODE!" == "0" (
     echo [INFO] Application exited normally. Stopping daemon.
-    goto :eof
+    :: 注意：在 call 内部要用 exit /b 来退出函数，而不是关闭窗口
+    exit /b 0
 )
 
 :: 检查更新码
@@ -71,7 +93,6 @@ if exist "%TEMP_JAR_PATH%" (
 
 if exist "%TEMP_LIB_PATH%" (
     echo [UPDATE] Found Lib update. Extracting...
-    :: 使用 tar 解压
     tar -xf "%TEMP_LIB_PATH%"
     if !errorlevel! == 0 (
         echo [SUCCESS] Libs extracted. Deleting zip...
@@ -81,14 +102,11 @@ if exist "%TEMP_LIB_PATH%" (
     )
 )
 
-:: [新增] 处理资源文件更新逻辑
 if exist "%TEMP_RES_PATH%" (
     echo [UPDATE] Found Resources update. Extracting...
-    :: 使用 tar 解压覆盖
     tar -xf "%TEMP_RES_PATH%"
     if !errorlevel! == 0 (
         echo [SUCCESS] Resources extracted. Deleting zip...
-        :: [关键] 只有解压成功才删除文件，防止文件堆积
         del "%TEMP_RES_PATH%"
     ) else (
         echo [ERROR] Failed to extract resources.zip
@@ -100,4 +118,5 @@ echo [INFO] Looping back to restart the application in 3 seconds...
 timeout /t 3 /nobreak > nul
 goto main_loop
 
-endlocal
+:: 结束标签
+exit /b 0

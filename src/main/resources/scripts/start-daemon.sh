@@ -1,5 +1,26 @@
 #!/bin/bash
 
+# 定义锁文件路径
+LOCK_FILE="./daemon.lock"
+
+# 检查锁文件是否存在
+if [ -f "$LOCK_FILE" ]; then
+    OLD_PID=$(cat "$LOCK_FILE")
+    # 检查该PID的进程是否真的在运行，并且是否是本脚本
+    if kill -0 "$OLD_PID" 2>/dev/null; then
+        echo "[ERROR] Daemon is already running with PID $OLD_PID."
+        echo "Please stop the existing daemon first."
+        exit 1
+    fi
+    # 如果锁文件存在但进程不存在（上次意外退出残留），则继续执行
+    echo "[WARN] Found stale lock file. Overwriting..."
+fi
+
+# 将当前脚本的 PID 写入锁文件
+echo $$ > "$LOCK_FILE"
+
+trap 'rm -f "$LOCK_FILE"; exit' INT TERM EXIT
+
 # ===================== 配置区 =====================
 # Java 启动参数
 JAVA_OPTS="-Xms400m -Xmx800m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=./logs/heapdump.hprof -Djava.io.tmpdir=./tmp -Dfile.encoding=UTF-8 -Dspring.profiles.active=prod"
