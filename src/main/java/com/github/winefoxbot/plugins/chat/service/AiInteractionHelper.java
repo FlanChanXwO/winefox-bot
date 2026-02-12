@@ -2,11 +2,14 @@ package com.github.winefoxbot.plugins.chat.service;
 
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
+import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
 import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.model.entity.ShiroUserMessage;
 import com.github.winefoxbot.core.model.enums.common.MessageDirection;
 import com.github.winefoxbot.core.util.BotUtil;
 import com.github.winefoxbot.core.util.MessageConverter;
+import com.github.winefoxbot.plugins.chat.config.ChatAiPluginConfig;
+import com.github.winefoxbot.plugins.chat.config.WineFoxBotChatProperties;
 import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
@@ -25,6 +28,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AiInteractionHelper {
 
+    private final WineFoxBotChatProperties wineFoxBotChatProperties;
+
     @Data
     public static class AiMessageInput {
         private String textContent; // 格式化后的文本
@@ -34,6 +39,19 @@ public class AiInteractionHelper {
             this.textContent = textContent;
             this.imageUrls = imageUrls;
         }
+    }
+
+    private boolean isImageAnalysisEnabled() {
+        if (BotContext.CURRENT_PLUGIN_CONFIN.isBound()) {
+            BasePluginConfig config = BotContext.CURRENT_PLUGIN_CONFIN.get();
+            if (config instanceof ChatAiPluginConfig) {
+                Boolean enable = ((ChatAiPluginConfig) config).getEnableImageAnalysis();
+                if (enable != null) {
+                    return enable;
+                }
+            }
+        }
+        return wineFoxBotChatProperties.getEnableImageAnalysis();
     }
 
     /**
@@ -76,8 +94,8 @@ public class AiInteractionHelper {
         String finalContent;
         if (isBotMessage) {
             // 当酒狐自身发送的消息包含图片时，需要按照 Prompt 的要求进行特殊处理
-            if (!imageUrls.isEmpty()) {
-                String systemText = "[System: 这是上一条酒狐发送的图片，请知悉]";
+            if (!imageUrls.isEmpty() && isImageAnalysisEnabled()) {
+                String systemText = "[System: 酒狐发送的图片]";
                 // 如果原始消息只有图片（rawText被设置为"[图片]"），则直接使用系统文本
                 if ("[图片]".equals(rawText)) {
                     finalContent = systemText;
