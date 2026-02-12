@@ -237,7 +237,7 @@ public class GitHubUpdateServiceImpl implements GitHubUpdateService {
             try {
                 Thread.sleep(1000); // 给消息发送留出时间
                 log.info(">>>>>>>>> 触发重启流程 (Exit Code: {}) <<<<<<<<<", RESTART_EXIT_CODE);
-                System.exit(SpringApplication.exit(context, () -> RESTART_EXIT_CODE));
+                System.exit(RESTART_EXIT_CODE);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.error("重启线程被中断", e);

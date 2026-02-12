@@ -6,12 +6,11 @@ import com.github.winefoxbot.core.annotation.plugin.Plugin;
 import com.github.winefoxbot.core.annotation.plugin.PluginFunction;
 import com.github.winefoxbot.core.model.enums.common.Permission;
 import com.github.winefoxbot.core.service.reply.VoiceReplyService;
-import com.github.winefoxbot.core.service.shiro.ShiroMessagesService;
+import com.github.winefoxbot.plugins.chat.config.ChatAiPluginConfig;
 import com.github.winefoxbot.plugins.chat.service.AiInteractionHelper;
 import com.github.winefoxbot.plugins.chat.service.AiInteractionHelper.AiMessageInput;
-import com.github.winefoxbot.plugins.chat.service.OpenAiService;
+import com.github.winefoxbot.plugins.chat.service.ChatAiService;
 import com.mikuac.shiro.annotation.*;
-import com.mikuac.shiro.annotation.common.Order;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
@@ -40,14 +39,14 @@ import static com.mikuac.shiro.core.BotPlugin.MESSAGE_IGNORE;
         name = "聊天功能",
         permission = Permission.USER,
         description = "提供群聊和私聊的智能聊天功能，支持戳一戳互动。",
+        config = ChatAiPluginConfig.class,
         order = 6)
-@ConditionalOnClass(OpenAiService.class)
+@ConditionalOnClass(ChatAiService.class)
 @Slf4j
 @RequiredArgsConstructor
 public class ChatPlugin {
 
-    private final OpenAiService openAiService;
-    private final ShiroMessagesService shiroMessagesService;
+    private final ChatAiService chatAiService;
     private final VoiceReplyService voiceReplyService;
     private final AiInteractionHelper aiInteractionHelper;
 
@@ -76,7 +75,7 @@ public class ChatPlugin {
     @MessageHandlerFilter(types = {MsgTypeEnum.text, MsgTypeEnum.image},at = AtEnum.NEED, cmd = "^(?!/)(?!\\s+$).+")
     public void handleChatMessage(Bot bot, AnyMessageEvent event) {
         AiMessageInput userMsg = aiInteractionHelper.createChatMessageInput(event);
-        String resp = openAiService.complete(userMsg);
+        String resp = chatAiService.complete(userMsg);
         if (resp != null && !resp.isEmpty()) {
             MsgUtils msgBuilder = MsgUtils.builder().at(event.getUserId()).text(StringUtils.SPACE).text(resp);
             bot.sendMsg(event, msgBuilder.build(), false);
@@ -186,7 +185,7 @@ public class ChatPlugin {
         Long userId = event.getUserId();
         Long groupId = event.getGroupId();
         AiMessageInput pokeInput = aiInteractionHelper.createPokeMessageInput(isPokingBack);
-        String aiReply = openAiService.complete(pokeInput);
+        String aiReply = chatAiService.complete(pokeInput);
 
         if (aiReply != null && !aiReply.isEmpty()) {
             if (isGroup) {

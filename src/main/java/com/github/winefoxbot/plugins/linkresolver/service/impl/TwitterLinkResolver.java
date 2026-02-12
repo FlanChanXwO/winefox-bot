@@ -152,7 +152,7 @@ public class TwitterLinkResolver implements LinkResolverService {
                 }
 
                 Path cardPath = cardGenerator.generateCard(
-                        authorName, "@" + authorHandle, avatarUrl, rawText, cardImageUrls, dateStr,
+                        authorName, "@" + authorHandle, avatarUrl,null, rawText, cardImageUrls, dateStr,
                         stats, "twitter", isSensitive, firstImageAspectRatio, videoUrl != null, "twitter-card-" + tweetId + ".png"
                 );
 

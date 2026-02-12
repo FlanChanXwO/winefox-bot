@@ -1,22 +1,23 @@
 package com.github.winefoxbot.plugins.chat.service.impl;
 
+import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
 import com.github.winefoxbot.core.context.BotContext;
 import com.github.winefoxbot.core.model.entity.ShiroUserMessage;
 import com.github.winefoxbot.core.model.enums.common.MessageDirection;
 import com.github.winefoxbot.core.model.enums.common.MessageType;
 import com.github.winefoxbot.core.service.shiro.ShiroMessagesService;
 import com.github.winefoxbot.core.util.BotUtil;
+import com.github.winefoxbot.plugins.chat.config.ChatAiPluginConfig;
 import com.github.winefoxbot.plugins.chat.config.WineFoxBotChatProperties;
 import com.github.winefoxbot.plugins.chat.service.AiInteractionHelper;
 import com.github.winefoxbot.plugins.chat.service.AiInteractionHelper.AiMessageInput;
-import com.github.winefoxbot.plugins.chat.service.OpenAiService;
+import com.github.winefoxbot.plugins.chat.service.ChatAiService;
 import com.mikuac.shiro.common.utils.MessageConverser;
 import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.action.common.ActionData;
 import com.mikuac.shiro.dto.action.response.MsgResp;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
-import com.mikuac.shiro.dto.event.message.MessageEvent;
 import com.mikuac.shiro.enums.MsgTypeEnum;
 import com.mikuac.shiro.model.ArrayMsg;
 import lombok.RequiredArgsConstructor;
@@ -28,12 +29,14 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.content.Media;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-import org.springframework.core.io.UrlResource;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MimeTypeUtils;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
+import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -47,7 +50,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @RequiredArgsConstructor
 @ConditionalOnBean(ChatClient.class)
-public class OpenAiServiceImpl implements OpenAiService {
+public class ChatAiServiceImpl implements ChatAiService {
     private final ChatClient chatClient;
     private final ShiroMessagesService shiroMessagesService;
     private final AiInteractionHelper aiInteractionHelper;
@@ -160,8 +163,21 @@ public class OpenAiServiceImpl implements OpenAiService {
         }
     }
 
+    private boolean isImageAnalysisEnabled() {
+        if (BotContext.CURRENT_PLUGIN_CONFIN.isBound()) {
+            BasePluginConfig config = BotContext.CURRENT_PLUGIN_CONFIN.get();
+            if (config instanceof ChatAiPluginConfig) {
+                Boolean enable = ((ChatAiPluginConfig) config).getEnableImageAnalysis();
+                if (enable != null) {
+                    return enable;
+                }
+            }
+        }
+        return wineFoxBotChatProperties.getEnableImageAnalysis();
+    }
+
     private List<String> getFreshImageUrls(ShiroUserMessage shiroMsg, Bot bot) {
-        if (!wineFoxBotChatProperties.getEnableImageAnalysis()) {
+        if (isImageAnalysisEnabled()) {
             return Collections.emptyList();
         }
 
@@ -213,22 +229,36 @@ public class OpenAiServiceImpl implements OpenAiService {
     /**
      * 将 URL 字符串列表转换为 Spring AI 的 Media 对象列表。
      * <p>
-     * 此实现现在使用 {@link UrlResource} 将图片 URL 直接传递给 AI。
-     * 对于支持此功能的模型（如 GPT-4-Vision），这比先下载图片效率高得多，
-     * 因为它避免了在我们的服务中进行网络 I/O 和数据处理。
+     * 此方法会下载每个 URL 指向的图片。为了避免因服务器端策略（如检查 User-Agent）
+     * 导致的 'Connection reset' 错误，这里手动建立连接并设置了浏览器 User-Agent。
+     * Spring AI 的 {@code Media(Resource)} 构造函数会立即读取资源内容，
+     * 因此这里的显式下载与之前的隐式下载行为一致，但更健壮。
      *
      * @param imageUrls 图片的 URL 列表
-     * @return Spring AI 的 {@link Media} 对象列表
+     * @return Spring AI 的 {@link Media} 对象列表，下载失败的图片将被跳过。
      */
     private List<Media> convertUrlsToMedia(List<String> imageUrls) {
+        if (isImageAnalysisEnabled()) {
+            return Collections.emptyList();
+        }
+
         if (imageUrls == null || imageUrls.isEmpty()) {
             return Collections.emptyList();
         }
 
         return imageUrls.stream().map(url -> {
             try {
-                return Optional.of(new Media(MimeTypeUtils.IMAGE_JPEG, new UrlResource(url)));
+                URLConnection connection = new URL(url).openConnection();
+                // Set a browser-like user-agent to avoid "Connection reset" from image hosts.
+                connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36");
+                connection.setConnectTimeout(5000); // 5 seconds
+                connection.setReadTimeout(15000); // 15 seconds
+                try (InputStream inputStream = connection.getInputStream()) {
+                    byte[] imageBytes = inputStream.readAllBytes();
+                    return Optional.of(new Media(MimeTypeUtils.IMAGE_JPEG, new ByteArrayResource(imageBytes)));
+                }
             } catch (IOException e) {
+                log.error("Failed to download or process image from URL: {}", url, e);
                 return Optional.<Media>empty();
             }
         }).filter(Optional::isPresent).map(Optional::get).collect(Collectors.toList());

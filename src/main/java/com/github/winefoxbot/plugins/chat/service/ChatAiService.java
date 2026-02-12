@@ -4,7 +4,7 @@ package com.github.winefoxbot.plugins.chat.service;
  * @author FlanChan (badapple495@outlook.com)
  * @since 2025-12-09-17:22
  */
-public interface OpenAiService {
+public interface ChatAiService {
 
     /**
      * 发送消息给 AI 进行补全

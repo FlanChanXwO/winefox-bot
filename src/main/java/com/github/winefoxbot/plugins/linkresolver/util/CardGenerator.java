@@ -37,19 +37,20 @@ public class CardGenerator {
     private static final int AVATAR_SIZE = 120;
     private static final int FONT_SIZE_NAME = 40;
     private static final int FONT_SIZE_ID = 30;
+    private static final int FONT_SIZE_TITLE = 40; // 新增标题字体大小
     private static final int FONT_SIZE_TEXT = 36;
     private static final int FONT_SIZE_FOOTER = 28;
 
     private static final Color BG_COLOR = new Color(255, 255, 255);
-    private static final Color TEXT_COLOR = new Color(30, 30, 30);
-    private static final Color SUB_TEXT_COLOR = new Color(100, 100, 100);
+    private static final Color NAME_COLOR = new Color(0, 0, 0);
+    private static final Color TITLE_COLOR = new Color(0, 0, 0); // 新增标题颜色
+    private static final Color TEXT_COLOR = new Color(51, 51, 51);
+    private static final Color SUB_TEXT_COLOR = new Color(153, 153, 153);
     private static final Color BORDER_COLOR = new Color(230, 230, 230);
     private static final int BLUR_RADIUS = 60;
 
     private static final String ICON_PATH = "assets/linkresolver/icon/";
-
     private static final String PLATFORM_ICON_PATH = "assets/linkresolver/platform/";
-
     private static final String FONT_NAME = "Noto Sans SC Regular";
 
     private final OkHttpClient httpClient;
@@ -63,11 +64,12 @@ public class CardGenerator {
         private String text;
     }
 
-    public Path generateCard(String name, String subName, String avatarUrl, String text,
-                                      List<String> imageUrls, String dateStr,
-                                      List<CardStatistic> statistics,
-                                      String platform, boolean isSensitive, double singleImageAspectRatio, boolean hasVideo,
-                                      String cacheKey) {
+    // 修改 generateCard 方法签名，增加 title 参数
+    public Path generateCard(String name, String subName, String avatarUrl, String title, String text,
+                             List<String> imageUrls, String dateStr,
+                             List<CardStatistic> statistics,
+                             String platform, boolean isSensitive, double singleImageAspectRatio, boolean hasVideo,
+                             String cacheKey) {
         try {
             BufferedImage dummy = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
             Graphics2D gDummy = dummy.createGraphics();
@@ -76,12 +78,21 @@ public class CardGenerator {
             int contentWidth = WIDTH - (PADDING * 2);
             int currentY = PADDING + AVATAR_SIZE + 20;
 
+            // 1. 计算标题高度
+            if (title != null && !title.isEmpty()) {
+                gDummy.setFont(new Font(FONT_NAME, Font.BOLD, FONT_SIZE_TITLE));
+                int titleHeight = calculateTextHeight(gDummy, title, contentWidth);
+                currentY += titleHeight + 20; // 标题和正文之间的间距
+            }
+
+            // 2. 计算正文高度
             if (text != null && !text.isEmpty()) {
                 gDummy.setFont(new Font(FONT_NAME, Font.PLAIN, FONT_SIZE_TEXT));
                 int textHeight = calculateTextHeight(gDummy, text, contentWidth);
                 currentY += textHeight + 30;
             }
 
+            // 3. 计算图片区域高度
             int imagesHeight = 0;
             if (imageUrls != null && !imageUrls.isEmpty()) {
                 if (imageUrls.size() == 1) {
@@ -97,14 +108,20 @@ public class CardGenerator {
                 currentY += imagesHeight + 30;
             }
 
+            // 4. 动态计算统计数据区域高度
+            int statsHeight = 0;
             if (statistics != null && !statistics.isEmpty()) {
-                currentY += 60;
+                gDummy.setFont(new Font(FONT_NAME, Font.PLAIN, FONT_SIZE_FOOTER));
+                // 预留分割线高度 + 统计区域高度
+                statsHeight = 40 + calculateStatisticsHeight(gDummy, statistics, contentWidth);
+                currentY += statsHeight;
             } else {
                 currentY += 20;
             }
 
             int totalHeight = currentY + PADDING;
 
+            // --- 开始绘制 ---
             BufferedImage image = new BufferedImage(WIDTH, totalHeight, BufferedImage.TYPE_INT_ARGB);
             Graphics2D g = image.createGraphics();
             initGraphics(g);
@@ -114,6 +131,7 @@ public class CardGenerator {
 
             int drawY = PADDING;
 
+            // 绘制头像
             BufferedImage avatar = fetchImage(avatarUrl);
             if (avatar == null) {
                 g.setColor(Color.LIGHT_GRAY);
@@ -128,20 +146,32 @@ public class CardGenerator {
                 g.draw(circle);
             }
 
-            g.setColor(TEXT_COLOR);
+            // 绘制名字
+            g.setColor(NAME_COLOR);
             g.setFont(new Font(FONT_NAME, Font.BOLD, FONT_SIZE_NAME));
             g.drawString(name, PADDING + AVATAR_SIZE + 30, drawY + 50);
 
+            // 绘制副标题（ID/时间）
             g.setColor(SUB_TEXT_COLOR);
             g.setFont(new Font(FONT_NAME, Font.PLAIN, FONT_SIZE_ID));
             String subInfo = subName;
             if (dateStr != null) subInfo += " · " + dateStr;
             g.drawString(subInfo, PADDING + AVATAR_SIZE + 30, drawY + 100);
 
+            // 绘制平台图标
             drawPlatformIcon(g, platform, drawY);
 
             drawY += AVATAR_SIZE + 30;
 
+            // 绘制标题
+            if (title != null && !title.isEmpty()) {
+                g.setColor(TITLE_COLOR);
+                g.setFont(new Font(FONT_NAME, Font.BOLD, FONT_SIZE_TITLE));
+                drawY = drawWrappedText(g, title, PADDING, drawY, contentWidth);
+                drawY += 20;
+            }
+
+            // 绘制正文
             if (text != null && !text.isEmpty()) {
                 g.setColor(TEXT_COLOR);
                 g.setFont(new Font(FONT_NAME, Font.PLAIN, FONT_SIZE_TEXT));
@@ -149,23 +179,26 @@ public class CardGenerator {
                 drawY += 30;
             }
 
+            // 绘制图片网格
             if (imageUrls != null && !imageUrls.isEmpty()) {
                 drawImages(g, imageUrls, PADDING, drawY, contentWidth, imagesHeight, isSensitive, hasVideo);
                 drawY += imagesHeight + 30;
             }
 
+            // 绘制统计数据
             if (statistics != null && !statistics.isEmpty()) {
                 g.setColor(BORDER_COLOR);
                 g.drawLine(PADDING, drawY, WIDTH - PADDING, drawY);
-                drawY += 40;
+                drawY += 40; // 分割线后的间距
 
                 g.setColor(SUB_TEXT_COLOR);
                 g.setFont(new Font(FONT_NAME, Font.PLAIN, FONT_SIZE_FOOTER));
-                drawStatistics(g, statistics, PADDING, drawY + 10);
+                drawStatistics(g, statistics, PADDING, drawY + 10, contentWidth);
             }
 
             g.dispose();
 
+            // 保存文件逻辑
             File tempDir = new File(linkResolverConfig.getTmpPath());
             if (!tempDir.exists()) {
                 tempDir.mkdirs();
@@ -186,27 +219,77 @@ public class CardGenerator {
             return null;
         }
     }
-    private void drawStatistics(Graphics2D g, List<CardStatistic> stats, int x, int y) {
-        int currentX = x;
+
+    // --- 新增：计算统计数据区域的高度 ---
+    private int calculateStatisticsHeight(Graphics2D g, List<CardStatistic> stats, int maxWidth) {
+        if (stats == null || stats.isEmpty()) return 0;
+
+        FontMetrics fm = g.getFontMetrics();
+        int iconSize = 32;
+        int gap = 15; // 图标和文字的间距
+        int itemGap = 40; // 项目之间的间距
+        int lineHeight = Math.max(iconSize, fm.getHeight()) + 20; // 行高（增加纵向间距）
+
+        int currentX = 0;
+        int rows = 1;
+
+        for (CardStatistic stat : stats) {
+            int textWidth = (stat.getText() != null) ? fm.stringWidth(stat.getText()) : 0;
+            // 计算当前这个统计项所需的总宽度 (图标 + 间距 + 文字)
+            int itemWidth = iconSize + gap + textWidth;
+
+            // 如果当前行放不下这个项目，换行
+            if (currentX + itemWidth > maxWidth) {
+                rows++;
+                currentX = 0;
+            }
+
+            currentX += itemWidth + itemGap;
+        }
+
+        return rows * lineHeight;
+    }
+
+    // --- 修改：绘制统计数据（支持换行） ---
+    private void drawStatistics(Graphics2D g, List<CardStatistic> stats, int startX, int startY, int maxWidth) {
+        int currentX = startX;
+        int currentY = startY;
+
         int iconSize = 32;
         int gap = 15;
         int itemGap = 40;
+        int lineHeight = Math.max(iconSize, g.getFontMetrics().getHeight()) + 20;
 
         for (CardStatistic stat : stats) {
+            int textWidth = (stat.getText() != null) ? g.getFontMetrics().stringWidth(stat.getText()) : 0;
+            int itemWidth = iconSize + gap + textWidth;
+
+            // 检查是否需要换行 (currentX 加上当前项宽度 是否超过 边界)
+            // 注意：startX 是左边距，maxWidth 是内容区域宽度
+            if (currentX - startX + itemWidth > maxWidth) {
+                currentX = startX;
+                currentY += lineHeight;
+            }
+
+            // 绘制图标
             if (stat.getIconName() != null) {
-                try (InputStream is = DynamicResourceLoader.getInputStream(ICON_PATH  + stat.getIconName())) {
+                try (InputStream is = DynamicResourceLoader.getInputStream(ICON_PATH + stat.getIconName())) {
                     if (is != null) {
                         BufferedImage icon = ImageIO.read(is);
-                        g.drawImage(icon, currentX, y - iconSize + 4, iconSize, iconSize, null);
-                        currentX += iconSize + gap;
+                        // icon 稍微垂直居中调整
+                        g.drawImage(icon, currentX, currentY - iconSize + 4, iconSize, iconSize, null);
                     }
                 } catch (Exception ignored) {}
             }
 
+            // 绘制文字
             if (stat.getText() != null) {
-                g.drawString(stat.getText(), currentX, y);
-                currentX += g.getFontMetrics().stringWidth(stat.getText()) + itemGap;
+                // 文字的位置 = 当前X + 图标 + 间距
+                g.drawString(stat.getText(), currentX + iconSize + gap, currentY);
             }
+
+            // 移动X到下一个项目位置
+            currentX += itemWidth + itemGap;
         }
     }
 
@@ -276,6 +359,7 @@ public class CardGenerator {
         if (img != null && blur) return blurImage(img);
         return img;
     }
+
     private BufferedImage blurImage(BufferedImage source) {
         if (BLUR_RADIUS <= 0) return source;
         int radius = Math.max(1, BLUR_RADIUS);

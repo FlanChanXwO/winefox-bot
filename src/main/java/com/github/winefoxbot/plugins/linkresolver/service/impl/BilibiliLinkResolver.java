@@ -175,7 +175,7 @@ public class BilibiliLinkResolver implements LinkResolverService {
                     imageUrls.add(cover);
 
                     Path cardPath = cardGenerator.generateCard(
-                            upName, dateStr, upFace, title + "\n\n" + summary, imageUrls,
+                            upName, dateStr, upFace, title, summary, imageUrls,
                             null, statistics, "bilibili", false, 16.0 / 9.0, true, "bili-card-" + cvid + ".png");
 
                     if (cardPath != null) {
