@@ -71,6 +71,8 @@ public class CorePlugin {
     }
 
 
+
+
     /**
      * 查看版本
      */
@@ -81,7 +83,6 @@ public class CorePlugin {
                     COMMAND_PREFIX + "version" + COMMAND_SUFFIX,
                     COMMAND_PREFIX + "当前版本" + COMMAND_SUFFIX
             }
-            // 此处未指定permission，将继承 @Plugin 中定义的 Permission.USER
     )
     @AnyMessageHandler
     @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(version|当前版本)" + COMMAND_SUFFIX_REGEX)
@@ -103,6 +104,23 @@ public class CorePlugin {
             msg = "获取版本信息失败: " + e.getMessage();
         }
         bot.sendMsg(event, msg, false);
+    }
+
+    /**
+     * 查看版本
+     */
+    @PluginFunction(
+            name = "获取关于信息",
+            description = "获取关于信息，项目地址等信息",
+            commands = {
+                    COMMAND_PREFIX + "about" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "关于" + COMMAND_SUFFIX
+            }
+    )
+    @AnyMessageHandler
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(about|关于)" + COMMAND_SUFFIX_REGEX)
+    public void getAbout(Bot bot, AnyMessageEvent event) {
+        bot.sendMsg(event, "单人开发不易，欢迎PR和提issue~ ，项目地址：https://github.com/FlanChanXwO/winefox-bot", false);
     }
 
     /**
@@ -180,12 +198,13 @@ public class CorePlugin {
             description = "从GitHub下载并更新到最新版本",
             commands = {
                     COMMAND_PREFIX + "update" + COMMAND_SUFFIX,
-                    COMMAND_PREFIX + "更新版本" + COMMAND_SUFFIX
+                    COMMAND_PREFIX + "更新版本" + COMMAND_SUFFIX,
+                    COMMAND_PREFIX + "更新" + COMMAND_SUFFIX
             },
             permission = Permission.SUPERADMIN // 覆盖插件默认权限
     )
     @AnyMessageHandler
-    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(update|更新版本)" + COMMAND_SUFFIX_REGEX)
+    @MessageHandlerFilter(types = MsgTypeEnum.text, cmd = COMMAND_PREFIX_REGEX + "(update|更新(版本)?)" + COMMAND_SUFFIX_REGEX)
     public void updateVersion(Bot bot, AnyMessageEvent event) {
         try {
             updateService.performUpdate(bot,event);
