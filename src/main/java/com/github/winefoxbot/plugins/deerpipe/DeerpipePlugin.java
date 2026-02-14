@@ -63,7 +63,7 @@ public class DeerpipePlugin {
     public void setOtherHelpStatus(Bot bot, GroupMessageEvent event, Matcher matcher) {
         List<Long> atList = ShiroUtils.getAtList(event.getArrayMsg());
         if (atList.isEmpty()) return;
-        String command = matcher.group(2);
+        String command = matcher.group(1);
         boolean allow = command.matches("开|on");
         List<String> logs = new ArrayList<>();
 
