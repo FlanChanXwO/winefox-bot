@@ -55,7 +55,7 @@ public class SexNyanRunApiService implements SetuImageProvider {
         // 如果有关键词，映射到 keywords 参数（支持模糊搜索标题、作者、标签）
         if (!keywords.isEmpty()) {
             for (String keyword : keywords) {
-                urlBuilder.addQueryParameter("keywords", keyword);
+                urlBuilder.addQueryParameter("tag", keyword);
             }
         }
         String requestUrl = urlBuilder.build().toString();
