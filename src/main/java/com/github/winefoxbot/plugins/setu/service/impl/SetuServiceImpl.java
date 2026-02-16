@@ -158,7 +158,7 @@ public class SetuServiceImpl implements SetuService {
         String beanName;
         // 1. 如果代码明确指定了 API 类型，优先使用
         // 2. 否则使用配置的默认 API 类型
-        beanName = Objects.requireNonNullElse(apiType, SetuApiType.LOLICON).getValue();
+        beanName = Objects.requireNonNullElse(apiType, SetuApiType.SEX_NYAN).getValue();
 
         SetuImageProvider provider = providerMap.get(beanName);
         if (provider == null) {
