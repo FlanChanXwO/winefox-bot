@@ -11,6 +11,7 @@ import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.core.BotContainer;
 import com.mikuac.shiro.dto.action.common.ActionData;
 import com.mikuac.shiro.dto.action.common.MsgId;
+import com.mikuac.shiro.dto.action.response.GroupMemberInfoResp;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.client.WebSocketClient;
@@ -175,7 +176,11 @@ public class GsuidCoreClient extends WebSocketClient {
                 }
                 if (msgIdActionData.isPresent()) {
                     MsgId msgId = msgIdActionData.get().getData();
-                    log.debug("[gsuid] 消息发送成功，消息ID: {}", msgId.getMessageId());
+                    if (msgId != null) {
+                        log.debug("[gsuid] 消息发送成功，消息ID: {}", msgId.getMessageId());
+                    } else {
+                        log.warn("[gsuid] 消息发送成功但无法获取消息ID");
+                    }
                 } else {
                     log.warn("[gsuid] 消息发送失败");
                 }
@@ -206,10 +211,27 @@ public class GsuidCoreClient extends WebSocketClient {
                 break;
             case "at":
                 try {
+                    long atId;
                     if (node.getData() instanceof String) {
-                        builder.at(Long.parseLong((String) node.getData()));
+                        atId = Long.parseLong((String) node.getData());
                     } else if (node.getData() instanceof Number) {
-                        builder.at(((Number) node.getData()).longValue());
+                        atId = ((Number) node.getData()).longValue();
+                    } else {
+                        log.warn("[gsuid] Invalid at target data type: {}", node.getData() != null ? node.getData().getClass().getName() : "null");
+                        break;
+                    }
+
+                    if ("group".equals(targetType)) {
+                        long groupId = Long.parseLong(targetId);
+                        // 检查用户是否在群里, 如果不在则不发送@
+                        ActionData<GroupMemberInfoResp> memberInfo = bot.getGroupMemberInfo(groupId, atId, false);
+                        if (memberInfo != null && memberInfo.getData() != null) {
+                            builder.at(atId);
+                        } else {
+                            log.warn("[gsuid] User {} is not in group {}, skipping at.", atId, groupId);
+                        }
+                    } else {
+                        builder.at(atId);
                     }
                 } catch (NumberFormatException e) {
                     log.warn("[gsuid] Invalid at target: {}", node.getData());
