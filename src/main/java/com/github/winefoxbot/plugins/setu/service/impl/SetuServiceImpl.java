@@ -10,8 +10,8 @@ import com.github.winefoxbot.core.util.ImageObfuscator;
 import com.github.winefoxbot.core.model.dto.SendMsgResult;
 import com.github.winefoxbot.core.util.*;
 import com.github.winefoxbot.plugins.setu.config.SetuPluginConfig;
-import com.github.winefoxbot.plugins.setu.enums.AdultContentMode;
-import com.github.winefoxbot.plugins.setu.enums.ContentSendMode;
+import com.github.winefoxbot.plugins.setu.model.enums.AdultContentMode;
+import com.github.winefoxbot.plugins.setu.model.enums.ContentSendMode;
 import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.action.common.ActionData;
@@ -81,18 +81,18 @@ public class SetuServiceImpl implements SetuService {
 
     @Override
     public void handleSetuRequest(int num, List<String> tags) {
-        processInternal(num, tags, null, null);
+        processInternal(num, tags, null);
     }
 
     @Override
-    public void handleSetuRequest(int num, List<String> tags, Map<String, Object> extraParams, SetuApiType apiType) {
-        processInternal(num, tags, extraParams, apiType);
+    public void handleSetuRequest(int num, List<String> tags, Map<String, Object> extraParams) {
+        processInternal(num, tags, extraParams);
     }
 
     /**
      * 内部核心处理逻辑
      */
-    private void processInternal(int targetNum, List<String> tags, Map<String, Object> extraParams, SetuApiType apiType) {
+    private void processInternal(int targetNum, List<String> tags, Map<String, Object> extraParams) {
         SetuPluginConfig setuConfig = (SetuPluginConfig) BotContext.CURRENT_PLUGIN_CONFIN.get();
 
         // 1. 获取内容模式配置
@@ -103,7 +103,7 @@ public class SetuServiceImpl implements SetuService {
         boolean isR18 = determineR18Flag(contentMode);
 
         // 2. 确定使用哪个 Provider
-        SetuImageProvider provider = selectProvider(apiType);
+        SetuImageProvider provider = selectProvider(setuConfig.getApiType());
         log.info("开始获取图片任务: Provider={}, tags={}, targetNum={}, mode={} (R18={})",
                 provider.getClass().getSimpleName(), tags, targetNum, contentMode, isR18);
 

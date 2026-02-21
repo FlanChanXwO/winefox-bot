@@ -4,8 +4,9 @@ import com.github.winefoxbot.core.annotation.plugin.ConfigItem;
 import com.github.winefoxbot.core.annotation.plugin.PluginConfig;
 import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
 import com.github.winefoxbot.core.manager.ConfigManager;
-import com.github.winefoxbot.plugins.setu.enums.AdultContentMode;
-import com.github.winefoxbot.plugins.setu.enums.ContentSendMode;
+import com.github.winefoxbot.plugins.setu.model.enums.AdultContentMode;
+import com.github.winefoxbot.plugins.setu.model.enums.ContentSendMode;
+import com.github.winefoxbot.plugins.setu.model.enums.SetuApiType;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -16,6 +17,14 @@ import lombok.EqualsAndHashCode;
 @Data
 @PluginConfig(prefix = "setu" ,scopes = {ConfigManager.Scope.GLOBAL, ConfigManager.Scope.GROUP, ConfigManager.Scope.USER})
 public class SetuPluginConfig extends BasePluginConfig {
+
+    @ConfigItem(
+            key = "api.type",
+            label = "API类型",
+            description = "色图API类型",
+            defaultValue = "sexNyanRunApiService"
+    )
+    private SetuApiType apiType;
 
     @ConfigItem(
             key = "content.mode",

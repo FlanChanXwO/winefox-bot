@@ -1,4 +1,4 @@
-package com.github.winefoxbot.plugins.setu.enums;
+package com.github.winefoxbot.plugins.setu.model.enums;
 
 import com.baomidou.mybatisplus.annotation.EnumValue;
 import com.fasterxml.jackson.annotation.JsonCreator;

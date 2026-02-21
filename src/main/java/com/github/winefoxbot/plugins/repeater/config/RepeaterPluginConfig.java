@@ -4,8 +4,6 @@ import com.github.winefoxbot.core.annotation.plugin.ConfigItem;
 import com.github.winefoxbot.core.annotation.plugin.PluginConfig;
 import com.github.winefoxbot.core.config.plugin.BasePluginConfig;
 import com.github.winefoxbot.core.manager.ConfigManager;
-import com.github.winefoxbot.plugins.setu.enums.AdultContentMode;
-import com.github.winefoxbot.plugins.setu.enums.ContentSendMode;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 

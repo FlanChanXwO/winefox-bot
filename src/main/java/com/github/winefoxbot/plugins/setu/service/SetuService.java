@@ -21,16 +21,8 @@ public interface SetuService {
     /**
      * 核心处理方法
      *
-     * @param apiType 指定使用的 API 策略，如果为 null 则使用默认
      * @param extraParams 额外参数
      */
-    void handleSetuRequest(int num, List<String> tag, Map<String, Object> extraParams, SetuApiType apiType);
+    void handleSetuRequest(int num, List<String> tag, Map<String, Object> extraParams);
 
-
-    /**
-     * 兼容调用的重载（指定额外参数，默认 API）
-     */
-    default void handleSetuRequest(int num, List<String> tag, Map<String, Object> extraParams) {
-        handleSetuRequest(num, tag, extraParams, null);
-    }
 }

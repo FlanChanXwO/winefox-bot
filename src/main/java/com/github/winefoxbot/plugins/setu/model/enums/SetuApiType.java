@@ -35,6 +35,6 @@ public enum SetuApiType implements BaseEnum<String> {
                 return type;
             }
         }
-        return LOLICON;
+        return SEX_NYAN;
     }
 }
