@@ -183,18 +183,14 @@ winefoxbot:
       auto-refresh-jrys: true
       # 自定义 API 配置示例 (以 lolicon 为例，但通过 custom 配置)
       custom-api:
-        url: "https://api.lolicon.app/setu/v2"
+        url: "https:/sex.nyan.run/api/v2/"
         response-type: JSON
-        json-path: "$.data[0].urls.original"
+        json-path: "$.data[0].url"
         params:
           static-params:
             - key: "num"
               value: "1"
             - key: "r18"
-              value: "0" # 强制非 R18
-            - key: "excludeAI"
-              value: "true"
-            - key: "size"
-              value: "original"
+              value: "false" # 强制非 R18
     gsuid:
       super-users: ${winefox.robot.superusers}

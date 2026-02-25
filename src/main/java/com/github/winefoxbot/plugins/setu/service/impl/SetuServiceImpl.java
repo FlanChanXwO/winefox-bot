@@ -398,13 +398,14 @@ public class SetuServiceImpl implements SetuService {
             List<Map<String, Object>> forwardNodes = ShiroUtils.generateForwardMsg(bot, msgList);
             // 发送
             ActionData<MsgId> result = bot.sendForwardMsg(event, forwardNodes);
-            if (result.getRetCode() != 0) {
-                 throw new RuntimeException("合并转发发送失败");
+            if (result == null || !"ok".equalsIgnoreCase(result.getStatus())) {
+                log.warn("合并转发发送失败，响应: {}", result);
+                throw new RuntimeException("合并转发发送失败");
             }
             log.info("SFW 合并转发发送成功");
 
         } catch (Exception e) {
-            if (e instanceof SocketTimeoutException || e.getCause() instanceof SocketTimeoutException) {
+            if (e.getCause() instanceof SocketTimeoutException) {
                 log.warn("合并转发发送超时，可能已发送成功，不再重试: {}", e.getMessage());
                 return;
             }
@@ -420,8 +421,9 @@ public class SetuServiceImpl implements SetuService {
                 }
                 List<Map<String, Object>> retryNodes = ShiroUtils.generateForwardMsg(bot, retryMsgList);
                 ActionData<MsgId> retryResult = bot.sendForwardMsg(event, retryNodes);
-                if (retryResult.getRetCode() != 0) {
-                    throw new RuntimeException("混淆后合并转发依然失败，RetCode=" + retryResult.getRetCode());
+                if (retryResult == null || !"ok".equalsIgnoreCase(retryResult.getStatus())) {
+                    log.warn("混淆后合并转发依然失败，响应: {}", retryResult);
+                    throw new RuntimeException("混淆后合并转发依然失败");
                 }
                 log.info("SFW 混淆合并转发发送成功");
 
