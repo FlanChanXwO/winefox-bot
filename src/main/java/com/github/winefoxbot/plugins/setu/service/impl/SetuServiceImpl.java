@@ -405,32 +405,35 @@ public class SetuServiceImpl implements SetuService {
             log.info("SFW 合并转发发送成功");
 
         } catch (Exception e) {
-            if (e.getCause() instanceof SocketTimeoutException) {
-                log.warn("合并转发发送超时，可能已发送成功，不再重试: {}", e.getMessage());
-                return;
-            }
-            log.warn("合并转发发送异常，尝试混淆后重发", e);
-            try {
-                // 混淆并重试转发
-                List<Path> obfuscatedPaths = imageObfuscator.wrap(downloadedPaths);
-                if (obfuscatedPaths.isEmpty()) throw new RuntimeException("混淆失败");
-
-                List<String> retryMsgList = new ArrayList<>();
-                for (Path path : obfuscatedPaths) {
-                    retryMsgList.add(MsgUtils.builder().img(path.toUri().toString()).build());
-                }
-                List<Map<String, Object>> retryNodes = ShiroUtils.generateForwardMsg(bot, retryMsgList);
-                ActionData<MsgId> retryResult = bot.sendForwardMsg(event, retryNodes);
-                if (retryResult == null || !"ok".equalsIgnoreCase(retryResult.getStatus())) {
-                    log.warn("混淆后合并转发依然失败，响应: {}", retryResult);
-                    throw new RuntimeException("混淆后合并转发依然失败");
-                }
-                log.info("SFW 混淆合并转发发送成功");
-
-            } catch (Exception ex) {
-                log.error("混淆合并转发终极失败", ex);
-                throw new BusinessException(e.getMessage());
-            }
+//            if (e.getCause() instanceof SocketTimeoutException) {
+//                log.warn("合并转发发送超时，可能已发送成功，不再重试: {}", e.getMessage());
+//                return;
+//            }
+//            log.warn("合并转发发送异常，尝试混淆后重发", e);
+//            try {
+//                // 混淆并重试转发
+//                List<Path> obfuscatedPaths = imageObfuscator.wrap(downloadedPaths);
+//                if (obfuscatedPaths.isEmpty()) throw new RuntimeException("混淆失败");
+//
+//                List<String> retryMsgList = new ArrayList<>();
+//                for (Path path : obfuscatedPaths) {
+//                    retryMsgList.add(MsgUtils.builder().img(path.toUri().toString()).build());
+//                }
+//                List<Map<String, Object>> retryNodes = ShiroUtils.generateForwardMsg(bot, retryMsgList);
+//                ActionData<MsgId> retryResult = bot.sendForwardMsg(event, retryNodes);
+//                if (retryResult == null || !"ok".equalsIgnoreCase(retryResult.getStatus())) {
+//                    log.warn("混淆后合并转发依然失败，响应: {}", retryResult);
+//                    throw new RuntimeException("混淆后合并转发依然失败");
+//                }
+//                log.info("SFW 混淆合并转发发送成功");
+//
+//            } catch (Exception ex) {
+//                log.error("混淆合并转发终极失败", ex);
+//                throw new BusinessException(e.getMessage());
+//            }
+//
+//            log.error("混淆合并转发终极失败", ex);
+            throw new BusinessException(e.getMessage());
         }
     }
 
